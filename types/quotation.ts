@@ -15,6 +15,9 @@ export interface QuotationCustomer {
   email: string;
   projectName: string;
   siteAddress: string;
+   city?: string;
+  state?: string;
+  pincode?: string;
 }
 
 export interface AccessoryOption {
@@ -138,4 +141,7 @@ export interface Quotation {
   attachments: { id: string; name: string; type: string }[];
   history: TimelineEntry[];
   revisions: QuotationRevision[];
+  date?: string;
+opportunity?: string;
+contactPhone?: string;
 }

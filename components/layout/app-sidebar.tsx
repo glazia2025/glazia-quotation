@@ -15,6 +15,7 @@ import {
   Truck,
   Wrench
 } from "lucide-react";
+import { Settings } from "lucide-react";
 
 import { cn } from "@/utils/cn";
 
@@ -22,13 +23,8 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { href: "/crm/leads", label: "CRM", icon: ContactRound },
   { href: "/quotations", label: "Quotations", icon: ClipboardPenLine },
-  { href: "/survey", label: "Survey", icon: ScanSearch },
-  { href: "/orders", label: "Orders", icon: FileSpreadsheet },
-  { href: "/production", label: "Production", icon: Factory },
-  { href: "/inventory", label: "Inventory", icon: Package },
-  { href: "/dispatch", label: "Dispatch", icon: Truck },
-  { href: "/installation", label: "Installation", icon: Wrench },
-  { href: "/invoices", label: "Invoices", icon: ReceiptText }
+  { href: "/settings", label: "Global settings", icon: Settings },
+ 
 ];
 
 export function AppSidebar() {

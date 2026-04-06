@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState,useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,6 +38,11 @@ import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotatio
 import { calculateQuotationTotals, getArea, getItemGrandTotal, getPerimeter } from "@/modules/quotation/utils/calculations";
 import type { QuotationItem } from "@/types/quotation";
 import { formatCurrency, formatNumber } from "@/utils/format";
+import { useRouter } from "next/navigation";
+import axios from "axios";
+import { API_BASE_URL } from "@/services/api";
+import { loadGlobalConfig } from "../../../utils/globalConfig";
+
 
 const customerSchema = z.object({
   customerName: z.string().min(2),
@@ -48,16 +53,74 @@ const customerSchema = z.object({
   siteAddress: z.string().min(3)
 });
 
-type TabKey = "customer" | "items" | "pricing" | "terms" | "attachments" | "history";
+type TabKey = "customer" | "quotation" | "global"|"item";
 
 const tabs: { key: TabKey; label: string }[] = [
-  { key: "customer", label: "Customer Info" },
-  { key: "items", label: "Items" },
-  { key: "pricing", label: "Pricing Summary" },
-  { key: "terms", label: "Terms & Notes" },
-  { key: "attachments", label: "Attachments" },
-  { key: "history", label: "History / Versions" }
+  { key: "customer", label: "Customer Details" },
+  { key: "quotation", label: "Quotation Details" },
+  { key: "global", label: "Global Config" },
+  { key: "item", label: "Item List" },
+ 
+  
 ];
+function ItemCard() {
+  return (
+    <div className="bg-white rounded-2xl shadow-md border p-4 space-y-4 hover:shadow-lg transition">
+
+      {/* IMAGE PLACEHOLDER */}
+      <div className="w-full h-30 border-2 border-dashed rounded-lg flex items-center justify-center text-gray-400">
+         <img
+    src="/images/image.png"
+    alt="item"
+    className="w-full h-full object-cover"
+  />
+      </div>
+
+      {/* REF CODE */}
+      <div className="flex justify-between text-sm">
+        <span className="text-gray-500">Ref Code</span>
+        <span className="font-semibold">W2-1</span>
+      </div>
+
+      {/* LOCATION */}
+      <div className="flex justify-between text-sm">
+        <span className="text-gray-500">Location</span>
+        <span className="font-medium text-right">
+          Floor: GF &gt; Kitchen-Gf
+        </span>
+      </div>
+
+
+      {/*SYSTEM */}
+      <div className="flex justify-between text-sm">
+        <span className="text-gray-500">System</span>
+        <span className="font-medium">Casement</span>
+      </div>
+
+      {/*DESCRIPTION */}
+      <div className="text-sm">
+        <span className="text-gray-500">Description</span>
+        <p className="font-medium mt-1">
+          Left-Open windoow
+        </p>
+      </div>
+
+      {/*GLASS */}
+      <div className="flex justify-between items-center text-sm">
+        <span className="text-gray-500">Glass</span>
+        <span className="bg-green-100 text-green-600 px-2 py-1 rounded-full text-xs font-semibold">
+          Yes
+        </span>
+      </div>
+
+      <div className="flex justify-between items-center pt-3 border-t">
+  <button className="px-4 py-2 bg-[#124657] text-white rounded-lg text-sm font-semibold hover:bg-[#0b3642] transition">
+    Edit Quotation
+  </button>
+</div>
+    </div>
+  );
+}
 
 function QuotationPreview({ item }: { item: QuotationItem | undefined }) {
   if (!item) return null;
@@ -84,469 +147,614 @@ function QuotationPreview({ item }: { item: QuotationItem | undefined }) {
     </div>
   );
 }
+// const handleSave = async () => {
+//   const payload = {
+//     quotationDetails: quotation,
+//     customerDetails: quotation.customer,
+//     items: quotation.items,
+//     globalConfig: globalConfig,
+//   };
 
-function ItemsTab() {
-  const { quotation, selectedItemId, addItem, duplicateItem, removeItem, selectItem, updateItem } = useQuotationBuilderStore();
-  const item = quotation.items.find((entry) => entry.id === selectedItemId) ?? quotation.items[0];
+//   try {
+//     await axios.post(
+//       `${API_BASE_URL}/api/quotations`,
+//       payload,
+//       {
+//         headers: {
+//           Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+//         },
+//       }
+//     );
 
-  const series = getSeries(item.material);
-  const designs = getDesigns(item.series);
-  const openings = getOpenings(item.designType);
-
-  const handleItemUpdate = <K extends keyof QuotationItem>(key: K, value: QuotationItem[K]) => {
-    updateItem(item.id, {
-      [key]: value,
-      previewPanels:
-        key === "designType" && typeof value === "string" && value.includes("3 Panel")
-          ? 3
-          : key === "designType" && typeof value === "string" && value.includes("4")
-            ? 4
-            : item.previewPanels
-    } as Partial<QuotationItem>);
-  };
-
+//     alert("Saved successfully ");
+//   } catch (err) {
+//     console.error(err);
+//     alert("Error saving ");
+//   }
+// };
+function ItemTab() {
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.42fr_0.58fr]">
-      <Card className="border-0 bg-white/90">
-        <CardHeader className="flex-row items-center justify-between">
-          <div>
-            <CardTitle>Configured Items</CardTitle>
-            <CardDescription>Build quotation lines with pricing-ready configuration.</CardDescription>
-          </div>
-          <Button size="sm" onClick={addItem}>
-            <Plus className="h-4 w-4" />
-            Add item
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {quotation.items.map((entry, index) => (
-            <button
-              key={entry.id}
-              onClick={() => selectItem(entry.id)}
-              className={`w-full rounded-2xl border p-4 text-left transition ${
-                entry.id === item.id ? "border-slate-950 bg-slate-950 text-white" : "border-slate-100 bg-slate-50 hover:bg-slate-100"
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-xs uppercase tracking-[0.24em] opacity-70">Item {index + 1}</div>
-                  <div className="mt-1 font-medium">{entry.projectLocation}</div>
-                </div>
-                <Badge variant={entry.id === item.id ? "success" : "outline"}>{entry.productType}</Badge>
-              </div>
-              <div className="mt-3 text-sm opacity-80">
-                {entry.material} | {entry.series}
-              </div>
-            </button>
-          ))}
-        </CardContent>
-      </Card>
-      <Card className="border-0 bg-white/90">
-        <CardHeader className="flex-row items-center justify-between">
-          <div>
-            <CardTitle>Item Builder</CardTitle>
-            <CardDescription>Use the full-page configurator for uninterrupted product setup, then return to pricing and approval.</CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" asChild>
-              <Link href={`/quotations/new/configurator/${item.id}`}>
-                <Expand className="h-4 w-4" />
-                Open Configurator
-              </Link>
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => duplicateItem(item.id)}>
-              <Copy className="h-4 w-4" />
-              Duplicate
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => removeItem(item.id)}>
-              <Trash2 className="h-4 w-4" />
-              Remove
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-2">
-                <div className="text-sm font-semibold text-slate-900">Recommended workflow</div>
-                <div className="max-w-2xl text-sm text-slate-600">
-                  Configure material, series, design, openings, dimensions, and accessories in the dedicated full-page workspace. This quotation tab stays focused on item list management and quick commercial checks.
-                </div>
-              </div>
-              <Button asChild>
-                <Link href={`/quotations/new/configurator/${item.id}`}>
-                  Launch Full Configurator
-                  <Expand className="h-4 w-4" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Project / Location">
-              <Input value={item.projectLocation} onChange={(event) => handleItemUpdate("projectLocation", event.target.value)} />
-            </Field>
-            <Field label="Product Type">
-              <Select
-                value={item.productType}
-                onChange={(event) => handleItemUpdate("productType", event.target.value)}
-                options={[
-                  { label: "Window", value: "Window" },
-                  { label: "Door", value: "Door" },
-                  { label: "Facade", value: "Facade" }
-                ]}
-              />
-            </Field>
-            <Field label="Material">
-              <Select
-                value={item.material}
-                onChange={(event) => {
-                  const material = event.target.value;
-                  const nextSeries = getSeries(material)[0] ?? "";
-                  const nextDesign = getDesigns(nextSeries)[0] ?? "";
-                  handleItemUpdate("material", material);
-                  updateItem(item.id, {
-                    series: nextSeries,
-                    designType: nextDesign,
-                    openingType: getOpenings(nextDesign)[0] ?? ""
-                  });
-                }}
-                options={materials.map((material) => ({ label: material, value: material }))}
-              />
-            </Field>
-            <Field label="Series">
-              <Select value={item.series} onChange={(event) => handleItemUpdate("series", event.target.value)} options={series.map((seriesItem) => ({ label: seriesItem, value: seriesItem }))} />
-            </Field>
-            <Field label="Design Type">
-              <Select
-                value={item.designType}
-                onChange={(event) => {
-                  const designType = event.target.value;
-                  handleItemUpdate("designType", designType);
-                  updateItem(item.id, {
-                    openingType: getOpenings(designType)[0] ?? item.openingType,
-                    previewPanels: designType.includes("3 Panel") ? 3 : designType.includes("2 Panel") ? 2 : 1
-                  });
-                }}
-                options={designs.map((design) => ({ label: design, value: design }))}
-              />
-            </Field>
-            <Field label="Opening Type">
-              <Select value={item.openingType} onChange={(event) => handleItemUpdate("openingType", event.target.value)} options={openings.map((opening) => ({ label: opening, value: opening }))} />
-            </Field>
-            <Field label="Width (inches)">
-              <Input type="number" value={item.width} onChange={(event) => handleItemUpdate("width", Number(event.target.value))} />
-            </Field>
-            <Field label="Height (inches)">
-              <Input type="number" value={item.height} onChange={(event) => handleItemUpdate("height", Number(event.target.value))} />
-            </Field>
-            <Field label="Quantity">
-              <Input type="number" value={item.quantity} onChange={(event) => handleItemUpdate("quantity", Number(event.target.value))} />
-            </Field>
-            <Field label="Glass Type">
-              <Select value={item.glassType} onChange={(event) => handleItemUpdate("glassType", event.target.value)} options={glassTypes.map((glass) => ({ label: glass, value: glass }))} />
-            </Field>
-            <Field label="Color / Finish">
-              <Select value={item.colorFinish} onChange={(event) => handleItemUpdate("colorFinish", event.target.value)} options={finishes.map((finish) => ({ label: finish, value: finish }))} />
-            </Field>
-            <Field label="System Type">
-              <Select
-                value={item.systemType ?? item.openingType}
-                onChange={(event) => handleItemUpdate("systemType", event.target.value)}
-                options={[
-                  { label: "Casement", value: "Casement" },
-                  { label: "Sliding", value: "Sliding" },
-                  { label: "Slide N Fold", value: "Slide N Fold" },
-                  { label: "Fixed", value: "Fixed" }
-                ]}
-              />
-            </Field>
-            <Field label="Rate / Sq.ft">
-              <Input type="number" value={item.rate} onChange={(event) => handleItemUpdate("rate", Number(event.target.value))} />
-            </Field>
-          </div>
-          <div className="space-y-3">
-            <Label>Accessories</Label>
-            <div className="grid gap-3 md:grid-cols-2">
-              {accessoryCatalog.map((accessory) => {
-                const active = item.accessories.includes(accessory.id);
-                return (
-                  <button
-                    key={accessory.id}
-                    onClick={() =>
-                      handleItemUpdate(
-                        "accessories",
-                        active
-                          ? item.accessories.filter((entry) => entry !== accessory.id)
-                          : [...item.accessories, accessory.id]
-                      )
-                    }
-                    className={`rounded-2xl border p-3 text-left transition ${
-                      active ? "border-teal-700 bg-teal-50" : "border-slate-200 bg-white hover:bg-slate-50"
-                    }`}
-                  >
-                    <div className="font-medium text-slate-900">{accessory.name}</div>
-                    <div className="mt-1 text-xs text-slate-500">
-                      {formatCurrency(accessory.rate)} / {accessory.unit}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <Field label="Special Notes">
-            <Textarea value={item.specialNotes} onChange={(event) => handleItemUpdate("specialNotes", event.target.value)} />
-          </Field>
-          <QuotationPreview item={item} />
-        </CardContent>
-      </Card>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <ItemCard />
+      <ItemCard />
+      <ItemCard />
     </div>
   );
 }
-
 function CustomerTab() {
   const customer = useQuotationBuilderStore((state) => state.quotation.customer);
   const updateCustomer = useQuotationBuilderStore((state) => state.updateCustomer);
-  const form = useForm({
-    resolver: zodResolver(customerSchema),
-    values: customer
-  });
+
+  const [expanded, setExpanded] = useState(true);
 
   return (
-    <Card className="border-0 bg-white/90">
-      <CardHeader>
-        <CardTitle>Customer Information</CardTitle>
-        <CardDescription>Tenant-scoped customer, project, and site details used in the quotation and PDF output.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4 md:grid-cols-2">
-        {(
-          [
-            ["customerName", "Customer Name"],
-            ["contactPerson", "Contact Person"],
-            ["phone", "Phone"],
-            ["email", "Email"],
-            ["projectName", "Project Name"]
-          ] as const
-        ).map(([key, label]) => (
-          <Field key={key} label={label}>
-            <Input
-              {...form.register(key)}
-              value={customer[key]}
-              onChange={(event) => updateCustomer(key, event.target.value)}
-            />
-          </Field>
-        ))}
-        <Field label="Site Address" className="md:col-span-2">
-          <Textarea
-            {...form.register("siteAddress")}
-            value={customer.siteAddress}
-            onChange={(event) => updateCustomer("siteAddress", event.target.value)}
-          />
-        </Field>
-      </CardContent>
-    </Card>
-  );
-}
+    <div className="bg-white rounded-2xl shadow-sm border border-black-200 p-6">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="mb-6 flex w-full items-center justify-between text-left"
+      >
+        <h2 className="text-xl font-bold text-gray-900">Customer Details</h2>
+        {expanded ? (
+          <span>▲</span>
+        ) : (
+          <span>▼</span>
+        )}
+      </button>
 
-function PricingTab() {
-  const quotation = useQuotationBuilderStore((state) => state.quotation);
-  const taxPercent = useQuotationBuilderStore((state) => state.taxPercent);
-  const globalDiscount = useQuotationBuilderStore((state) => state.globalDiscount);
-  const totals = useMemo(
-    () => calculateQuotationTotals(quotation.items, taxPercent, globalDiscount),
-    [globalDiscount, quotation.items, taxPercent]
-  );
-  const { can } = useRbac();
-  const setPricingMeta = useQuotationBuilderStore((state) => state.setPricingMeta);
+      {expanded && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-  return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-      <Card className="border-0 bg-white/90">
-        <CardHeader>
-          <CardTitle>Item Pricing Breakdown</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {quotation.items.map((item) => (
-            <div key={item.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium text-slate-900">{item.projectLocation}</div>
-                  <div className="text-sm text-slate-500">
-                    {formatNumber(getArea(item))} sq.ft x {item.quantity}
-                  </div>
-                </div>
-                <div className="text-right font-semibold text-slate-900">{formatCurrency(getItemGrandTotal(item))}</div>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-      <Card className="border-0 bg-slate-950 text-white">
-        <CardHeader>
-          <CardTitle>Commercials</CardTitle>
-          <CardDescription className="text-slate-300">Overrides are permission controlled at the UI level.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Field label="Tax (%)" dark>
-            <Input
-              type="number"
-              disabled={!can("quotations.override_pricing")}
-              value={taxPercent}
-              onChange={(event) => setPricingMeta(Number(event.target.value), globalDiscount)}
-            />
-          </Field>
-          <Field label="Global Discount" dark>
-            <Input
-              type="number"
-              disabled={!can("quotations.override_pricing")}
-              value={globalDiscount}
-              onChange={(event) => setPricingMeta(taxPercent, Number(event.target.value))}
-            />
-          </Field>
-          <Separator className="bg-white/10" />
-          <PriceRow label="Subtotal" value={totals.subtotal} />
-          <PriceRow label="Accessories" value={totals.accessoriesTotal} />
-          <PriceRow label="Labor" value={totals.laborTotal} />
-          <PriceRow label="Transport" value={totals.transportTotal} />
-          <PriceRow label="Discount" value={-totals.discountTotal} />
-          <PriceRow label="Taxable" value={totals.taxableAmount} />
-          <PriceRow label="Tax" value={totals.taxTotal} />
-          <Separator className="bg-white/10" />
-          <PriceRow label="Grand Total" value={totals.grandTotal} emphasized />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function TermsTab() {
-  const { quotation, updateQuotationField } = useQuotationBuilderStore();
-
-  return (
-    <div className="grid gap-6 xl:grid-cols-2">
-      <Card className="border-0 bg-white/90">
-        <CardHeader>
-          <CardTitle>Terms</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Textarea value={quotation.terms} onChange={(event) => updateQuotationField("terms", event.target.value)} className="min-h-[280px]" />
-        </CardContent>
-      </Card>
-      <Card className="border-0 bg-white/90">
-        <CardHeader>
-          <CardTitle>Internal Notes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Textarea value={quotation.internalNotes} onChange={(event) => updateQuotationField("internalNotes", event.target.value)} className="min-h-[280px]" />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function AttachmentsTab() {
-  const attachments = useQuotationBuilderStore((state) => state.quotation.attachments);
-
-  return (
-    <Card className="border-0 bg-white/90">
-      <CardHeader>
-        <CardTitle>Attachments</CardTitle>
-        <CardDescription>Supporting drawings, compliance files, and measurement references.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4 md:grid-cols-2">
-        {attachments.map((attachment) => (
-          <div key={attachment.id} className="rounded-2xl border border-dashed border-slate-300 p-4">
-            <div className="font-medium text-slate-900">{attachment.name}</div>
-            <div className="mt-2 text-sm text-slate-500">{attachment.type}</div>
-          </div>
-        ))}
-        <div className="flex min-h-40 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500">
-          Upload area placeholder
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function HistoryTab() {
-  const { quotation, addRevision, rollbackToRevision } = useQuotationBuilderStore();
-  const compareSummary = useMemo(() => {
-    const [latest, previous] = quotation.revisions;
-    if (!latest || !previous) return "No prior revision available for comparison.";
-    return `Latest ${latest.version} changed total by ${formatCurrency(
-      latest.snapshotTotals.grandTotal - previous.snapshotTotals.grandTotal
-    )} versus ${previous.version}.`;
-  }, [quotation.revisions]);
-
-  return (
-    <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-      <Card className="border-0 bg-white/90">
-        <CardHeader className="flex-row items-center justify-between">
+          {/* Customer Name */}
           <div>
-            <CardTitle>Revision Timeline</CardTitle>
-            <CardDescription>{compareSummary}</CardDescription>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Customer Name
+            </label>
+            <input
+              type="text"
+              value={customer.customerName}
+              onChange={(e) =>
+                updateCustomer("customerName", e.target.value)
+              }
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            />
           </div>
-          <Button size="sm" onClick={() => addRevision("Commercial adjustments captured")}>
-            <FileClock className="h-4 w-4" />
-            Create Revision
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {quotation.revisions.map((revision) => (
-            <div key={revision.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium text-slate-900">{revision.version}</div>
-                  <div className="text-sm text-slate-500">{revision.summary}</div>
-                </div>
-                <Button size="sm" variant="outline" onClick={() => rollbackToRevision(revision.id)}>
-                  <RotateCcw className="h-4 w-4" />
-                  Rollback
-                </Button>
-              </div>
-              <div className="mt-3 text-xs text-slate-500">
-                {revision.by} | {formatDistanceToNow(new Date(revision.at), { addSuffix: true })}
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-      <Card className="border-0 bg-slate-950 text-white">
-        <CardHeader>
-          <CardTitle>Activity History</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {quotation.history.map((entry) => (
-            <div key={entry.id} className="rounded-2xl bg-white/5 p-4">
-              <div className="font-medium">{entry.title}</div>
-              <div className="mt-1 text-sm text-slate-300">{entry.description}</div>
-              <div className="mt-2 text-xs text-slate-400">
-                {entry.by} | {formatDistanceToNow(new Date(entry.at), { addSuffix: true })}
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+
+          {/* Email */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={customer.email}
+              onChange={(e) =>
+                updateCustomer("email", e.target.value)
+              }
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+
+          {/* Phone */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Phone Number
+            </label>
+            <input
+              type="tel"
+              value={customer.phone}
+              onChange={(e) =>
+                updateCustomer("phone", e.target.value)
+              }
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+
+          {/* Address */}
+          <div className="md:col-span-3">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Address
+            </label>
+            <textarea
+              value={customer.siteAddress}
+              onChange={(e) =>
+                updateCustomer("siteAddress", e.target.value)
+              }
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+
+          {/* City */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              City
+            </label>
+            <input
+              type="text"
+              value={customer.city || ""}
+              onChange={(e) =>
+                updateCustomer("city", e.target.value)
+              }
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+
+          {/* State */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              State
+            </label>
+            <input
+              type="text"
+              value={customer.state || ""}
+              onChange={(e) =>
+                updateCustomer("state", e.target.value)
+              }
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+
+          {/* Pincode */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              PIN Code
+            </label>
+            <input
+              type="text"
+              value={customer.pincode || ""}
+              onChange={(e) =>
+                updateCustomer("pincode", e.target.value)
+              }
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+
+        </div>
+      )}
     </div>
   );
 }
+function GlobalConfigTab({  globalConfig,
+  setGlobalConfig,
+  logoPreview,
+  handleLogoUpload
+}: any) {
+  const [expanded, setExpanded] = useState(true);
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-black-200 p-6">
+
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="mb-6 flex w-full items-center justify-between text-left"
+      >
+        <h2 className="text-xl font-bold text-gray-900">Global Config</h2>
+        {expanded ? <span>▲</span> : <span>▼</span>}
+      </button>
+
+      {expanded && (
+        <>
+          <div className="mb-6 flex justify-end">
+            <a href="/quotations/settings" className="text-sm text-[#124657]">
+              Manage
+            </a>
+          </div>
+
+          {/* LOGO */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <div>
+              <label className="block text-sm mb-2">Logo</label>
+
+              {logoPreview && (
+                <div className="mb-4 flex gap-4">
+                  <img src={logoPreview} className="h-16 border p-2" />
+                  <button
+                    onClick={() =>
+                      setGlobalConfig((p:any) => ({ ...p, logo: "", logoUrl: "" }))
+                    }
+                    className="text-red-600 text-sm"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+
+              <input
+                type="file"
+                onChange={(e) =>
+                  handleLogoUpload(e.target.files?.[0] || null)
+                }
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm mb-2">Prerequisites</label>
+              <textarea
+                value={globalConfig.prerequisites}
+                onChange={(e) =>
+                  setGlobalConfig((p:any) => ({
+                    ...p,
+                    prerequisites: e.target.value,
+                  }))
+                }
+                 rows={3}
+  className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm mb-2">Website</label>
+              <input
+                value={globalConfig.website}
+                onChange={(e) =>
+                  setGlobalConfig((p:any) => ({
+                    ...p,
+                    website: e.target.value,
+                  }))
+                }
+                 
+  className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-transparent"
+              />
+            </div>
+          </div>
+
+
+          {/* TERMS */}
+          <div className="mt-6">
+            <label>Terms</label>
+            <textarea
+              value={globalConfig.terms}
+              onChange={(e) =>
+                setGlobalConfig((p:any) => ({
+                  ...p,
+                  terms: e.target.value,
+                }))
+              }
+               rows={3}
+  className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-transparent"
+            />
+          </div>
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+
+  {/* INSTALLATION */}
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Installation (₹/sqft)
+    </label>
+
+    <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
+      <input
+        type="checkbox"
+        checked={globalConfig.additionalCosts.showInstallation ?? true}
+        onChange={(e) =>
+          setGlobalConfig((p: any) => ({
+            ...p,
+            additionalCosts: {
+              ...p.additionalCosts,
+              showInstallation: e.target.checked,
+            },
+          }))
+        }
+      />
+      <span>Show in PDF</span>
+    </label>
+
+    <input
+      type="number"
+      value={globalConfig.additionalCosts.installation}
+      onChange={(e) =>
+        setGlobalConfig((p: any) => ({
+          ...p,
+          additionalCosts: {
+            ...p.additionalCosts,
+            installation: Number(e.target.value) || 0,
+          },
+        }))
+      }
+      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+    />
+  </div>
+
+  {/* TRANSPORT */}
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Transport (₹)
+    </label>
+
+    <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
+      <input
+        type="checkbox"
+        checked={globalConfig.additionalCosts.showTransport ?? true}
+        onChange={(e) =>
+          setGlobalConfig((p: any) => ({
+            ...p,
+            additionalCosts: {
+              ...p.additionalCosts,
+              showTransport: e.target.checked,
+            },
+          }))
+        }
+      />
+      <span>Show in PDF</span>
+    </label>
+
+    <input
+      type="number"
+      value={globalConfig.additionalCosts.transport}
+      onChange={(e) =>
+        setGlobalConfig((p: any) => ({
+          ...p,
+          additionalCosts: {
+            ...p.additionalCosts,
+            transport: Number(e.target.value) || 0,
+          },
+        }))
+      }
+      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+    />
+  </div>
+
+  {/* LOADING */}
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Loading & Unloading (₹)
+    </label>
+
+    <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
+      <input
+        type="checkbox"
+        checked={globalConfig.additionalCosts.showLoadingUnloading ?? true}
+        onChange={(e) =>
+          setGlobalConfig((p: any) => ({
+            ...p,
+            additionalCosts: {
+              ...p.additionalCosts,
+              showLoadingUnloading: e.target.checked,
+            },
+          }))
+        }
+      />
+      <span>Show in PDF</span>
+    </label>
+
+    <input
+      type="number"
+      value={globalConfig.additionalCosts.loadingUnloading}
+      onChange={(e) =>
+        setGlobalConfig((p: any) => ({
+          ...p,
+          additionalCosts: {
+            ...p.additionalCosts,
+            loadingUnloading: Number(e.target.value) || 0,
+          },
+        }))
+      }
+      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+    />
+  </div>
+
+  {/* DISCOUNT */}
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      Discount (%)
+    </label>
+
+    <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
+      <input
+        type="checkbox"
+        checked={globalConfig.additionalCosts.showDiscount ?? true}
+        onChange={(e) =>
+          setGlobalConfig((p: any) => ({
+            ...p,
+            additionalCosts: {
+              ...p.additionalCosts,
+              showDiscount: e.target.checked,
+            },
+          }))
+        }
+      />
+      <span>Show in PDF</span>
+    </label>
+
+    <input
+      type="number"
+      value={globalConfig.additionalCosts.discountPercent}
+      onChange={(e) =>
+        setGlobalConfig((p: any) => ({
+          ...p,
+          additionalCosts: {
+            ...p.additionalCosts,
+            discountPercent: Number(e.target.value) || 0,
+          },
+        }))
+      }
+      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+    />
+  </div>
+
+</div>
+
+        </>
+      )}
+    </div>
+  );
+}
+function QuotationDetailsTab() {
+  const quotation = useQuotationBuilderStore((s) => s.quotation);
+  const updateQuotationField = useQuotationBuilderStore((s) => s.updateQuotationField);
+
+  const [expanded, setExpanded] = useState(true);
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-black-200 p-6">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="mb-6 flex w-full items-center justify-between text-left"
+      >
+        <h2 className="text-xl font-bold text-gray-900">Quotation Details</h2>
+        {expanded ? <span>▲</span> : <span>▼</span>}
+      </button>
+
+      {expanded && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          {/* Date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Date
+            </label>
+            <input
+              type="date"
+              value={quotation.date || ""}
+              onChange={(e) =>
+                updateQuotationField("date", e.target.value)
+              }
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+
+          {/* Opportunity */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Opportunity Stage
+            </label>
+            <select
+              value={quotation.opportunity || "Enquiry"}
+              onChange={(e) =>
+                updateQuotationField("opportunity", e.target.value)
+              }
+              className="w-full px-3 py-2 border border-gray-200 rounded"
+            >
+              <option value="Enquiry">Enquiry</option>
+              <option value="Quoted">Quoted</option>
+              <option value="Under Negotiation">Under Negotiation</option>
+              <option value="Order Confirmed">Order Confirmed</option>
+              <option value="Order Lost">Order Lost</option>
+            </select>
+          </div>
+
+          {/* Contact Phone */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Contact Phone (for PDF)
+            </label>
+            <input
+              type="tel"
+              value={quotation.contactPhone || ""}
+              onChange={(e) =>
+                updateQuotationField("contactPhone", e.target.value)
+              }
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 export function QuotationBuilder() {
-  const [activeTab, setActiveTab] = useState<TabKey>("items");
+ useEffect(() => {
+  const fetchData = async () => {
+    const data = await loadGlobalConfig();
+    if (data) {
+      setGlobalConfig(data);
+    }
+  };
+
+  fetchData();
+}, []);
+
+
+   const router = useRouter();
+    
+  const [activeTab, setActiveTab] = useState<TabKey>("customer");
+  const [globalConfig, setGlobalConfig] = useState({
+  logo: "",
+  logoUrl: "",
+  prerequisites: "",
+  website: "",
+  terms: "",
+  additionalCosts: {
+    installation: 0,
+    transport: 0,
+    loadingUnloading: 0,
+    discountPercent: 0,
+    showInstallation: true,
+    showTransport: true,
+    showLoadingUnloading: true,
+    showDiscount: true,
+  },
+});
+const handleSave = async () => {
+  const payload = {
+    quotationDetails: quotation,
+    customerDetails: quotation.customer,
+    items: quotation.items,
+    globalConfig: globalConfig,
+  };
+
+  try {
+    await axios.post(
+      `${API_BASE_URL}/api/quotations`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+        },
+      }
+    );
+
+    alert("Saved successfully ");
+  } catch (err) {
+    console.error(err);
+    alert("Error saving ");
+  }
+};
+
   const { quotation, totals, saveState } = useQuotationBuilder();
   const { can } = useRbac();
   const setStatus = useQuotationBuilderStore((state) => state.setStatus);
+  const addItem = useQuotationBuilderStore((state) => state.addItem);
+  const [profit, setProfit] = useState(0);
+  const currentItem = quotation.items[0];
+  const logoPreview = globalConfig.logoUrl || globalConfig.logo;
+const handleLogoUpload = (file: File | null) => {
+  if (!file) return;
 
-  const statusActions: {
-    label: string;
-    status: "Submitted" | "Approved" | "Rejected" | "Converted";
-    icon: typeof Send;
-    permission?: "quotations.approve" | "quotations.convert";
-  }[] = [
-    { label: "Submit", status: "Submitted", icon: Send },
-    { label: "Approve", status: "Approved", icon: CheckCircle2, permission: "quotations.approve" as const },
-    { label: "Reject", status: "Rejected", icon: XCircle, permission: "quotations.approve" as const },
-    { label: "Convert", status: "Converted", icon: WandSparkles, permission: "quotations.convert" as const }
-  ];
+  const reader = new FileReader();
+  reader.onloadend = () => {
+    setGlobalConfig((prev) => ({
+      ...prev,
+      logo: reader.result as string,
+      logoUrl: reader.result as string,
+    }));
+  };
+  reader.readAsDataURL(file);
+};
+const totalQuantity = quotation.items.reduce(
+  (sum, item) => sum + Math.max(1, item.quantity || 1),
+  0
+);
+
+const totalArea = quotation.items.reduce(
+  (sum, item) => sum + (getArea(item) * Math.max(1, item.quantity || 1)),
+  0
+);
+
+const totalAmount = quotation.items.reduce(
+  (sum, item) => sum + (item.amount || 0),
+  0
+);
+
+const finalAmount = totalAmount + (totalAmount * profit) / 100;
+
+const finalWithGST = finalAmount + (finalAmount * 18) / 100;
 
   const exportPdf = async () => {
     const html2pdf = (await import("html2pdf.js")).default;
@@ -557,8 +765,8 @@ export function QuotationBuilder() {
 
   return (
     <PageShell
-      title={`${quotation.quoteNo} Builder`}
-      description="Quotation-first workspace with live pricing, autosave draft behavior, configurable items, and revision control."
+      title="Edit Quotation"
+   description={`#${quotation.quoteNo || ""}`}
       actions={
         <>
           <Badge variant="outline">{quotation.status}</Badge>
@@ -571,6 +779,9 @@ export function QuotationBuilder() {
             <Share2 className="h-4 w-4" />
             Share
           </Button>
+          <Button onClick={handleSave}>
+  Save
+</Button>
         </>
       }
     >
@@ -600,49 +811,98 @@ export function QuotationBuilder() {
               transition={{ duration: 0.18 }}
             >
               {activeTab === "customer" && <CustomerTab />}
-              {activeTab === "items" && <ItemsTab />}
-              {activeTab === "pricing" && <PricingTab />}
-              {activeTab === "terms" && <TermsTab />}
-              {activeTab === "attachments" && <AttachmentsTab />}
-              {activeTab === "history" && <HistoryTab />}
+              {activeTab === "quotation" && <QuotationDetailsTab />}
+              {activeTab === "global" && (
+  <GlobalConfigTab
+    globalConfig={globalConfig}
+    setGlobalConfig={setGlobalConfig}
+    logoPreview={logoPreview}
+    handleLogoUpload={handleLogoUpload}
+  />
+)}
+{activeTab === "item" && <ItemTab />}
+
             </motion.div>
           </AnimatePresence>
         </div>
         <div className="space-y-6 xl:sticky xl:top-24 xl:h-fit">
+       
           <Card id="quotation-pdf-root" className="border-0 bg-slate-950 text-white">
             <CardHeader>
               <CardTitle>Live Summary</CardTitle>
-              <CardDescription className="text-slate-300">Sticky commercial summary and status actions.</CardDescription>
+              <CardDescription className="text-slate-300">Items</CardDescription>
+              
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="rounded-2xl bg-white/5 p-4">
-                <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Customer</div>
-                <div className="mt-2 font-medium">{quotation.customer.customerName || "Unassigned customer"}</div>
-                <div className="text-sm text-slate-300">{quotation.customer.projectName || "Project not named"}</div>
-              </div>
-              {quotation.items.map((item) => (
-                <div key={item.id} className="rounded-2xl bg-white/5 p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium">{item.projectLocation}</div>
-                    <div>{formatCurrency(getItemGrandTotal(item))}</div>
-                  </div>
-                  <div className="mt-2 text-sm text-slate-300">
-                    {item.material} {item.series}
-                  </div>
-                </div>
-              ))}
+              <div className="grid grid-cols-1 gap-4 text-center">
+
+  <div>
+    <div className="text-sm text-slate-400">Total Quantity</div>
+    <div className="text-lg font-bold">{totalQuantity}</div>
+  </div>
+
+  <div>
+    <div className="text-sm text-slate-400">Total Area</div>
+    <div className="text-lg font-bold">{formatNumber(totalArea)}</div>
+  </div>
+
+  <div>
+    <div className="text-sm text-slate-400">Profit %</div>
+    <input
+      type="number"
+      value={profit}
+      onChange={(e) => setProfit(Number(e.target.value))}
+      className="mt-1 w-20 px-2 py-1 text-black rounded"
+    />
+  </div>
+
+  <div>
+    <div className="text-sm text-slate-400">Total Amount</div>
+    <div className="text-lg font-bold">
+      {formatCurrency(totalAmount)}
+    </div>
+  </div>
+
+  <div>
+    <div className="text-sm text-slate-400">Final Amount</div>
+    <div className="text-lg font-bold">
+      {formatCurrency(finalAmount)}
+    </div>
+  </div>
+
+  <div>
+    <div className="text-sm text-slate-400">Final Amount with GST</div>
+    <div className="text-lg font-bold">
+      {formatCurrency(finalWithGST)}
+    </div>
+  </div>
+</div>
+              
               <Separator className="bg-white/10" />
-              <PriceRow label="Grand Total" value={totals.grandTotal} emphasized />
               <div className="grid gap-2">
-                {statusActions.map((action) => {
-                  if (action.permission && !can(action.permission)) return null;
-                  return (
-                    <Button key={action.label} variant={action.status === "Rejected" ? "destructive" : "secondary"} onClick={() => setStatus(action.status)}>
-                      <action.icon className="h-4 w-4" />
-                      {action.label}
-                    </Button>
-                  );
-                })}
+                <Button
+  size="sm" asChild>
+    <Link href={`/quotations/new/configurator/${currentItem.id}`}>
+    <Expand className="h-4 w-4"/>
+    Add item
+    </Link>
+  </Button>
+ 
+  {/* <button
+  onClick={() => {
+    const newId = addItem();
+
+    console.log("NEW ID:", newId);
+
+    if (newId) {
+      router.push(`/quotations/new/configurator/${newId}`);
+    }
+  }}
+  className="w-full bg-[#124657] text-white px-4 py-2 rounded-lg"
+>
+  Add item
+</button> */}
+
               </div>
             </CardContent>
           </Card>

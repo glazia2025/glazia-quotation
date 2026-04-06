@@ -14,9 +14,10 @@ interface QuotationBuilderState {
   lastSavedAt: string | null;
   setQuotation: (quotation: Quotation) => void;
   updateCustomer: (key: keyof Quotation["customer"], value: string) => void;
-  updateQuotationField: (key: "terms" | "internalNotes", value: string) => void;
+  updateQuotationField: (key:keyof Quotation, value: any) => void;
   updateItem: (itemId: string, patch: Partial<QuotationItem>) => void;
-  addItem: () => void;
+  // addItem: () => void;
+  addItem: () => string;
   duplicateItem: (itemId: string) => void;
   removeItem: (itemId: string) => void;
   selectItem: (itemId: string) => void;
@@ -62,17 +63,31 @@ export const useQuotationBuilderStore = create<QuotationBuilderState>((set, get)
         items: state.quotation.items.map((item) => (item.id === itemId ? { ...item, ...patch } : item))
       }
     })),
-  addItem: () =>
-    set((state) => {
-      const next = createEmptyQuotation({ items: [] }).items[0];
-      return {
-        quotation: {
-          ...state.quotation,
-          items: [...state.quotation.items, next]
-        },
-        selectedItemId: next.id
-      };
-    }),
+  // addItem: () =>
+  //   set((state) => {
+  //     const next = createEmptyQuotation({ items: [] }).items[0];
+  //     return {
+  //       quotation: {
+  //         ...state.quotation,
+  //         items: [...state.quotation.items, next]
+  //       },
+  //       selectedItemId: next.id
+  //     };
+      
+  //   }),
+  addItem: () => {
+  const next = createEmptyQuotation({ items: [] }).items[0];
+
+  set((state) => ({
+    quotation: {
+      ...state.quotation,
+      items: [...state.quotation.items, next],
+    },
+    selectedItemId: next.id,
+  }));
+
+  return next.id; //  important
+},
   duplicateItem: (itemId) =>
     set((state) => {
       const item = state.quotation.items.find((entry) => entry.id === itemId);
