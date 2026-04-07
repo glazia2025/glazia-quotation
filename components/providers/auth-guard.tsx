@@ -9,13 +9,17 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const token = useAuthStore((state) => state.token);
+  const hydrated = useAuthStore((state) => state.hydrated);
 
   useEffect(() => {
+    if (!hydrated) return;
+
     if (!token && pathname !== "/login") {
       router.replace("/login");
     }
-  }, [pathname, router, token]);
+  }, [hydrated, pathname, router, token]);
 
+  if (!hydrated) return null;
   if (!token) return null;
   return <>{children}</>;
 }

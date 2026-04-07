@@ -133,6 +133,7 @@ export interface QuotationRevision {
 export interface Quotation {
   id: string;
   quoteNo: string;
+  persisted?: boolean;
   status: QuotationStatus;
   customer: QuotationCustomer;
   items: QuotationItem[];

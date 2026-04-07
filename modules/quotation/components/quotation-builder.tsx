@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   Copy,
   Download,
-  Expand,
   FileClock,
   Plus,
   RotateCcw,
@@ -35,12 +34,13 @@ import { useRbac } from "@/hooks/use-rbac";
 import { accessoryCatalog, finishes, getDesigns, getOpenings, getSeries, glassTypes, materials } from "@/modules/quotation/data/catalog";
 import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-builder";
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
+import { toEditorQuotation } from "@/modules/quotation/utils/backend-quotation";
 import { calculateQuotationTotals, getArea, getItemGrandTotal, getPerimeter } from "@/modules/quotation/utils/calculations";
-import type { QuotationItem } from "@/types/quotation";
+import { saveQuotationDraft } from "@/services/quotation-service";
+import type { Quotation, QuotationItem } from "@/types/quotation";
 import { formatCurrency, formatNumber } from "@/utils/format";
+import { generateQuotationPDFBlob, getQuotationPdfDownloadName } from "@/utils/quotationPdf";
 import { useRouter } from "next/navigation";
-import axios from "axios";
-import { API_BASE_URL } from "@/services/api";
 import { loadGlobalConfig } from "../../../utils/globalConfig";
 
 
@@ -63,62 +63,116 @@ const tabs: { key: TabKey; label: string }[] = [
  
   
 ];
-function ItemCard() {
-  return (
-    <div className="bg-white rounded-2xl shadow-md border p-4 space-y-4 hover:shadow-lg transition">
+function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configuratorBasePath: string }) {
+  const [showSections, setShowSections] = useState(false);
+  const removeItem = useQuotationBuilderStore((state) => state.removeItem);
+  const itemCount = useQuotationBuilderStore((state) => state.quotation.items.length);
+  const systemLabel = item.systemType || item.series || item.openingType || "Not configured";
+  const locationLabel = item.location || item.projectLocation || "Not specified";
+  const refCodeLabel = item.refCode || (item.id ? item.id.slice(0, 8).toUpperCase() : "Item");
+  const hasSections = (item.subItems?.length ?? 0) > 1 || item.systemType === "Combination";
+  const canDelete = itemCount > 1;
 
-      {/* IMAGE PLACEHOLDER */}
-      <div className="w-full h-30 border-2 border-dashed rounded-lg flex items-center justify-center text-gray-400">
-         <img
-    src="/images/image.png"
-    alt="item"
-    className="w-full h-full object-cover"
-  />
+  const handleDelete = () => {
+    if (!canDelete) return;
+    removeItem(item.id);
+  };
+
+  return (
+    <>
+    <div className="self-start space-y-2 rounded-2xl border bg-white p-3 shadow-sm transition hover:shadow-md">
+      <div className="flex h-60 items-center justify-center overflow-hidden rounded-xl border bg-white p-1">
+        {item.refImage ? (
+          <img src={item.refImage} alt={item.refCode || item.productType || "Quotation item"} className="h-full w-full object-contain" />
+        ) : (
+          <div className="w-full max-w-[150px] rounded-md border-[8px] border-slate-800 bg-white shadow-sm">
+            <div className="grid h-16" style={{ gridTemplateColumns: `repeat(${Math.max(1, item.previewPanels || 1)}, minmax(0, 1fr))` }}>
+              {Array.from({ length: Math.max(1, item.previewPanels || 1) }).map((_, index) => (
+                <div key={index} className="border-l border-slate-300 first:border-l-0">
+                  <div className="h-full bg-[linear-gradient(135deg,rgba(125,211,252,0.35),rgba(191,219,254,0.75))]" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* REF CODE */}
       <div className="flex justify-between text-sm">
         <span className="text-gray-500">Ref Code</span>
-        <span className="font-semibold">W2-1</span>
+        <span className="font-semibold">{refCodeLabel}</span>
       </div>
 
-      {/* LOCATION */}
       <div className="flex justify-between text-sm">
         <span className="text-gray-500">Location</span>
-        <span className="font-medium text-right">
-          Floor: GF &gt; Kitchen-Gf
-        </span>
+        <span className="text-right font-medium">{locationLabel}</span>
       </div>
 
-
-      {/*SYSTEM */}
       <div className="flex justify-between text-sm">
         <span className="text-gray-500">System</span>
-        <span className="font-medium">Casement</span>
+        <span className="font-medium">{systemLabel}</span>
       </div>
 
-      {/*DESCRIPTION */}
-      <div className="text-sm">
-        <span className="text-gray-500">Description</span>
-        <p className="font-medium mt-1">
-          Left-Open windoow
-        </p>
+      <div className="flex justify-between text-sm">
+        <span className="text-gray-500">Size</span>
+        <span className="font-medium">{item.width}" x {item.height}"</span>
       </div>
 
-      {/*GLASS */}
-      <div className="flex justify-between items-center text-sm">
-        <span className="text-gray-500">Glass</span>
-        <span className="bg-green-100 text-green-600 px-2 py-1 rounded-full text-xs font-semibold">
-          Yes
-        </span>
+      <div className="flex flex-wrap items-center gap-2 border-t pt-2">
+        <Button size="sm" asChild className="bg-[#124657] hover:bg-[#0b3642]">
+          <Link href={`${configuratorBasePath}/${item.id}`}>Edit</Link>
+        </Button>
+        {hasSections ? (
+          <Button size="sm" variant="outline" onClick={() => setShowSections(true)}>
+            Show Sections
+          </Button>
+        ) : null}
+        <Button size="sm" variant="outline" onClick={handleDelete} disabled={!canDelete} className="text-red-600 hover:text-red-700">
+          Delete
+        </Button>
       </div>
-
-      <div className="flex justify-between items-center pt-3 border-t">
-  <button className="px-4 py-2 bg-[#124657] text-white rounded-lg text-sm font-semibold hover:bg-[#0b3642] transition">
-    Edit Quotation
-  </button>
-</div>
     </div>
+    {showSections ? (
+      <div className="fixed inset-0 z-[220] flex items-center justify-center bg-slate-950/60 p-4">
+        <div className="w-full max-w-5xl rounded-2xl bg-white shadow-2xl">
+          <div className="flex items-center justify-between border-b px-6 py-4">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900">Sections</h3>
+              <p className="text-sm text-slate-500">{refCodeLabel} | {locationLabel}</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setShowSections(false)}>
+              Close
+            </Button>
+          </div>
+          <div className="max-h-[70vh] overflow-auto p-6">
+            <table className="w-full min-w-[760px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b text-left text-slate-500">
+                  <th className="px-3 py-2 font-medium">Ref Code</th>
+                  <th className="px-3 py-2 font-medium">Location</th>
+                  <th className="px-3 py-2 font-medium">System</th>
+                  <th className="px-3 py-2 font-medium">Size</th>
+                  <th className="px-3 py-2 font-medium">Area</th>
+                  <th className="px-3 py-2 font-medium">Qty</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(item.subItems ?? []).map((section) => (
+                  <tr key={section.id} className="border-b last:border-b-0">
+                    <td className="px-3 py-3 font-medium text-slate-900">{section.refCode}</td>
+                    <td className="px-3 py-3 text-slate-600">{section.location}</td>
+                    <td className="px-3 py-3 text-slate-600">{section.systemType}</td>
+                    <td className="px-3 py-3 text-slate-600">{section.width}" x {section.height}"</td>
+                    <td className="px-3 py-3 text-slate-600">{formatNumber(section.area)}</td>
+                    <td className="px-3 py-3 text-slate-600">{section.quantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    ) : null}
+    </>
   );
 }
 
@@ -172,18 +226,103 @@ function QuotationPreview({ item }: { item: QuotationItem | undefined }) {
 //     alert("Error saving ");
 //   }
 // };
-function ItemTab() {
+function ItemTab({ quotationBasePath }: { quotationBasePath: string }) {
+  const items = useQuotationBuilderStore((state) => state.quotation.items);
+  const addItem = useQuotationBuilderStore((state) => state.addItem);
+  const router = useRouter();
+  const [profit, setProfit] = useState(0);
+  const configuratorBasePath = `${quotationBasePath}/configurator`;
+
+  const totalQuantity = items.reduce((sum, item) => sum + Math.max(1, item.quantity || 1), 0);
+  const totalArea = items.reduce((sum, item) => sum + getArea(item) * Math.max(1, item.quantity || 1), 0);
+  const totalAmount = items.reduce((sum, item) => sum + (item.amount || 0), 0);
+  const finalAmount = totalAmount + (totalAmount * profit) / 100;
+  const finalWithGST = finalAmount + (finalAmount * 18) / 100;
+
+  const handleAddItem = () => {
+    const newItemId = addItem();
+    router.push(`${configuratorBasePath}/${newItemId}`);
+  };
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <ItemCard />
-      <ItemCard />
-      <ItemCard />
+    <div className="space-y-4">
+      <div className="rounded-2xl border bg-slate-950 px-5 py-4 text-white">
+        <div className="flex flex-wrap items-start gap-5">
+          <div className="min-w-[180px]">
+            <h2 className="text-lg font-semibold">Configured Items</h2>
+            <p className="text-sm text-slate-300">{items.length} item{items.length === 1 ? "" : "s"} in this quotation</p>
+          </div>
+          <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Quantity</div>
+              <div className="mt-1 text-xl font-bold">{totalQuantity}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Area</div>
+              <div className="mt-1 text-xl font-bold">{formatNumber(totalArea)}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Amount</div>
+              <div className="mt-1 text-xl font-bold">{formatCurrency(totalAmount)}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Profit %</div>
+              <input
+                type="number"
+                value={profit}
+                onChange={(e) => setProfit(Number(e.target.value))}
+                className="mt-1 w-24 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+              />
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Final</div>
+              <div className="mt-1 text-xl font-bold">{formatCurrency(finalAmount)}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Final + GST</div>
+              <div className="mt-1 text-xl font-bold">{formatCurrency(finalWithGST)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {items.map((item, index) => (
+          <ItemCard
+            key={item.id || item.refCode || `${item.location || item.projectLocation || "item"}-${index}`}
+            item={item}
+            configuratorBasePath={configuratorBasePath}
+          />
+        ))}
+        <button
+          type="button"
+          onClick={handleAddItem}
+          className="flex min-h-[260px] flex-col items-center justify-center self-start rounded-2xl border-2 border-dashed border-slate-300 bg-white p-6 text-center transition hover:border-[#124657] hover:bg-slate-50"
+        >
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#124657] text-white">
+            <Plus className="h-7 w-7" />
+          </div>
+          <div className="mt-4 text-lg font-semibold text-slate-900">Add Item</div>
+          <div className="mt-2 max-w-[220px] text-sm text-slate-500">Open the window configurator and add the next quotation item.</div>
+        </button>
+      </div>
     </div>
   );
 }
 function CustomerTab() {
   const customer = useQuotationBuilderStore((state) => state.quotation.customer);
   const updateCustomer = useQuotationBuilderStore((state) => state.updateCustomer);
+  const customerValues = customer ?? {
+    customerName: "",
+    contactPerson: "",
+    phone: "",
+    email: "",
+    projectName: "",
+    siteAddress: "",
+    city: "",
+    state: "",
+    pincode: ""
+  };
 
   const [expanded, setExpanded] = useState(true);
 
@@ -212,7 +351,7 @@ function CustomerTab() {
             </label>
             <input
               type="text"
-              value={customer.customerName}
+              value={customerValues.customerName}
               onChange={(e) =>
                 updateCustomer("customerName", e.target.value)
               }
@@ -227,7 +366,7 @@ function CustomerTab() {
             </label>
             <input
               type="email"
-              value={customer.email}
+              value={customerValues.email}
               onChange={(e) =>
                 updateCustomer("email", e.target.value)
               }
@@ -242,7 +381,7 @@ function CustomerTab() {
             </label>
             <input
               type="tel"
-              value={customer.phone}
+              value={customerValues.phone}
               onChange={(e) =>
                 updateCustomer("phone", e.target.value)
               }
@@ -256,7 +395,7 @@ function CustomerTab() {
               Address
             </label>
             <textarea
-              value={customer.siteAddress}
+              value={customerValues.siteAddress}
               onChange={(e) =>
                 updateCustomer("siteAddress", e.target.value)
               }
@@ -271,7 +410,7 @@ function CustomerTab() {
             </label>
             <input
               type="text"
-              value={customer.city || ""}
+              value={customerValues.city || ""}
               onChange={(e) =>
                 updateCustomer("city", e.target.value)
               }
@@ -286,7 +425,7 @@ function CustomerTab() {
             </label>
             <input
               type="text"
-              value={customer.state || ""}
+              value={customerValues.state || ""}
               onChange={(e) =>
                 updateCustomer("state", e.target.value)
               }
@@ -301,7 +440,7 @@ function CustomerTab() {
             </label>
             <input
               type="text"
-              value={customer.pincode || ""}
+              value={customerValues.pincode || ""}
               onChange={(e) =>
                 updateCustomer("pincode", e.target.value)
               }
@@ -658,7 +797,16 @@ function QuotationDetailsTab() {
 }
 
 
-export function QuotationBuilder() {
+export function QuotationBuilder({
+  initialQuotation,
+  quotationBasePath = "/quotations/new"
+}: {
+  initialQuotation?: Quotation;
+  quotationBasePath?: string;
+}) {
+  const currentQuotationId = useQuotationBuilderStore((state) => state.quotation.id);
+  const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
+
  useEffect(() => {
   const fetchData = async () => {
     const data = await loadGlobalConfig();
@@ -669,11 +817,15 @@ export function QuotationBuilder() {
 
   fetchData();
 }, []);
-
-
-   const router = useRouter();
-    
+ useEffect(() => {
+  if (!initialQuotation) return;
+  if (currentQuotationId === initialQuotation.id) return;
+  setQuotation(initialQuotation);
+ }, [currentQuotationId, initialQuotation, setQuotation]);
   const [activeTab, setActiveTab] = useState<TabKey>("customer");
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [globalConfig, setGlobalConfig] = useState({
   logo: "",
   logoUrl: "",
@@ -691,25 +843,20 @@ export function QuotationBuilder() {
     showDiscount: true,
   },
 });
-const handleSave = async () => {
-  const payload = {
-    quotationDetails: quotation,
-    customerDetails: quotation.customer,
-    items: quotation.items,
-    globalConfig: globalConfig,
+useEffect(() => {
+  return () => {
+    if (pdfPreviewUrl) {
+      URL.revokeObjectURL(pdfPreviewUrl);
+    }
   };
-
+}, [pdfPreviewUrl]);
+const handleSave = async () => {
   try {
-    await axios.post(
-      `${API_BASE_URL}/api/quotations`,
-      payload,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
-        },
-      }
-    );
-
+    const savedQuotation = await saveQuotationDraft(quotation);
+    if (savedQuotation) {
+      setQuotation(toEditorQuotation(savedQuotation));
+    }
+    markSaved();
     alert("Saved successfully ");
   } catch (err) {
     console.error(err);
@@ -717,12 +864,10 @@ const handleSave = async () => {
   }
 };
 
-  const { quotation, totals, saveState } = useQuotationBuilder();
+  const { quotation, saveState } = useQuotationBuilder();
   const { can } = useRbac();
+  const markSaved = useQuotationBuilderStore((state) => state.markSaved);
   const setStatus = useQuotationBuilderStore((state) => state.setStatus);
-  const addItem = useQuotationBuilderStore((state) => state.addItem);
-  const [profit, setProfit] = useState(0);
-  const currentItem = quotation.items[0];
   const logoPreview = globalConfig.logoUrl || globalConfig.logo;
 const handleLogoUpload = (file: File | null) => {
   if (!file) return;
@@ -737,43 +882,66 @@ const handleLogoUpload = (file: File | null) => {
   };
   reader.readAsDataURL(file);
 };
-const totalQuantity = quotation.items.reduce(
-  (sum, item) => sum + Math.max(1, item.quantity || 1),
-  0
-);
-
-const totalArea = quotation.items.reduce(
-  (sum, item) => sum + (getArea(item) * Math.max(1, item.quantity || 1)),
-  0
-);
-
-const totalAmount = quotation.items.reduce(
-  (sum, item) => sum + (item.amount || 0),
-  0
-);
-
-const finalAmount = totalAmount + (totalAmount * profit) / 100;
-
-const finalWithGST = finalAmount + (finalAmount * 18) / 100;
-
   const exportPdf = async () => {
-    const html2pdf = (await import("html2pdf.js")).default;
-    const element = document.getElementById("quotation-pdf-root");
-    if (!element) return;
-    await html2pdf().from(element).set({ margin: 12, filename: `${quotation.quoteNo}.pdf` }).save();
+    try {
+      setIsGeneratingPdf(true);
+      console.log("[quotation-pdf] export requested", {
+        quotationId: quotation.id,
+        quoteNo: quotation.quoteNo,
+        itemCount: quotation.items?.length ?? 0,
+        hasGlobalConfig: Boolean(globalConfig),
+        hasLogo: Boolean(globalConfig?.logoUrl || globalConfig?.logo)
+      });
+      const blob = await generateQuotationPDFBlob({
+        ...quotation,
+        globalConfig
+      });
+      const nextPdfPreviewUrl = URL.createObjectURL(blob);
+      setPdfPreviewUrl((currentUrl) => {
+        if (currentUrl) {
+          URL.revokeObjectURL(currentUrl);
+        }
+        return nextPdfPreviewUrl;
+      });
+      setIsPdfPreviewOpen(true);
+      console.log("[quotation-pdf] export completed");
+    } catch (error) {
+      console.error("Failed to export quotation PDF", error);
+      alert("Failed to generate PDF.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
+  const closePdfPreview = () => {
+    setIsPdfPreviewOpen(false);
+  };
+  const downloadPreviewedPdf = () => {
+    if (!pdfPreviewUrl) return;
+    const link = document.createElement("a");
+    link.href = pdfPreviewUrl;
+    link.download = getQuotationPdfDownloadName({
+      ...quotation,
+      globalConfig
+    });
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  const isCreateMode = quotationBasePath === "/quotations/new";
+  const pageTitle = isCreateMode ? "Create Quotation" : "Edit Quotation";
+  const pageDescription = quotation.quoteNo ? `#${quotation.quoteNo}` : "";
 
   return (
     <PageShell
-      title="Edit Quotation"
-   description={`#${quotation.quoteNo || ""}`}
+      title={pageTitle}
+      description={pageDescription}
       actions={
         <>
           <Badge variant="outline">{quotation.status}</Badge>
           <Badge variant="success">{saveState}</Badge>
-          <Button variant="outline" onClick={exportPdf}>
+          <Button variant="outline" onClick={exportPdf} disabled={isGeneratingPdf}>
             <Download className="h-4 w-4" />
-            PDF
+            {isGeneratingPdf ? "Generating..." : "PDF"}
           </Button>
           <Button variant="outline">
             <Share2 className="h-4 w-4" />
@@ -785,8 +953,7 @@ const finalWithGST = finalAmount + (finalAmount * 18) / 100;
         </>
       }
     >
-      <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
-        <div className="space-y-6">
+      <div id="quotation-pdf-root" className="space-y-6">
           <Card className="border-0 bg-white/90">
             <CardContent className="flex flex-wrap gap-3 p-4">
               {tabs.map((tab) => (
@@ -820,93 +987,38 @@ const finalWithGST = finalAmount + (finalAmount * 18) / 100;
     handleLogoUpload={handleLogoUpload}
   />
 )}
-{activeTab === "item" && <ItemTab />}
+              {activeTab === "item" && <ItemTab quotationBasePath={quotationBasePath} />}
 
             </motion.div>
           </AnimatePresence>
-        </div>
-        <div className="space-y-6 xl:sticky xl:top-24 xl:h-fit">
-       
-          <Card id="quotation-pdf-root" className="border-0 bg-slate-950 text-white">
-            <CardHeader>
-              <CardTitle>Live Summary</CardTitle>
-              <CardDescription className="text-slate-300">Items</CardDescription>
-              
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 text-center">
-
-  <div>
-    <div className="text-sm text-slate-400">Total Quantity</div>
-    <div className="text-lg font-bold">{totalQuantity}</div>
-  </div>
-
-  <div>
-    <div className="text-sm text-slate-400">Total Area</div>
-    <div className="text-lg font-bold">{formatNumber(totalArea)}</div>
-  </div>
-
-  <div>
-    <div className="text-sm text-slate-400">Profit %</div>
-    <input
-      type="number"
-      value={profit}
-      onChange={(e) => setProfit(Number(e.target.value))}
-      className="mt-1 w-20 px-2 py-1 text-black rounded"
-    />
-  </div>
-
-  <div>
-    <div className="text-sm text-slate-400">Total Amount</div>
-    <div className="text-lg font-bold">
-      {formatCurrency(totalAmount)}
-    </div>
-  </div>
-
-  <div>
-    <div className="text-sm text-slate-400">Final Amount</div>
-    <div className="text-lg font-bold">
-      {formatCurrency(finalAmount)}
-    </div>
-  </div>
-
-  <div>
-    <div className="text-sm text-slate-400">Final Amount with GST</div>
-    <div className="text-lg font-bold">
-      {formatCurrency(finalWithGST)}
-    </div>
-  </div>
-</div>
-              
-              <Separator className="bg-white/10" />
-              <div className="grid gap-2">
-                <Button
-  size="sm" asChild>
-    <Link href={`/quotations/new/configurator/${currentItem.id}`}>
-    <Expand className="h-4 w-4"/>
-    Add item
-    </Link>
-  </Button>
- 
-  {/* <button
-  onClick={() => {
-    const newId = addItem();
-
-    console.log("NEW ID:", newId);
-
-    if (newId) {
-      router.push(`/quotations/new/configurator/${newId}`);
-    }
-  }}
-  className="w-full bg-[#124657] text-white px-4 py-2 rounded-lg"
->
-  Add item
-</button> */}
-
+          {isPdfPreviewOpen && pdfPreviewUrl ? (
+            <div className="fixed inset-0 z-[260] flex items-center justify-center bg-slate-950/70 p-4">
+              <div className="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+                <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+                  <div>
+                    <div className="text-lg font-semibold text-slate-900">Quotation PDF Preview</div>
+                    <div className="text-sm text-slate-500">{getQuotationPdfDownloadName({ ...quotation, globalConfig })}</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button variant="outline" onClick={downloadPreviewedPdf}>
+                      <Download className="h-4 w-4" />
+                      Download
+                    </Button>
+                    <Button variant="outline" onClick={closePdfPreview}>
+                      Close
+                    </Button>
+                  </div>
+                </div>
+                <div className="min-h-0 flex-1 bg-slate-100 p-4">
+                  <iframe
+                    title="Quotation PDF Preview"
+                    src={`${pdfPreviewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                    className="h-full w-full rounded-2xl border border-slate-200 bg-white"
+                  />
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          ) : null}
       </div>
     </PageShell>
   );

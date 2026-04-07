@@ -3,7 +3,7 @@
 import { create } from "zustand";
 
 import { calculateQuotationTotals } from "@/modules/quotation/utils/calculations";
-import { createEmptyQuotation, createRevision } from "@/modules/quotation/utils/factory";
+import { createDefaultItem, createEmptyQuotation, createRevision } from "@/modules/quotation/utils/factory";
 import type { Quotation, QuotationItem, QuotationStatus } from "@/types/quotation";
 
 interface QuotationBuilderState {
@@ -44,6 +44,7 @@ export const useQuotationBuilderStore = create<QuotationBuilderState>((set, get)
       quotation: {
         ...state.quotation,
         customer: {
+          ...createEmptyQuotation().customer,
           ...state.quotation.customer,
           [key]: value
         }
@@ -76,7 +77,7 @@ export const useQuotationBuilderStore = create<QuotationBuilderState>((set, get)
       
   //   }),
   addItem: () => {
-  const next = createEmptyQuotation({ items: [] }).items[0];
+  const next = createDefaultItem();
 
   set((state) => ({
     quotation: {

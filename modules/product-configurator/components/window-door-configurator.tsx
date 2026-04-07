@@ -156,7 +156,7 @@ const createRoot = (baseSystem: SystemType): SectionNode => ({
   exhaustFanX: DEFAULT_EXHAUST_FAN_X,
   exhaustFanY: DEFAULT_EXHAUST_FAN_Y,
   exhaustFanSize: DEFAULT_EXHAUST_FAN_SIZE,
-  glass: isExhaustSystem(baseSystem) || isLouverSystem(baseSystem) ? "Yes" : "No",
+  glass: "Yes",
   mesh: "No",
 });
 
@@ -2359,7 +2359,7 @@ export function WindowDoorConfigurator({
   }, [selectedNode.systemType, selectedNode.series, selectedNode.description, selectedNode.glass, selectedNode.mesh, meta.colorFinish, meta.glassSpec, meta.handleType, meta.handleColor, meta.meshType, widthMm, heightMm, profitPercentage]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-[2rem] border border-slate-300 bg-white shadow-2xl">
+    <div className="relative h-full w-full overflow-hidden border border-slate-300 bg-white shadow-2xl">
       <div className="flex h-full">
         <div className="h-full flex-1 min-w-0 border-r border-slate-200 bg-white p-2">
           <div ref={canvasWrapRef} className="relative h-full min-h-[520px] w-full min-w-0">

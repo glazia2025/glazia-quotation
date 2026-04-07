@@ -1,6 +1,6 @@
 import type { Quotation, QuotationItem, QuotationRevision } from "@/types/quotation";
 
-function createDefaultItem(): QuotationItem {
+export function createDefaultItem(): QuotationItem {
   return {
     id: crypto.randomUUID(),
     projectLocation: "Living Room",
@@ -11,8 +11,9 @@ function createDefaultItem(): QuotationItem {
     openingType: "Sliding",
     width: 72,
     height: 60,
-    quantity: 2,
+    quantity: 1,
     glassType: "Double Glazed 24mm",
+    glassSpec: "Double Glazed 24mm",
     accessories: ["handle", "lock"],
     colorFinish: "Matte Black",
     specialNotes: "",
@@ -47,7 +48,8 @@ export function createRevision(version: string, summary: string): QuotationRevis
 export function createEmptyQuotation(partial?: Partial<Quotation>): Quotation {
   return {
     id: partial?.id ?? crypto.randomUUID(),
-    quoteNo: partial?.quoteNo ?? `QT-${new Date().getFullYear()}-${Math.floor(Math.random() * 900 + 100)}`,
+    quoteNo: partial?.quoteNo ?? "",
+    persisted: partial?.persisted,
     status: partial?.status ?? "Draft",
     customer: partial?.customer ?? {
       customerName: "",
@@ -57,7 +59,7 @@ export function createEmptyQuotation(partial?: Partial<Quotation>): Quotation {
       projectName: "",
       siteAddress: ""
     },
-    items: partial?.items ?? [createDefaultItem()],
+    items: partial?.items ?? [],
     terms:
       partial?.terms ??
       "Delivery within 21 working days from approved drawing and receipt of advance. GST extra as applicable. Material warranty as per manufacturer standard.",

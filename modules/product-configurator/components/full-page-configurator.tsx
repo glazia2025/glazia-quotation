@@ -1,16 +1,33 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { WindowDoorConfigurator } from "@/modules/product-configurator/components/window-door-configurator";
-import type { QuotationItem } from "@/types/quotation";
+import type { Quotation, QuotationItem } from "@/types/quotation";
 
-export function FullPageConfigurator({ itemId }: { itemId: string }) {
+export function FullPageConfigurator({
+  itemId,
+  returnPath = "/quotations/new",
+  initialQuotation
+}: {
+  itemId: string;
+  returnPath?: string;
+  initialQuotation?: Quotation;
+}) {
   const router = useRouter();
+  const quotationId = useQuotationBuilderStore((state) => state.quotation.id);
   const quotation = useQuotationBuilderStore((state) => state.quotation);
+  const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
   const updateItem = useQuotationBuilderStore((state) => state.updateItem);
-  const item = quotation.items.find((entry) => entry.id === itemId);
+  const item = initialQuotation?.items.find((entry) => entry.id === itemId) ?? quotation.items.find((entry) => entry.id === itemId);
+
+  useEffect(() => {
+    if (!initialQuotation) return;
+    if (quotationId === initialQuotation.id) return;
+    setQuotation(initialQuotation);
+  }, [initialQuotation, quotationId, setQuotation]);
 
   const handleSaveItem = (nextItem: QuotationItem) => {
     updateItem(itemId, nextItem);
@@ -18,13 +35,13 @@ export function FullPageConfigurator({ itemId }: { itemId: string }) {
 
   return (
     <div className="fixed inset-0 z-[200] bg-[linear-gradient(180deg,#e2e8f0_0%,#f8fafc_100%)]">
-      <div className="h-full w-full p-4 lg:p-6">
+      <div className="h-full w-full">
         {item ? (
           <WindowDoorConfigurator
             initialItem={item}
             profitPercentage={0}
             onSaveItem={handleSaveItem}
-            onClose={() => router.push("/quotations/new")}
+            onClose={() => router.push(returnPath)}
           />
         ) : (
           <div className="flex h-full items-center justify-center rounded-3xl border border-slate-200 bg-white">
@@ -32,7 +49,7 @@ export function FullPageConfigurator({ itemId }: { itemId: string }) {
               <div className="text-xl font-semibold text-slate-900">Configurator item missing</div>
               <button
                 type="button"
-                onClick={() => router.push("/quotations/new")}
+                onClick={() => router.push(returnPath)}
                 className="mt-4 rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white"
               >
                 Back to quotation

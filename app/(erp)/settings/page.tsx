@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import axios, { AxiosError } from "axios";
-import { ArrowLeft, Plus, Save, Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { API_BASE_URL } from "@/services/api";
+import { defaultSettingsSection } from "@/modules/settings/constants";
 import { loadGlobalConfig, saveGlobalConfig } from "../../../utils/globalConfig";
 
 type RateRow = {
@@ -661,7 +662,8 @@ function ProfileRateSection({
 export default function QuotationSettingsPage() {
   const [config, setConfig] = useState<any>({});
   const [status, setStatus] = useState<string>("");
-  const [activeTab, setActiveTab] = useState("profileStructure");
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get("section") || defaultSettingsSection;
 
   const [profileSearch, setProfileSearch] = useState("");
   const [meshSearch, setMeshSearch] = useState("");
@@ -999,35 +1001,9 @@ export default function QuotationSettingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-    
-
       <div className="px-4 pt-4 pb-8">
-        <div className="flex gap-6">
-          <div className="w-64 bg-white rounded-2xl shadow-sm border border-gray-200 p-4 h-fit">
-            <ul className="space-y-2 text-sm">
-              {[
-                { key: "profileStructure", label: "Quotation Structure" },
-                { key: "profileRate", label: "Profile Rate" },
-                { key: "colorFinishRate", label: "Colour Finish Rate" },
-                { key: "meshRate", label: "Mesh Rate" },
-                { key: "glassRate", label: "Glass Rate" },
-                { key: "hardwareRate", label: "Hardware" },
-              ].map((item) => (
-                <li
-                  key={item.key}
-                  onClick={() => setActiveTab(item.key)}
-                  className={`px-4 py-2 rounded-lg cursor-pointer transition ${
-                    activeTab === item.key ? "bg-[#124657] text-white" : "hover:bg-gray-100 text-gray-700"
-                  }`}
-                >
-                  {item.label}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="flex-1 space-y-8">
-            {activeTab === "profileStructure" && (
+        <div className="space-y-8">
+          {activeTab === "profileStructure" && (
               <>
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                   <h2 className="text-xl font-bold text-gray-900 mb-6">Branding</h2>
@@ -1184,95 +1160,94 @@ export default function QuotationSettingsPage() {
                   </div>
                 </div>
               </>
-            )}
+          )}
 
-            {activeTab === "profileRate" && (
-              <ProfileRateSection
-                rows={filteredProfiles}
-                search={profileSearch}
-                isLoading={isRatesLoading}
-                isSaving={isRatesSaving}
-                onSearchChange={setProfileSearch}
-                onRateChange={updateProfileRateValue}
-                onSave={() => void saveProfileRates()}
-                onReset={resetProfileRates}
-              />
-            )}
+          {activeTab === "profileRate" && (
+            <ProfileRateSection
+              rows={filteredProfiles}
+              search={profileSearch}
+              isLoading={isRatesLoading}
+              isSaving={isRatesSaving}
+              onSearchChange={setProfileSearch}
+              onRateChange={updateProfileRateValue}
+              onSave={() => void saveProfileRates()}
+              onReset={resetProfileRates}
+            />
+          )}
 
-            {activeTab === "meshRate" && (
-              <RateSection
-                title="Mesh Rate"
-                rows={filteredMesh}
-                search={meshSearch}
-                isLoading={isRatesLoading}
-                isSaving={isRatesSaving}
-                newName={newMesh.name}
-                newRate={newMesh.rate}
-                onSearchChange={setMeshSearch}
-                onNewNameChange={(value) => setNewMesh((prev) => ({ ...prev, name: value }))}
-                onNewRateChange={(value) => setNewMesh((prev) => ({ ...prev, rate: value }))}
-                onRowRateChange={(id, rate) => updateRowRate("meshType", id, rate)}
-                onAdd={() => void addItem("meshType")}
-                onSave={() => void saveSectionRates("meshType")}
-                onReset={() => resetSectionRates("meshType")}
-              />
-            )}
+          {activeTab === "meshRate" && (
+            <RateSection
+              title="Mesh Rate"
+              rows={filteredMesh}
+              search={meshSearch}
+              isLoading={isRatesLoading}
+              isSaving={isRatesSaving}
+              newName={newMesh.name}
+              newRate={newMesh.rate}
+              onSearchChange={setMeshSearch}
+              onNewNameChange={(value) => setNewMesh((prev) => ({ ...prev, name: value }))}
+              onNewRateChange={(value) => setNewMesh((prev) => ({ ...prev, rate: value }))}
+              onRowRateChange={(id, rate) => updateRowRate("meshType", id, rate)}
+              onAdd={() => void addItem("meshType")}
+              onSave={() => void saveSectionRates("meshType")}
+              onReset={() => resetSectionRates("meshType")}
+            />
+          )}
 
-            {activeTab === "glassRate" && (
-              <RateSection
-                title="Glass Rate"
-                rows={filteredGlass}
-                search={glassSearch}
-                isLoading={isRatesLoading}
-                isSaving={isRatesSaving}
-                newName={newGlass.name}
-                newRate={newGlass.rate}
-                onSearchChange={setGlassSearch}
-                onNewNameChange={(value) => setNewGlass((prev) => ({ ...prev, name: value }))}
-                onNewRateChange={(value) => setNewGlass((prev) => ({ ...prev, rate: value }))}
-                onRowRateChange={(id, rate) => updateRowRate("glassSpec", id, rate)}
-                onAdd={() => void addItem("glassSpec")}
-                onSave={() => void saveSectionRates("glassSpec")}
-                onReset={() => resetSectionRates("glassSpec")}
-              />
-            )}
+          {activeTab === "glassRate" && (
+            <RateSection
+              title="Glass Rate"
+              rows={filteredGlass}
+              search={glassSearch}
+              isLoading={isRatesLoading}
+              isSaving={isRatesSaving}
+              newName={newGlass.name}
+              newRate={newGlass.rate}
+              onSearchChange={setGlassSearch}
+              onNewNameChange={(value) => setNewGlass((prev) => ({ ...prev, name: value }))}
+              onNewRateChange={(value) => setNewGlass((prev) => ({ ...prev, rate: value }))}
+              onRowRateChange={(id, rate) => updateRowRate("glassSpec", id, rate)}
+              onAdd={() => void addItem("glassSpec")}
+              onSave={() => void saveSectionRates("glassSpec")}
+              onReset={() => resetSectionRates("glassSpec")}
+            />
+          )}
 
-            {activeTab === "colorFinishRate" && (
-              <RateSection
-                title="Colour Finish Rate"
-                rows={filteredColorFinish}
-                search={colorFinishSearch}
-                isLoading={isRatesLoading}
-                isSaving={isRatesSaving}
-                newName={newColorFinish.name}
-                newRate={newColorFinish.rate}
-                onSearchChange={setColorFinishSearch}
-                onNewNameChange={(value) => setNewColorFinish((prev) => ({ ...prev, name: value }))}
-                onNewRateChange={(value) => setNewColorFinish((prev) => ({ ...prev, rate: value }))}
-                onRowRateChange={(id, rate) => updateRowRate("colorFinish", id, rate)}
-                onAdd={() => void addItem("colorFinish")}
-                onSave={() => void saveSectionRates("colorFinish")}
-                onReset={() => resetSectionRates("colorFinish")}
-              />
-            )}
+          {activeTab === "colorFinishRate" && (
+            <RateSection
+              title="Colour Finish Rate"
+              rows={filteredColorFinish}
+              search={colorFinishSearch}
+              isLoading={isRatesLoading}
+              isSaving={isRatesSaving}
+              newName={newColorFinish.name}
+              newRate={newColorFinish.rate}
+              onSearchChange={setColorFinishSearch}
+              onNewNameChange={(value) => setNewColorFinish((prev) => ({ ...prev, name: value }))}
+              onNewRateChange={(value) => setNewColorFinish((prev) => ({ ...prev, rate: value }))}
+              onRowRateChange={(id, rate) => updateRowRate("colorFinish", id, rate)}
+              onAdd={() => void addItem("colorFinish")}
+              onSave={() => void saveSectionRates("colorFinish")}
+              onReset={() => resetSectionRates("colorFinish")}
+            />
+          )}
 
-            {activeTab === "hardwareRate" && (
-              <HardwareSection
-                groupedRows={filteredHardware}
-                search={hardwareSearch}
-                isLoading={isRatesLoading}
-                isSaving={isRatesSaving}
-                newItems={newHardwareBySystem}
-                onSearchChange={setHardwareSearch}
-                onNewNameChange={(system, value) => updateNewHardwareDraft(system, "name", value)}
-                onNewRateChange={(system, value) => updateNewHardwareDraft(system, "rate", value)}
-                onAdd={(system) => void addHardwareItem(system)}
-                onRowRateChange={updateHardwareRate}
-                onSave={() => void saveSectionRates("handle")}
-                onReset={() => resetSectionRates("handle")}
-              />
-            )}
-          </div>
+          {activeTab === "hardwareRate" && (
+            <HardwareSection
+              groupedRows={filteredHardware}
+              search={hardwareSearch}
+              isLoading={isRatesLoading}
+              isSaving={isRatesSaving}
+              newItems={newHardwareBySystem}
+              onSearchChange={setHardwareSearch}
+              onNewNameChange={(system, value) => updateNewHardwareDraft(system, "name", value)}
+              onNewRateChange={(system, value) => updateNewHardwareDraft(system, "rate", value)}
+              onAdd={(system) => void addHardwareItem(system)}
+              onRowRateChange={updateHardwareRate}
+              onSave={() => void saveSectionRates("handle")}
+              onReset={() => resetSectionRates("handle")}
+            />
+          )}
         </div>
       </div>
     </div>

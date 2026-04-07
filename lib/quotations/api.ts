@@ -1,94 +1,161 @@
-import { finishes } from "@/modules/quotation/data/catalog";
-import type { Description, OptionsResponse } from "@/lib/quotations/types";
+import axios from "axios";
 
-const systems = ["Casement", "Sliding", "Slide N Fold"];
+import { API_BASE_URL } from "@/services/api";
+import type { Description, HandleOption, OptionWithRate, OptionsResponse } from "@/lib/quotations/types";
 
-const seriesMap: Record<string, string[]> = {
-  Casement: ["A65 Casement", "Thermo70", "Villa Max"],
-  Sliding: ["A50 Sliding", "Slimline Premium", "Lift & Slide Pro"],
-  "Slide N Fold": ["Slide N Fold 45", "Slide N Fold 60"]
+type UnknownRecord = Record<string, unknown>;
+
+const emptyOptions: OptionsResponse = {
+  colorFinishes: [],
+  meshTypes: [],
+  glassSpecs: [],
+  handleOptions: []
 };
 
-const descriptionMap: Record<string, Description[]> = {
-  "Casement::A65 Casement": [
-    { name: "Fix", baseRates: [780, 840, 920], defaultHandleCount: 0 },
-    { name: "Left Openable", baseRates: [980, 1040, 1120], defaultHandleCount: 1 },
-    { name: "Right Openable", baseRates: [980, 1040, 1120], defaultHandleCount: 1 },
-    { name: "French Window", baseRates: [1180, 1240, 1320], defaultHandleCount: 2 },
-    { name: "Top Hung Window", baseRates: [920, 980, 1060], defaultHandleCount: 1 },
-    { name: "Tilt and Turn Window", baseRates: [1280, 1360, 1450], defaultHandleCount: 1 }
-  ],
-  "Casement::Thermo70": [
-    { name: "Fix", baseRates: [860, 940, 1010], defaultHandleCount: 0 },
-    { name: "Left Openable", baseRates: [1080, 1140, 1220], defaultHandleCount: 1 },
-    { name: "Right Openable", baseRates: [1080, 1140, 1220], defaultHandleCount: 1 }
-  ],
-  "Sliding::A50 Sliding": [
-    { name: "2 Panel", baseRates: [980, 1060, 1140], defaultHandleCount: 1 },
-    { name: "3 Panel", baseRates: [1080, 1140, 1240], defaultHandleCount: 1 },
-    { name: "2 Track 2 Glass + 1 Mesh", baseRates: [1120, 1200, 1280], defaultHandleCount: 1 }
-  ],
-  "Sliding::Slimline Premium": [
-    { name: "2 Panel", baseRates: [1320, 1410, 1520], defaultHandleCount: 1 },
-    { name: "3 Panel", baseRates: [1420, 1510, 1620], defaultHandleCount: 1 }
-  ],
-  "Slide N Fold::Slide N Fold 45": [
-    { name: "2 Panel (1+1)", baseRates: [1580, 1660, 1760], defaultHandleCount: 1 },
-    { name: "3 Panel (1+2)", baseRates: [1680, 1760, 1860], defaultHandleCount: 1 },
-    { name: "4 Panel (1+3)", baseRates: [1780, 1860, 1980], defaultHandleCount: 1 }
-  ],
-  "Slide N Fold::Slide N Fold 60": [
-    { name: "5 Panel (1+4)", baseRates: [1880, 1960, 2080], defaultHandleCount: 1 },
-    { name: "6 Panel (1+5)", baseRates: [1980, 2060, 2180], defaultHandleCount: 1 }
-  ]
-};
+function asRecord(value: unknown): UnknownRecord | null {
+  return typeof value === "object" && value !== null ? (value as UnknownRecord) : null;
+}
 
-const defaultOptions: OptionsResponse = {
-  colorFinishes: finishes.map((name, index) => ({ name, rate: [0, 35, 52, 60, 68][index] ?? 45 })),
-  meshTypes: [
-    { name: "SS Mesh", rate: 95 },
-    { name: "Pleated Mesh", rate: 130 },
-    { name: "Invisible Mesh", rate: 160 }
-  ],
-  glassSpecs: [
-    { name: "5mm Clear", rate: 0 },
-    { name: "Double Glazed 24mm", rate: 180 },
-    { name: "Laminated", rate: 240 },
-    { name: "Low-E DGU", rate: 320 },
-    { name: "Yes", rate: 0 }
-  ],
-  handleOptions: [
-    {
-      name: "Standard Handle",
-      colors: [
-        { name: "Black", rate: 950 },
-        { name: "Silver", rate: 900 },
-        { name: "White", rate: 860 }
-      ]
-    },
-    {
-      name: "Premium Handle",
-      colors: [
-        { name: "Black", rate: 1450 },
-        { name: "Champagne", rate: 1520 },
-        { name: "Bronze", rate: 1600 }
-      ]
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function toNameRateList(value: unknown): OptionWithRate[] {
+  return asArray(value)
+    .map((entry) => {
+      if (typeof entry === "string") {
+        return { name: entry, rate: 0 };
+      }
+
+      const record = asRecord(entry);
+      if (!record) return null;
+
+      const name = record.name ?? record.label ?? record.value ?? record.finish ?? record.color ?? record.option;
+      if (typeof name !== "string" || !name.trim()) return null;
+
+      const rateValue = record.rate ?? record.price ?? record.amount ?? record.additionalRate ?? 0;
+      const rate = typeof rateValue === "number" ? rateValue : Number(rateValue ?? 0);
+
+      return {
+        name,
+        rate: Number.isFinite(rate) ? rate : 0
+      };
+    })
+    .filter((entry): entry is OptionWithRate => Boolean(entry));
+}
+
+function toHandleOptions(value: unknown): HandleOption[] {
+  return asArray(value)
+    .map((entry) => {
+      const record = asRecord(entry);
+      if (!record) return null;
+
+      const name = record.name ?? record.label ?? record.handleType ?? record.option;
+      if (typeof name !== "string" || !name.trim()) return null;
+
+      const colors = toNameRateList(record.colors ?? record.handleColors ?? record.options ?? []);
+
+      return { name, colors };
+    })
+    .filter((entry): entry is HandleOption => Boolean(entry));
+}
+
+function toDescriptions(value: unknown): Description[] {
+  return asArray(value)
+    .map((entry) => {
+      const record = asRecord(entry);
+      if (!record) return null;
+
+      const name = record.name ?? record.label ?? record.description;
+      if (typeof name !== "string" || !name.trim()) return null;
+
+      const baseRates = asArray(record.baseRates ?? record.rates ?? record.areaRates).map((rate) => Number(rate)).filter((rate) => Number.isFinite(rate));
+      const defaultHandleCountRaw = record.defaultHandleCount ?? record.handleCount ?? 0;
+      const defaultHandleCount = typeof defaultHandleCountRaw === "number" ? defaultHandleCountRaw : Number(defaultHandleCountRaw ?? 0);
+
+      const normalized: Description = {
+        name,
+        baseRates,
+        defaultHandleCount: Number.isFinite(defaultHandleCount) ? defaultHandleCount : 0
+      };
+
+      return normalized;
+    })
+    .filter((entry): entry is Description => entry !== null);
+}
+
+function unwrapData<T>(value: unknown, preferredKeys: string[]): T {
+  const record = asRecord(value);
+  if (!record) {
+    return value as T;
+  }
+
+  for (const key of preferredKeys) {
+    if (key in record) {
+      return record[key] as T;
     }
-  ]
-};
+  }
+
+  if ("data" in record) {
+    return record.data as T;
+  }
+
+  return value as T;
+}
 
 export async function fetchSystems() {
-  return Promise.resolve({ systems });
+  const response = await axios.get(`${API_BASE_URL}/api/quotations/systems`);
+  const rawSystems = unwrapData<unknown>(response.data, ["systems"]);
+  const systems = asArray(rawSystems)
+    .map((entry) => {
+      if (typeof entry === "string") return entry;
+      const record = asRecord(entry);
+      const value = record?.name ?? record?.label ?? record?.systemType ?? record?.value;
+      return typeof value === "string" ? value : null;
+    })
+    .filter((entry): entry is string => Boolean(entry));
+
+  return { systems };
 }
 
 export async function fetchSeries(systemType: string) {
-  return Promise.resolve({ series: seriesMap[systemType] ?? [] });
+  const response = await axios.get(`${API_BASE_URL}/api/quotations/systems/${encodeURIComponent(systemType)}/series`);
+  const rawSeries = unwrapData<unknown>(response.data, ["series"]);
+  const series = asArray(rawSeries)
+    .map((entry) => {
+      if (typeof entry === "string") return entry;
+      const record = asRecord(entry);
+      const value = record?.name ?? record?.label ?? record?.series ?? record?.value;
+      return typeof value === "string" ? value : null;
+    })
+    .filter((entry): entry is string => Boolean(entry));
+
+  return { series };
 }
 
 export async function fetchDescriptions(systemType: string, series: string) {
-  return Promise.resolve({ descriptions: descriptionMap[`${systemType}::${series}`] ?? [] });
+  const response = await axios.get(
+    `${API_BASE_URL}/api/quotations/systems/${encodeURIComponent(systemType)}/series/${encodeURIComponent(series)}/descriptions`
+  );
+  const rawDescriptions = unwrapData<unknown>(response.data, ["descriptions"]);
+  return { descriptions: toDescriptions(rawDescriptions) };
 }
 
-export async function fetchOptions(_systemType: string) {
-  return Promise.resolve(defaultOptions);
+export async function fetchOptions(systemType: string) {
+  const response = await axios.get(`${API_BASE_URL}/api/quotations/options`, {
+    params: systemType ? { systemType } : undefined
+  });
+  const rawOptions = unwrapData<unknown>(response.data, ["options"]);
+  const record = asRecord(rawOptions);
+
+  if (!record) {
+    return emptyOptions;
+  }
+
+  return {
+    colorFinishes: toNameRateList(record.colorFinishes ?? record.colours ?? record.colors ?? record.colorOptions ?? []),
+    meshTypes: toNameRateList(record.meshTypes ?? record.meshOptions ?? []),
+    glassSpecs: toNameRateList(record.glassSpecs ?? record.glassTypes ?? record.glassOptions ?? []),
+    handleOptions: toHandleOptions(record.handleOptions ?? record.handles ?? [])
+  };
 }

@@ -9,6 +9,7 @@ interface AuthState {
   token: string | null;
   user: User | null;
   organization: Organization | null;
+  hydrated: boolean;
   roles: string[];
   permissions: Permission[];
   setSession: (payload: {
@@ -36,32 +37,58 @@ const defaultUser: User = {
   avatarFallback: "AK"
 };
 
+function syncAuthToken(token: string | null) {
+  if (typeof window === "undefined") return;
+
+  if (token) {
+    localStorage.setItem("authToken", token);
+  } else {
+    localStorage.removeItem("authToken");
+  }
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      token: "demo-token",
-      user: defaultUser,
-      organization: defaultOrganization,
-      roles: [defaultUser.role],
-      permissions: ["quotations.override_pricing", "quotations.approve", "quotations.convert", "crm.manage"],
+      token: null,
+      user: null,
+      organization: null,
+      hydrated: false,
+      roles: [],
+      permissions: [],
       setSession: ({ token, user, organization, permissions }) =>
-        set({
+        set(() => {
+          syncAuthToken(token);
+          return {
           token,
           user,
           organization,
+          hydrated: true,
           roles: [user.role],
           permissions
+          };
         }),
       switchOrganization: (organization) => set({ organization }),
       logout: () =>
-        set({
+        set(() => {
+          syncAuthToken(null);
+          return {
           token: null,
           user: null,
           organization: null,
+          hydrated: true,
           roles: [],
           permissions: []
+          };
         })
     }),
-    { name: "glazia-auth" }
+    {
+      name: "glazia-auth",
+      onRehydrateStorage: () => (state) => {
+        const token = state?.token ?? null;
+        syncAuthToken(token);
+        useAuthStore.setState({ hydrated: true });
+      }
+    }
   )
 );
