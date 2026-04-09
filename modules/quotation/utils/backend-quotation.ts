@@ -1,4 +1,5 @@
 import type { Quotation } from "@/types/quotation";
+import type { QuotationItem, QuotationSubItem } from "@/types/quotation";
 
 export type BackendQuotationRecord = {
   _id?: string;
@@ -44,6 +45,32 @@ export function extractBackendQuotation(payload: unknown): BackendQuotationRecor
   return source as BackendQuotationRecord;
 }
 
+const LEGACY_MAX_INCH_DIMENSION = 300;
+const MM_PER_INCH = 25.4;
+
+function toMmDimension(value: unknown): number {
+  const numeric = Number(value) || 0;
+  if (numeric <= 0) return 0;
+  return numeric <= LEGACY_MAX_INCH_DIMENSION ? Math.round(numeric * MM_PER_INCH) : numeric;
+}
+
+function normalizeSubItemDimensions(item: QuotationSubItem): QuotationSubItem {
+  return {
+    ...item,
+    width: toMmDimension(item.width),
+    height: toMmDimension(item.height)
+  };
+}
+
+function normalizeItemDimensions(item: QuotationItem): QuotationItem {
+  return {
+    ...item,
+    width: toMmDimension(item.width),
+    height: toMmDimension(item.height),
+    subItems: item.subItems?.map(normalizeSubItemDimensions) ?? []
+  };
+}
+
 export function toEditorQuotation(record: BackendQuotationRecord): Quotation {
   const customer = record.customerDetails;
   const details = record.quotationDetails;
@@ -64,7 +91,7 @@ export function toEditorQuotation(record: BackendQuotationRecord): Quotation {
       state: customer?.state ?? "",
       pincode: customer?.pincode ?? ""
     },
-    items: record.items ?? [],
+    items: (record.items ?? []).map(normalizeItemDimensions),
     terms: details?.terms ?? "",
     internalNotes: details?.notes ?? "",
     attachments: [],

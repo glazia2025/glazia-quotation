@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   BarChart3,
   ChevronDown,
@@ -11,6 +11,7 @@ import {
   ContactRound,
   Factory,
   FileSpreadsheet,
+  LogOut,
   Package,
   ReceiptText,
   ScanSearch,
@@ -21,6 +22,7 @@ import {
 import { Settings } from "lucide-react";
 
 import { defaultSettingsSection, settingsSections } from "@/modules/settings/constants";
+import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/utils/cn";
 
 const navItems = [
@@ -38,14 +40,21 @@ export function AppSidebar({
   collapsed?: boolean;
   onToggle?: () => void;
 }) {
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { user, logout } = useAuthStore();
   const currentSettingsSection = searchParams.get("section") ?? defaultSettingsSection;
+
+  const handleLogout = () => {
+    logout();
+    router.replace("/login");
+  };
 
   return (
     <aside
       className={cn(
-        "sticky top-0 hidden h-screen shrink-0 border-r border-white/50 bg-slate-950 py-6 text-white transition-[width,padding] duration-200 lg:block",
+        "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-white/50 bg-slate-950 py-6 text-white transition-[width,padding] duration-200 lg:flex",
         collapsed ? "w-24 px-3" : "w-72 px-5"
       )}
     >
@@ -115,6 +124,23 @@ export function AppSidebar({
           );
         })}
       </nav>
+      <div className="mt-auto pt-6">
+        <div className={cn("rounded-2xl border border-white/10 bg-white/5", collapsed ? "p-2" : "p-4")}>
+          {!collapsed ? <div className="mb-3 text-sm font-medium text-white">{user?.name || "Glazia User"}</div> : null}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className={cn(
+              "flex w-full items-center rounded-xl text-sm text-slate-300 transition hover:bg-white/10 hover:text-white",
+              collapsed ? "justify-center p-3" : "gap-3 px-3 py-2"
+            )}
+            title={collapsed ? "Logout" : undefined}
+          >
+            <LogOut className="h-4 w-4" />
+            {!collapsed ? <span>Logout</span> : null}
+          </button>
+        </div>
+      </div>
     </aside>
   );
 }

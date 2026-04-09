@@ -64,7 +64,16 @@ function toQuotationsPage(payload: unknown): QuotationsPage {
 function buildQuotationPayload(quotation: Quotation) {
   return {
     quotationDetails: quotation,
-    customerDetails: quotation.customer,
+    customerDetails: {
+      name: quotation.customer.contactPerson || quotation.customer.customerName,
+      company: quotation.customer.customerName,
+      email: quotation.customer.email,
+      phone: quotation.customer.phone,
+      address: quotation.customer.siteAddress,
+      city: quotation.customer.city ?? "",
+      state: quotation.customer.state ?? "",
+      pincode: quotation.customer.pincode ?? ""
+    },
     items: quotation.items
   };
 }
@@ -97,6 +106,15 @@ export async function getQuotation(quotationId: string): Promise<BackendQuotatio
 
     throw error;
   }
+}
+
+export async function getQuotationPdfBlob(quotationId: string): Promise<Blob> {
+  const response = await axios.get(`${API_BASE_URL}/api/quotations/${quotationId}/pdf`, {
+    headers: getAuthHeaders(),
+    responseType: "blob"
+  });
+
+  return response.data;
 }
 
 export async function saveQuotationDraft(quotation: Quotation): Promise<BackendQuotationRecord | null> {

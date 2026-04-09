@@ -1,6 +1,9 @@
 import { accessoryCatalog } from "@/modules/quotation/data/catalog";
 import type { QuotationItem, QuotationTotals } from "@/types/quotation";
 
+const MM_PER_INCH = 25.4;
+const SQMM_PER_SQFT = 92903.04;
+
 function getSafeQuantity(item: QuotationItem) {
   return Math.max(1, Number(item.quantity) || 1);
 }
@@ -8,13 +11,13 @@ function getSafeQuantity(item: QuotationItem) {
 export function getArea(item: QuotationItem) {
   const width = Number(item.width) || 0;
   const height = Number(item.height) || 0;
-  return Number(((width * height) / 144).toFixed(2));
+  return Number(((width * height) / SQMM_PER_SQFT).toFixed(2));
 }
 
 export function getPerimeter(item: QuotationItem) {
   const width = Number(item.width) || 0;
   const height = Number(item.height) || 0;
-  return Number((((width + height) * 2) / 12).toFixed(2));
+  return Number((((width + height) * 2) / (MM_PER_INCH * 12)).toFixed(2));
 }
 
 export function getAccessoriesTotal(item: QuotationItem) {

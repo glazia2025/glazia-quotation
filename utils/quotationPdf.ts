@@ -296,12 +296,16 @@ function getDisplayArea(item: Pick<QuotationItem, "area" | "width" | "height">) 
   return getArea(item as QuotationItem);
 }
 
+function formatDimensionMm(value: number | string | undefined) {
+  return `${value || "-"} mm`;
+}
+
 function renderMainItemBlock(item: QuotationItem, isCombinationParent: boolean) {
   const showRef = escapeHtml(item.refCode || "-");
   const showSystem = escapeHtml(item.systemType || item.productType || "-");
   const showSeries = escapeHtml(isCombinationParent ? "-" : item.series || "-");
-  const showWidth = escapeHtml(item.width || "-");
-  const showHeight = escapeHtml(item.height || "-");
+  const showWidth = escapeHtml(formatDimensionMm(item.width));
+  const showHeight = escapeHtml(formatDimensionMm(item.height));
   const showArea = escapeHtml(getDisplayArea(item).toFixed(2));
   const showColor = escapeHtml(isCombinationParent ? "-" : item.colorFinish || "-");
   const showLocation = escapeHtml(item.location || item.projectLocation || "-");
@@ -429,8 +433,8 @@ function renderSubItemsTable(subItems: QuotationSubItem[]) {
                   <td>${item.refImage ? `<img src="${item.refImage}" alt="Window image">` : "-"}</td>
                   <td>${escapeHtml(item.systemType || "-")}</td>
                   <td>${escapeHtml(item.series || "-")}</td>
-                  <td>${escapeHtml(item.width || "-")}</td>
-                  <td>${escapeHtml(item.height || "-")}</td>
+                  <td>${escapeHtml(formatDimensionMm(item.width))}</td>
+                  <td>${escapeHtml(formatDimensionMm(item.height))}</td>
                   <td>${escapeHtml(area.toFixed(2))}</td>
                   <td>${escapeHtml(item.colorFinish || "-")}</td>
                   <td>${escapeHtml(item.location || "-")}</td>
@@ -457,7 +461,7 @@ function renderSubItemsTable(subItems: QuotationSubItem[]) {
 function buildDocumentStyles() {
   return `
     @page {
-      size: A4 landscape;
+      size: A4 portrait;
       margin: 10mm;
     }
 
@@ -485,12 +489,12 @@ function buildDocumentStyles() {
     }
 
     .page {
-      width: 277mm;
-      min-height: 190mm;
+      position: relative;
+      width: 190mm;
       padding: 0;
+      padding-bottom: 16mm;
       page-break-after: always;
       break-after: page;
-      overflow: hidden;
     }
 
     .page:last-child {
@@ -500,116 +504,376 @@ function buildDocumentStyles() {
 
     .page-content {
       width: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 6mm;
+      display: block;
+    }
+    
+    .page-content > * {
+      margin-bottom: 5mm;
     }
 
-    .top-bar {
+    .page-footer {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      justify-content: flex-end;
+      align-items: flex-end;
+      font-size: 9px;
+      font-weight: 700;
+      color: #111111;
+      padding-top: 3mm;
+    }
+
+    .page-footer .page-no {
+      margin-left: auto;
+    }
+
+    .page-footer .powered-by {
+      margin-left: 8mm;
+    }
+
+    .page-footer.compact .powered-by {
+      display: none;
+    }
+
+    .cover-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10mm;
+      padding-top: 3mm;
+    }
+
+    .cover-brand {
+      display: flex;
+      align-items: center;
+      min-height: 26mm;
+    }
+
+    .logo-img {
+      max-width: 48mm;
+      max-height: 22mm;
+      object-fit: contain;
+    }
+
+    .logo-fallback {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      color: #d62828;
+      text-transform: uppercase;
+    }
+
+    .cover-company {
+      max-width: 84mm;
+      text-align: right;
+      font-size: 3.6mm;
+      line-height: 1.35;
+      font-weight: 700;
+      color: #111111;
+    }
+
+    .cover-separator {
+      border-top: 1mm solid #a79c89;
+      margin-top: 8mm;
+    }
+
+    .quote-strip {
+      padding-top: 4mm;
+      text-align: right;
+      font-size: 3.9mm;
+      line-height: 1.3;
+      font-weight: 400;
+      color: #111111;
+    }
+
+    .quote-strip span {
+      white-space: normal;
+    }
+
+    .cover-to {
+      padding-top: 11mm;
+      font-size: 4.2mm;
+      font-weight: 700;
+      color: #111111;
+    }
+
+    .cover-to .recipient-name {
+      margin-top: 3.5mm;
+      font-size: 4.8mm;
+    }
+
+    .cover-letter {
+      padding-top: 26mm;
+      font-size: 3.95mm;
+      line-height: 1.45;
+      color: #111111;
+    }
+
+    .cover-letter p {
+      margin: 0 0 7mm;
+    }
+
+    .cover-list {
+      margin: -1mm 0 5mm 18mm;
+      padding-left: 5mm;
+      list-style-type: lower-alpha;
+    }
+
+    .cover-list li {
+      margin-bottom: 2.5mm;
+    }
+
+    .cover-signoff {
+      padding-top: 4mm;
+      font-size: 3.95mm;
+      color: #111111;
+    }
+
+    .cover-signoff .company-name {
+      font-weight: 700;
+    }
+
+    .cover-signature-line {
+      margin-top: 18mm;
+    }
+
+    .detail-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 12mm;
+      gap: 8mm;
+      padding-bottom: 4mm;
+      border-bottom: 0.6mm solid #a79c89;
     }
 
-    .brand-block {
+    .detail-brand {
       display: flex;
       align-items: center;
       gap: 4mm;
       min-width: 0;
     }
 
-    .user-logo,
-    .logo-img {
-      width: 18mm;
-      height: 18mm;
-      border-radius: 50%;
+    .detail-logo {
+      max-width: 38mm;
+      max-height: 14mm;
+      object-fit: contain;
+    }
+
+    .detail-brand-name {
+      font-size: 11px;
+      font-weight: 700;
+      color: #111111;
+    }
+
+    .detail-meta {
+      font-size: 10px;
+      text-align: right;
+      line-height: 1.5;
+      color: #111111;
+    }
+
+    .detail-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1f2937;
+      margin-top: 1mm;
+    }
+
+    .detail-subtitle {
+      font-size: 10px;
+      color: #4b5563;
+    }
+
+    .detail-intro {
+      padding: 4mm 0 1mm;
+      font-size: 10px;
+      color: #374151;
+    }
+
+    .item-sheet {
+      border: 0.3mm solid #8b8b8b;
+      border-radius: 0;
+    }
+
+    .item-page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8mm;
+      padding-top: 2mm;
+      padding-bottom: 2mm;
+    }
+
+    .item-page-brand {
+      display: flex;
+      align-items: center;
+      gap: 4mm;
+      min-height: 16mm;
+    }
+
+    .item-page-logo {
+      max-width: 36mm;
+      max-height: 14mm;
+      object-fit: contain;
+    }
+
+    .item-page-company {
+      font-size: 4mm;
+      font-weight: 700;
+      color: #111111;
+    }
+
+    .item-page-meta {
+      text-align: right;
+      font-size: 3.6mm;
+      line-height: 1.35;
+      color: #111111;
+      font-weight: 500;
+    }
+
+    .item-page-separator {
+      border-top: 0.8mm solid #a79c89;
+      margin: 1.5mm 0 4mm;
+    }
+
+    .item-meta {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 4.2mm;
+    }
+
+    .item-meta td {
+      border: 0.3mm solid #8b8b8b;
+      padding: 2.4mm 2.8mm;
+      vertical-align: middle;
+    }
+
+    .item-meta .label {
+      width: 18%;
+      font-weight: 700;
+      background: #dfe5f2;
+    }
+
+    .item-meta .value {
+      width: 32%;
+    }
+
+    .item-body {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .item-body-top {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      min-height: 180mm;
+    }
+
+    .item-visual {
+      border-right: 0.3mm solid #8b8b8b;
+      min-height: 180mm;
       display: flex;
       align-items: center;
       justify-content: center;
+      padding: 8mm 8mm 12mm;
+      position: relative;
       overflow: hidden;
-      background: #6b7280;
-      color: #ffffff;
-      font-size: 14px;
-      font-weight: 700;
-      text-transform: uppercase;
+      background: #ffffff;
     }
 
-    .logo-img {
-      object-fit: cover;
-      background: transparent;
+    .item-visual img {
+      max-width: 100%;
+      max-height: 150mm;
+      object-fit: contain;
     }
 
-    .brand-name {
-      font-size: 14px;
-      font-weight: 700;
-      color: #0f172a;
-    }
-
-    .quotation-label {
-      color: #e10e0e;
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: 1px;
-    }
-
-    .contact {
-      text-align: right;
-      font-size: 11px;
-      line-height: 1.5;
-    }
-
-    .navy-bar {
-      background: #2f3a4f;
-      color: #ffffff;
-      padding: 4mm;
+    .item-visual-caption {
+      position: absolute;
+      bottom: 8mm;
+      left: 0;
+      right: 0;
       text-align: center;
-      font-size: 18px;
-      font-weight: 600;
+      font-size: 4.1mm;
+      font-weight: 500;
     }
 
-    .info-container {
-      border: 1px solid #000000;
-      padding: 4mm;
+    .item-spec {
       display: flex;
       flex-direction: column;
-      gap: 4mm;
     }
 
-    .info-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 0.9fr;
-      gap: 5mm;
+    .item-spec-section {
+      border-bottom: 0.3mm solid #8b8b8b;
     }
 
-    .info-title {
-      font-size: 10px;
+    .item-spec-title {
+      background: #cfd8eb;
+      font-size: 4.5mm;
       font-weight: 700;
-      margin-bottom: 1.5mm;
+      padding: 2.2mm 2.6mm;
+      border-bottom: 0.3mm solid #8b8b8b;
     }
 
-    .info-line {
-      font-size: 10px;
-      line-height: 1.45;
+    .item-spec-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 4.1mm;
     }
 
-    .meta-card {
-      border-left: 1px solid #d8d8d8;
-      padding-left: 4mm;
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 2mm 4mm;
-      font-size: 10px;
-      align-content: start;
+    .item-spec-table td {
+      border-bottom: 0.3mm solid #8b8b8b;
+      padding: 2.3mm 2.6mm;
+      vertical-align: top;
     }
 
-    .meta-value {
-      font-weight: 700;
-      text-align: right;
+    .item-spec-table tr:last-child td {
+      border-bottom: none;
     }
 
-    .intro {
-      font-weight: 600;
+    .item-spec-table .label {
+      width: 48%;
+      font-weight: 500;
+    }
+
+    .item-spec-table .value {
+      width: 52%;
+      text-align: left;
+      word-break: break-word;
+    }
+
+    .terms-page {
+      font-size: 4.1mm;
+      line-height: 1.5;
+      color: #111111;
+      padding-top: 2mm;
+    }
+
+    .terms-page h2 {
+      margin: 0 0 5mm;
+      font-size: 6mm;
+      line-height: 1.2;
+      text-decoration: underline;
+    }
+
+    .terms-page ol {
+      margin: 0 0 8mm 8mm;
+      padding-left: 6mm;
+    }
+
+    .terms-page li {
+      margin-bottom: 3.2mm;
+    }
+
+    .terms-page .acceptance {
+      margin-top: 14mm;
+    }
+
+    .terms-page .signoff {
+      margin-top: 26mm;
     }
 
     .window-wrapper {
@@ -646,12 +910,13 @@ function buildDocumentStyles() {
 
     .window-block {
       display: block;
-      border: 1px solid #000000;
+      border: 0.35mm solid #d1d5db;
+      border-radius: 3mm;
       background: #ffffff;
+      overflow: hidden;
     }
 
     .main-row {
-      border-bottom: none;
       page-break-inside: avoid !important;
       break-inside: avoid-page !important;
     }
@@ -666,15 +931,15 @@ function buildDocumentStyles() {
     .window-header td,
     .computed-values td,
     .subrow-table td {
-      border: 1px solid #e0e0e0;
-      padding: 2.2mm;
+      border: 0.25mm solid #e5e7eb;
+      padding: 2.4mm;
       vertical-align: middle;
     }
 
     .window-header .label,
     .computed-values td:first-child,
     .subrow-header td {
-      background: #f7f7f7;
+      background: #f8fafc;
       font-weight: 700;
     }
 
@@ -691,31 +956,32 @@ function buildDocumentStyles() {
     }
 
     .window-image {
-      min-height: 44mm;
-      border-top: 1px solid #e0e0e0;
-      border-right: 1px solid #e0e0e0;
-      padding: 2mm;
+      min-height: 48mm;
+      border-top: 0.25mm solid #e5e7eb;
+      border-right: 0.25mm solid #e5e7eb;
+      padding: 3mm;
       overflow: hidden;
       text-align: center;
+      background: #fbfdff;
     }
 
     .window-image img {
       max-width: 100%;
-      max-height: 40mm;
+      max-height: 44mm;
       object-fit: contain;
     }
 
     .computed-values {
-      width: 45%;
-      border-top: 1px solid #e0e0e0;
+      width: 48%;
+      border-top: 0.25mm solid #e5e7eb;
     }
 
     .computed-title {
-      background: #f7f7f7;
-      font-size: 11px;
+      background: #f8fafc;
+      font-size: 10px;
       font-weight: 700;
       padding: 2.5mm;
-      border-bottom: 1px solid #e0e0e0;
+      border-bottom: 0.25mm solid #e5e7eb;
     }
 
     .computed-values td:nth-child(2),
@@ -731,8 +997,8 @@ function buildDocumentStyles() {
 
     .subrow-table {
       table-layout: fixed;
-      font-size: 8px;
-      border-top: 1px dashed #000000;
+      font-size: 7.4px;
+      border-top: 0.25mm dashed #9ca3af;
     }
 
     .subrow-table img {
@@ -747,20 +1013,19 @@ function buildDocumentStyles() {
     }
 
     .summary {
-      display: flex;
-      justify-content: flex-end;
+      display: block;
     }
 
     .total-card {
-      width: 92mm;
-      border: 1px solid #e5e5e5;
-      border-radius: 4px;
-      padding: 4mm;
+      width: 100%;
+      border: 0.35mm solid #d1d5db;
+      border-radius: 3mm;
+      padding: 4mm 5mm;
     }
 
     .total-heading,
     .list-title {
-      color: #d5272b;
+      color: #111827;
       font-size: 12px;
       font-weight: 700;
       margin-bottom: 3mm;
@@ -771,7 +1036,7 @@ function buildDocumentStyles() {
       grid-template-columns: 1fr auto;
       gap: 4mm;
       padding: 2.5mm 0;
-      border-bottom: 1px solid #eaeaea;
+      border-bottom: 0.25mm solid #e5e7eb;
     }
 
     .total-row:last-child {
@@ -779,33 +1044,52 @@ function buildDocumentStyles() {
     }
 
     .lists {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
+      flex-direction: column;
       gap: 5mm;
     }
 
     .list-card {
-      border: 1px solid #d8d8d8;
+      border: 0.35mm solid #d1d5db;
+      border-radius: 3mm;
       padding: 4mm;
-      min-height: 36mm;
+      min-height: 30mm;
     }
 
     .signature-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16mm;
+      gap: 12mm;
       padding-top: 8mm;
     }
 
     .sig-line {
-      border-top: 1px solid #000000;
+      border-top: 0.3mm solid #111111;
       padding-top: 2mm;
       text-align: center;
     }
   `;
 }
 
-function renderHeaderBlock(params: {
+function renderPageFooter(pageNumber: number, totalPages: number) {
+  return `
+    <div class="page-footer">
+      <div class="page-no">${pageNumber} of ${totalPages}</div>
+      <div class="powered-by">powered by Glazia Quotation Software</div>
+    </div>
+  `;
+}
+
+function renderCompactFooter(pageNumber: number, totalPages: number) {
+  return `
+    <div class="page-footer compact">
+      <div class="page-no">${pageNumber} of ${totalPages}</div>
+      <div class="powered-by"></div>
+    </div>
+  `;
+}
+
+function renderCoverPage(params: {
   logoSrc: string;
   userData: PdfUserData;
   contactPhone: string;
@@ -813,59 +1097,100 @@ function renderHeaderBlock(params: {
   customer: ReturnType<typeof getCustomer>;
   preparedQuotation: QuotationPdfData;
   quotationDate: string;
+  totalPages: number;
 }) {
-  const { logoSrc, userData, contactPhone, website, customer, preparedQuotation, quotationDate } = params;
+  const { logoSrc, userData, contactPhone, website, customer, preparedQuotation, quotationDate, totalPages } = params;
+  const companyName = userData.name || "Glazia";
+  const projectName =
+    preparedQuotation.customer?.projectName ||
+    preparedQuotation.quotationDetails?.opportunity ||
+    preparedQuotation.opportunity ||
+    customer.company ||
+    "-";
+  const recipientName = customer.name || "Customer";
 
   return `
-    <div class="top-bar avoid-break">
-      <div class="brand-block">
-        ${logoSrc ? `<img class="logo-img" src="${logoSrc}" alt="Company logo">` : `<div class="user-logo">${escapeHtml(getInitials(userData.name))}</div>`}
-        <div class="brand-name">${escapeHtml(userData.name || "Glazia")}</div>
+    <section class="page">
+      <div class="page-content">
+        <div class="cover-top avoid-break">
+          <div class="cover-brand">
+            ${logoSrc ? `<img class="logo-img" src="${logoSrc}" alt="Company logo">` : `<div class="logo-fallback">${escapeHtml(companyName)}</div>`}
+          </div>
+          <div class="cover-company">
+            <div>${escapeHtml(companyName)}</div>
+            ${userData.completeAddress ? `<div>${escapeHtml(userData.completeAddress)}</div>` : ""}
+            ${[userData.city, userData.state, userData.pincode].filter(Boolean).length ? `<div>${escapeHtml([userData.city, userData.state, userData.pincode].filter(Boolean).join(", "))}</div>` : ""}
+            ${contactPhone ? `<div>Contact No. : ${escapeHtml(contactPhone)}</div>` : ""}
+            ${userData.email ? `<div>Email : ${escapeHtml(userData.email)}</div>` : ""}
+            ${website ? `<div>Website : ${escapeHtml(website)}</div>` : ""}
+            ${userData.gstNumber ? `<div>GSTIN : ${escapeHtml(userData.gstNumber)}</div>` : ""}
+          </div>
+        </div>
+
+        <div class="cover-separator"></div>
+
+        <div class="quote-strip avoid-break">
+          <span>Quote No. : ${escapeHtml(getQuotationNumber(preparedQuotation))} / Project : ${escapeHtml(projectName)} / Date : ${escapeHtml(formatDate(quotationDate))}</span>
+        </div>
+
+        <div class="cover-to avoid-break">
+          <div>To</div>
+          <div class="recipient-name">${escapeHtml(recipientName)}</div>
+        </div>
+
+        <div class="cover-letter">
+          <p>Dear Customer,</p>
+          <p>We are delighted that you are considering our range of Windows and Doors for your premises.</p>
+          <p>It has gained rapid acceptance across all cities of India for the overwhelming advantages of better protection from noise, heat, rain, dust and pollution.</p>
+          <p>In drawing this proposal, it has been our endeavor to suggest designs which would enhance your comfort and aesthetics from inside and improve the facade of the building.</p>
+          <p>It has a well-established service network to deliver seamless service at your doorstep. Our offer comprises of the following in enclosure for your kind perusal:</p>
+          <ol class="cover-list">
+            <li>Window design, specification and value</li>
+            <li>Terms and Conditions</li>
+          </ol>
+          <p>We now look forward to be of service to you.</p>
+        </div>
+
+        <div class="cover-signoff avoid-break">
+          <div>For <span class="company-name">${escapeHtml(companyName)}</span>,</div>
+          <div class="cover-signature-line">Authorized Signatory</div>
+        </div>
       </div>
-      <div class="quotation-label">QUOTATION</div>
-      <div class="contact">
-        ${contactPhone ? `<div>Phone: ${escapeHtml(contactPhone)}</div>` : ""}
-        ${userData.email ? `<div>Email: ${escapeHtml(userData.email)}</div>` : ""}
-        ${website ? `<div>Website: ${escapeHtml(website)}</div>` : ""}
+      ${renderPageFooter(1, totalPages)}
+    </section>
+  `;
+}
+
+function renderDetailHeader(params: {
+  logoSrc: string;
+  userData: PdfUserData;
+  preparedQuotation: QuotationPdfData;
+  quotationDate: string;
+  customer: ReturnType<typeof getCustomer>;
+}) {
+  const { logoSrc, userData, preparedQuotation, quotationDate, customer } = params;
+  const projectName =
+    preparedQuotation.customer?.projectName ||
+    preparedQuotation.quotationDetails?.opportunity ||
+    preparedQuotation.opportunity ||
+    customer.company ||
+    "-";
+
+  return `
+    <div class="detail-header avoid-break">
+      <div class="detail-brand">
+        ${logoSrc ? `<img class="detail-logo" src="${logoSrc}" alt="Company logo">` : ""}
+        <div class="detail-brand-name">${escapeHtml(userData.name || "Glazia")}</div>
+      </div>
+      <div class="detail-meta">
+        <div><strong>Quote No:</strong> ${escapeHtml(getQuotationNumber(preparedQuotation))}</div>
+        <div><strong>Project:</strong> ${escapeHtml(projectName)}</div>
+        <div><strong>Date:</strong> ${escapeHtml(formatDate(quotationDate))}</div>
       </div>
     </div>
-
-    <div class="navy-bar avoid-break">${escapeHtml(userData.name || "Quotation")}</div>
-
-    <div class="info-container avoid-break">
-      <div class="info-grid">
-        <div>
-          <div class="info-title">To:</div>
-          <div class="info-line"><strong>${escapeHtml(customer.name || "-")}</strong></div>
-          ${customer.company ? `<div class="info-line">${escapeHtml(customer.company)}</div>` : ""}
-          ${customer.address ? `<div class="info-line">${escapeHtml(customer.address)}</div>` : ""}
-          <div class="info-line">${escapeHtml([customer.city, customer.state, customer.pincode].filter(Boolean).join(", "))}</div>
-          <div class="info-line">Phone: ${escapeHtml(customer.phone || "-")}</div>
-          <div class="info-line">Email: ${escapeHtml(customer.email || "-")}</div>
-        </div>
-
-        <div>
-          <div class="info-title">From:</div>
-          <div class="info-line"><strong>${escapeHtml(userData.name || "-")}</strong></div>
-          ${userData.completeAddress ? `<div class="info-line">${escapeHtml(userData.completeAddress)}</div>` : ""}
-          <div class="info-line">${escapeHtml([userData.city, userData.state, userData.pincode].filter(Boolean).join(", "))}</div>
-          <div class="info-line">India</div>
-          <div class="info-line">Phone: ${escapeHtml(contactPhone || "-")}</div>
-          <div class="info-line">GST: ${escapeHtml(userData.gstNumber || "-")}</div>
-        </div>
-
-        <div class="meta-card">
-          <div>Quotation no.</div>
-          <div class="meta-value">${escapeHtml(getQuotationNumber(preparedQuotation))}</div>
-          <div>Date</div>
-          <div class="meta-value">${escapeHtml(formatDate(quotationDate))}</div>
-          <div>Status</div>
-          <div class="meta-value">${escapeHtml(preparedQuotation.status || "Draft")}</div>
-        </div>
-      </div>
-
-      <div class="intro">We are pleased to submit our quotation of price of products as following :-</div>
-    </div>
+    <div class="detail-title">Window Design, Specification and Value</div>
+    <div class="detail-subtitle">Customer: ${escapeHtml(customer.name || "-")}</div>
+    <div class="detail-intro">Below is the proposed specification and commercial value for the selected windows and doors.</div>
   `;
 }
 
@@ -902,7 +1227,7 @@ function renderClosingBlock(params: {
         <div>${quotationTerms ? nl2br(quotationTerms) : "N/A"}</div>
       </div>
       <div class="list-card avoid-break">
-        <div class="list-title">Pre-requisites for Installation of Windows</div>
+        <div class="list-title">Pre-requisites for Installation</div>
         <div>${prerequisites ? nl2br(prerequisites) : "N/A"}</div>
       </div>
     </div>
@@ -914,12 +1239,156 @@ function renderClosingBlock(params: {
   `;
 }
 
+function renderItemPage(
+  item: ReturnType<typeof calculateQuotationPricing>["items"][number],
+  pageNumber: number,
+  totalPages: number,
+  quoteNo: string,
+  companyName: string
+) {
+  const itemName = item.description || item.systemType || item.productType || "-";
+  const imageMarkup = item.refImage ? `<img src="${item.refImage}" alt="${escapeHtml(itemName)}">` : `<span class="no-image">No image</span>`;
+  const meshLabel = `${item.meshPresent || "-"}${item.meshType ? ` / ${item.meshType}` : ""}`;
+  const remarks = item.remarks || item.specialNotes || "-";
+  const rightRows = [
+    ["Size", `${formatDimensionMm(item.width)} x ${formatDimensionMm(item.height)}`],
+    ["System", item.systemType || item.productType || "-"],
+    ["Series", item.series || "-"],
+    ["Glass", item.glassSpec || item.glassType || "-"],
+    ["Handle", [item.handleType, item.handleColor].filter(Boolean).join(" / ") || "-"],
+    ["Mesh", meshLabel],
+    ["Sq.Ft. per Unit", item.area.toFixed(2)],
+    ["Value per Sq.Ft.", formatCurrency(toNumber(item.rate))],
+    ["Unit Price", formatCurrency(toNumber(item.amount) / Math.max(1, toNumber(item.quantity) || 1))],
+    ["Quantity", String(item.quantity || 1)],
+    ["Value", formatCurrency(toNumber(item.amount))],
+    ["Remarks", remarks]
+  ];
+
+  const subItemsMarkup =
+    item.subItems && item.subItems.length > 0
+      ? `
+        <div class="item-spec-section" style="border-top: 0.3mm solid #8b8b8b;">
+          <div class="item-spec-title">Sections</div>
+          ${renderSubItemsTable(item.subItems)}
+        </div>
+      `
+      : "";
+  return `
+    <section class="page">
+      <div class="page-content">
+        <div class="item-page-header avoid-break">
+          <div class="item-page-brand">
+            <div class="item-page-company">${escapeHtml(companyName)}</div>
+          </div>
+          <div class="item-page-meta">
+            <div><strong>Quote No.</strong> : ${escapeHtml(quoteNo)}</div>
+            <div><strong>Ref-Code</strong> : ${escapeHtml(item.refCode || "-")}</div>
+            <div><strong>Location</strong> : ${escapeHtml(item.location || item.projectLocation || "-")}</div>
+          </div>
+        </div>
+        <div class="item-page-separator"></div>
+        <div class="item-sheet">
+          <table class="item-meta avoid-break">
+            <tr>
+              <td class="label">Code :</td>
+              <td class="value">${escapeHtml(item.refCode || "-")}</td>
+              <td class="label">Size :</td>
+              <td class="value">${escapeHtml(formatDimensionMm(item.width))} x ${escapeHtml(formatDimensionMm(item.height))}</td>
+            </tr>
+            <tr>
+              <td class="label">Name :</td>
+              <td class="value">${escapeHtml(itemName)}</td>
+              <td class="label">Profile Series :</td>
+              <td class="value">${escapeHtml(item.series || item.systemType || "-")}</td>
+            </tr>
+            <tr>
+              <td class="label">Location :</td>
+              <td class="value">${escapeHtml(item.location || item.projectLocation || "-")}</td>
+              <td class="label">Glass :</td>
+              <td class="value">${escapeHtml(item.glassSpec || item.glassType || "-")}</td>
+            </tr>
+          </table>
+
+            <div class="item-body-top avoid-break">
+              <div class="item-visual">
+                ${imageMarkup}
+                <div class="item-visual-caption">View From Inside</div>
+              </div>
+              <div class="item-spec">
+                <div class="item-spec-section" style="border-bottom: none;">
+                  <div class="item-spec-title">Computed Values</div>
+                  <table class="item-spec-table">
+                    ${rightRows
+                      .map(
+                        ([label, value]) => `
+                          <tr>
+                            <td class="label">${escapeHtml(label)}</td>
+                            <td class="value">${escapeHtml(value)}</td>
+                          </tr>
+                        `
+                      )
+                      .join("")}
+                  </table>
+                </div>
+              </div>
+            </div>
+            ${subItemsMarkup}
+          </div>
+        </div>
+      </div>
+      ${renderCompactFooter(pageNumber, totalPages)}
+    </section>
+  `;
+}
+
+function renderTermsPage(params: {
+  quotationTerms: string;
+  prerequisites: string;
+  pageNumber: number;
+  totalPages: number;
+}) {
+  const { quotationTerms, prerequisites, pageNumber, totalPages } = params;
+  const termItems = quotationTerms
+    ? quotationTerms
+        .split(/\n+/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+    : ["Prices are valid for 30 days from the date of quotation."];
+  const prerequisiteItems = prerequisites
+    ? prerequisites
+        .split(/\n+/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+    : ["All apertures should be ready and accessible before installation."];
+
+  return `
+    <section class="page">
+      <div class="page-content terms-page">
+        <h2>Terms & Conditions:-</h2>
+        <ol>
+          ${termItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+        </ol>
+
+        <h2>Pre-Requisites for Installation of Windows:-</h2>
+        <ol>
+          ${prerequisiteItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+        </ol>
+
+        <div class="acceptance">I hereby accept the estimate as per above mentioned price and specifications.</div>
+        <div class="signoff">Authorized Signatory</div>
+      </div>
+      ${renderCompactFooter(pageNumber, totalPages)}
+    </section>
+  `;
+}
+
 async function measureHtmlFragmentHeight(styles: string, fragment: string) {
   const host = document.createElement("div");
   host.style.position = "fixed";
   host.style.left = "-10000px";
   host.style.top = "0";
-  host.style.width = "277mm";
+  host.style.width = "190mm";
   host.style.visibility = "hidden";
   host.innerHTML = `<style>${styles}</style><div class="page"><div class="page-content">${fragment}</div></div>`;
   document.body.appendChild(host);
@@ -954,95 +1423,27 @@ async function createQuotationHtml(quotation: QuotationPdfData) {
     pricing
   });
 
-  const renderedItemSections = pricing.items.map((item) => {
-    const isCombinationParent = item.systemType === COMBINATION_SYSTEM && Boolean(item.subItems?.length);
-
-    return `
-      <section class="item-group avoid-break">
-        ${renderMainItemBlock(item, isCombinationParent)}
-        ${isCombinationParent ? renderSubItemsTable(item.subItems || []) : ""}
-      </section>
-    `;
-  });
-
-  console.log("[quotation-pdf] html sections rendered", {
-    sectionCount: pricing.items.length
-  });
   const styles = buildDocumentStyles();
-  const headerBlock = renderHeaderBlock({
+  const totalPages = 1 + pricing.items.length + 1;
+  const coverPage = renderCoverPage({
     logoSrc,
     userData,
     contactPhone,
     website,
     customer,
     preparedQuotation,
-    quotationDate
+    quotationDate,
+    totalPages
   });
-  const closingBlock = renderClosingBlock({
-    pricing,
+  const quoteNo = getQuotationNumber(preparedQuotation);
+  const companyName = userData.name || "Glazia";
+  const detailPages = pricing.items.map((item, index) => renderItemPage(item, index + 2, totalPages, quoteNo, companyName)).join("");
+  const termsPage = renderTermsPage({
     quotationTerms,
-    prerequisites
+    prerequisites,
+    pageNumber: totalPages,
+    totalPages
   });
-  const pageHeightPx = (190 * 96) / 25.4;
-  const gapPx = (6 * 96) / 25.4;
-  const headerHeight = await measureHtmlFragmentHeight(styles, headerBlock);
-  const closingHeight = await measureHtmlFragmentHeight(styles, closingBlock);
-  const sectionHeights = await Promise.all(renderedItemSections.map((section) => measureHtmlFragmentHeight(styles, section)));
-  console.log("[quotation-pdf] pagination measurements", {
-    pageHeightPx,
-    headerHeight,
-    closingHeight,
-    sectionHeights
-  });
-
-  const sectionPages: string[][] = [[]];
-  let currentPageIndex = 0;
-  let currentHeight = headerHeight;
-
-  renderedItemSections.forEach((section, index) => {
-    const nextHeight = sectionHeights[index] ?? 0;
-    const pageHasContent = sectionPages[currentPageIndex].length > 0;
-    const projectedHeight = currentHeight + (pageHasContent ? gapPx : 0) + nextHeight;
-
-    if (projectedHeight > pageHeightPx && pageHasContent) {
-      sectionPages.push([]);
-      currentPageIndex += 1;
-      currentHeight = 0;
-    }
-
-    sectionPages[currentPageIndex].push(section);
-    currentHeight += (sectionPages[currentPageIndex].length > 1 ? gapPx : 0) + nextHeight;
-  });
-
-  let closingPageIndex = sectionPages.length - 1;
-  const lastSectionsHeight = sectionPages[closingPageIndex].reduce((sum, _section, index) => {
-    const sectionIndex = renderedItemSections.indexOf(sectionPages[closingPageIndex][index]);
-    return sum + (index > 0 ? gapPx : 0) + (sectionHeights[sectionIndex] ?? 0);
-  }, closingPageIndex === 0 ? headerHeight : 0);
-  const projectedClosingHeight = lastSectionsHeight + (sectionPages[closingPageIndex].length > 0 ? gapPx : 0) + closingHeight;
-
-  if (projectedClosingHeight > pageHeightPx) {
-    sectionPages.push([]);
-    closingPageIndex = sectionPages.length - 1;
-  }
-
-  const renderedPages = sectionPages
-    .map((sections, index) => {
-      const pageParts = [
-        index === 0 ? headerBlock : "",
-        sections.join(""),
-        index === closingPageIndex ? closingBlock : ""
-      ].filter(Boolean);
-
-      return `
-        <section class="page">
-          <div class="page-content">
-            ${pageParts.join("")}
-          </div>
-        </section>
-      `;
-    })
-    .join("");
 
   return `
     <!DOCTYPE html>
@@ -1054,7 +1455,9 @@ async function createQuotationHtml(quotation: QuotationPdfData) {
       </head>
       <body>
         <div class="document">
-          ${renderedPages}
+          ${coverPage}
+          ${detailPages}
+          ${termsPage}
         </div>
       </body>
     </html>
@@ -1081,7 +1484,7 @@ function getQuotationPdfOptions(quotation: QuotationPdfData, doc: Document) {
     jsPDF: {
       unit: "mm" as const,
       format: "a4" as const,
-      orientation: "landscape" as const
+      orientation: "portrait" as const
     },
     pagebreak: {
       mode: ["avoid-all", "css", "legacy"] as Array<"css" | "legacy" | "avoid-all">,

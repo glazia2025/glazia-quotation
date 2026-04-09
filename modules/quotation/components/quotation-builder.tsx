@@ -36,11 +36,11 @@ import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-bui
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { toEditorQuotation } from "@/modules/quotation/utils/backend-quotation";
 import { calculateQuotationTotals, getArea, getItemGrandTotal, getPerimeter } from "@/modules/quotation/utils/calculations";
-import { saveQuotationDraft } from "@/services/quotation-service";
+import { getQuotationPdfBlob, saveQuotationDraft } from "@/services/quotation-service";
 import type { Quotation, QuotationItem } from "@/types/quotation";
 import { formatCurrency, formatNumber } from "@/utils/format";
-import { generateQuotationPDFBlob, getQuotationPdfDownloadName } from "@/utils/quotationPdf";
-import { useRouter } from "next/navigation";
+import { getQuotationPdfDownloadName } from "@/utils/quotationPdf";
+import { useRouter, useSearchParams } from "next/navigation";
 import { loadGlobalConfig } from "../../../utils/globalConfig";
 
 
@@ -60,9 +60,16 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: "quotation", label: "Quotation Details" },
   { key: "global", label: "Global Config" },
   { key: "item", label: "Item List" },
- 
+  
   
 ];
+const isTabKey = (value: string | null): value is TabKey =>
+  value === "customer" || value === "quotation" || value === "global" || value === "item";
+
+const formatDimensionMm = (value: number | string | undefined) => `${value ?? "-"} mm`;
+const formatSizeMm = (width: number | string | undefined, height: number | string | undefined) =>
+  `${formatDimensionMm(width)} x ${formatDimensionMm(height)}`;
+
 function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configuratorBasePath: string }) {
   const [showSections, setShowSections] = useState(false);
   const removeItem = useQuotationBuilderStore((state) => state.removeItem);
@@ -114,7 +121,7 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
 
       <div className="flex justify-between text-sm">
         <span className="text-gray-500">Size</span>
-        <span className="font-medium">{item.width}" x {item.height}"</span>
+        <span className="font-medium">{formatSizeMm(item.width, item.height)}</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-t pt-2">
@@ -161,7 +168,7 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
                     <td className="px-3 py-3 font-medium text-slate-900">{section.refCode}</td>
                     <td className="px-3 py-3 text-slate-600">{section.location}</td>
                     <td className="px-3 py-3 text-slate-600">{section.systemType}</td>
-                    <td className="px-3 py-3 text-slate-600">{section.width}" x {section.height}"</td>
+                    <td className="px-3 py-3 text-slate-600">{formatSizeMm(section.width, section.height)}</td>
                     <td className="px-3 py-3 text-slate-600">{formatNumber(section.area)}</td>
                     <td className="px-3 py-3 text-slate-600">{section.quantity}</td>
                   </tr>
@@ -804,8 +811,10 @@ export function QuotationBuilder({
   initialQuotation?: Quotation;
   quotationBasePath?: string;
 }) {
+  const searchParams = useSearchParams();
   const currentQuotationId = useQuotationBuilderStore((state) => state.quotation.id);
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
+  const requestedTab = searchParams.get("tab");
 
  useEffect(() => {
   const fetchData = async () => {
@@ -822,7 +831,7 @@ export function QuotationBuilder({
   if (currentQuotationId === initialQuotation.id) return;
   setQuotation(initialQuotation);
  }, [currentQuotationId, initialQuotation, setQuotation]);
-  const [activeTab, setActiveTab] = useState<TabKey>("customer");
+  const [activeTab, setActiveTab] = useState<TabKey>(() => (isTabKey(requestedTab) ? requestedTab : "customer"));
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
@@ -850,6 +859,10 @@ useEffect(() => {
     }
   };
 }, [pdfPreviewUrl]);
+useEffect(() => {
+  if (!isTabKey(requestedTab)) return;
+  setActiveTab(requestedTab);
+}, [requestedTab]);
 const handleSave = async () => {
   try {
     const savedQuotation = await saveQuotationDraft(quotation);
@@ -892,10 +905,13 @@ const handleLogoUpload = (file: File | null) => {
         hasGlobalConfig: Boolean(globalConfig),
         hasLogo: Boolean(globalConfig?.logoUrl || globalConfig?.logo)
       });
-      const blob = await generateQuotationPDFBlob({
-        ...quotation,
-        globalConfig
-      });
+      const savedQuotation = await saveQuotationDraft(quotation);
+
+      if (!savedQuotation) {
+        throw new Error("Failed to save quotation before PDF generation.");
+      }
+
+      const blob = await getQuotationPdfBlob(quotation.id);
       const nextPdfPreviewUrl = URL.createObjectURL(blob);
       setPdfPreviewUrl((currentUrl) => {
         if (currentUrl) {

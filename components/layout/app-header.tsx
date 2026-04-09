@@ -1,13 +1,20 @@
 "use client";
 
 import { Bell, Building2, LogOut, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/auth-store";
 
 export function AppHeader() {
+  const router = useRouter();
   const { user, organization, logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    router.replace("/login");
+  };
 
   return (
     <header className="sticky top-0 z-30 flex flex-col gap-3 border-b border-slate-200/80 bg-white/85 px-4 py-4 backdrop-blur md:flex-row md:items-center md:justify-between lg:px-8">
@@ -33,7 +40,7 @@ export function AppHeader() {
         <Badge variant="outline">{user?.role.replace("_", " ")}</Badge>
         <div className="rounded-2xl bg-slate-950 px-4 py-2 text-sm text-white">
           <div>{user?.name}</div>
-          <button onClick={logout} className="mt-1 flex items-center gap-1 text-xs text-slate-300">
+          <button onClick={handleLogout} className="mt-1 flex items-center gap-1 text-xs text-slate-300">
             <LogOut className="h-3 w-3" />
             Logout
           </button>

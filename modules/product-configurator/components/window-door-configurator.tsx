@@ -9,6 +9,7 @@ import {
   SplitSquareHorizontal,
   RotateCcw,
   Square,
+  X,
 } from "lucide-react";
 import { useDescriptionsQuery, useOptionsQuery, useSeriesQuery, useSystemsQuery } from "@/lib/quotations/queries";
 import { fetchDescriptions, fetchOptions } from "@/lib/quotations/api";
@@ -134,6 +135,9 @@ const getDefaultLeafDescription = (
   if (hasExhaustFan && systemType === "Casement") return "Fix + Exhaust Fan";
   return `${systemType} ${productType}`;
 };
+
+const getSectionLabel = (leaf: SectionNode, productType: ProductMeta["productType"]) =>
+  leaf.description?.trim() || getDefaultLeafDescription(leaf.systemType, productType, leaf.hasExhaustFan);
 
 const DEFAULT_EXHAUST_FAN_X = 0.5;
 const DEFAULT_EXHAUST_FAN_Y = 0.5;
@@ -1845,7 +1849,14 @@ export function WindowDoorConfigurator({
       await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       gridGroupRef.current?.visible(false);
       layerRef.current?.draw();
-      const dataUrl = stageRef.current?.toDataURL({ pixelRatio: 2 }) ?? "";
+      const cropPadding = 10;
+      const dataUrl = stageRef.current?.toDataURL({ 
+        x: view.offsetX - cropPadding,
+        y: view.offsetY - cropPadding,
+        width: view.drawW + cropPadding * 2,
+        height: view.drawH + cropPadding * 2,
+        pixelRatio: 2 
+      }) ?? "";
       gridGroupRef.current?.visible(true);
       layerRef.current?.draw();
       setHideSelectionForExport(false);
@@ -2215,10 +2226,12 @@ export function WindowDoorConfigurator({
         const fanGeometry = getExhaustFanGeometry(x + inset, y + inset, w - inset * 2, h - inset * 2, leaf.exhaustFanX, leaf.exhaustFanY, leaf.exhaustFanSize);
         const fanDiameterMm = Math.round(Math.min(leaf.w * widthMm, leaf.h * heightMm) * clampValue(leaf.exhaustFanSize ?? DEFAULT_EXHAUST_FAN_SIZE, 0.2, 0.9) * 1.18);
         const dimOffset = 22;
-        addDimensionLine(g, fanGeometry.centerX - fanGeometry.outerRadius, fanGeometry.centerY - fanGeometry.outerRadius - dimOffset, fanGeometry.centerX + fanGeometry.outerRadius, fanGeometry.centerY - fanGeometry.outerRadius - dimOffset, `${fanDiameterMm} mm`);
-        addDimensionLine(g, fanGeometry.centerX + fanGeometry.outerRadius + dimOffset, fanGeometry.centerY - fanGeometry.outerRadius, fanGeometry.centerX + fanGeometry.outerRadius + dimOffset, fanGeometry.centerY + fanGeometry.outerRadius, `${fanDiameterMm} mm`);
+        if (!hideSelectionForExport) {
+          addDimensionLine(g, fanGeometry.centerX - fanGeometry.outerRadius, fanGeometry.centerY - fanGeometry.outerRadius - dimOffset, fanGeometry.centerX + fanGeometry.outerRadius, fanGeometry.centerY - fanGeometry.outerRadius - dimOffset, `${fanDiameterMm} mm`);
+          addDimensionLine(g, fanGeometry.centerX + fanGeometry.outerRadius + dimOffset, fanGeometry.centerY - fanGeometry.outerRadius, fanGeometry.centerX + fanGeometry.outerRadius + dimOffset, fanGeometry.centerY + fanGeometry.outerRadius, `${fanDiameterMm} mm`);
+        }
       }
-      g.add(new Konva.Text({ text: `${leaf.systemType}${leaf.series ? ` · ${leaf.series}` : ""}`, x: x + 8, y: y + 8, fontSize: 12, fill: COLORS.text, listening: false }));
+      g.add(new Konva.Text({ text: getSectionLabel(leaf, meta.productType), x: x + 8, y: y + 8, fontSize: 12, fill: COLORS.text, listening: false }));
       g.add(new Konva.Circle({ x: x + w / 2, y: y + h / 2 - 10, radius: 14, fill: "#FFFFFF", stroke: COLORS.frameDark, strokeWidth: 0.6, listening: false }));
       g.add(new Konva.Text({ x: x + w / 2 - 14, y: y + h / 2 - 18, width: 28, align: "center", text: String(idx + 1), fontSize: 12, fontStyle: "bold", fill: COLORS.text, listening: false }));
       g.add(new Konva.Line({ points: [x + w / 2 - 10, y + h / 2 + 8, x + w / 2 + 10, y + h / 2 + 8], stroke: COLORS.frameDark, strokeWidth: 0.6, opacity: 0.85, listening: false }));
@@ -2242,15 +2255,17 @@ export function WindowDoorConfigurator({
     const horizontalGuideBase = splitBaseOffset;
     const mainHeightGuideX = fx - horizontalGuideBase - (maxHorizontalLevel >= 0 ? (maxHorizontalLevel + 1) * hierarchyOffset : 26);
     const mainWidthGuideY = fy + fh + verticalGuideBase + (maxVerticalLevel >= 0 ? (maxVerticalLevel + 1) * hierarchyOffset : 26);
-    addDimensionLine(layer, mainHeightGuideX, fy, mainHeightGuideX, fy + fh, `${heightMm} `);
-    addDimensionLine(layer, fx, mainWidthGuideY, fx + fw, mainWidthGuideY, `${widthMm} `);
-    if (root.split === "vertical" && (root.children?.length ?? 0) >= 2) {
-      const y2 = fy + fh + verticalGuideBase;
-      root.children!.forEach((c) => addDimensionLine(layer, fx + c.x * fw, y2, fx + (c.x + c.w) * fw, y2, `${Math.round(c.w * widthMm)}`));
-    }
-    if (root.split === "horizontal" && (root.children?.length ?? 0) >= 2) {
-      const x2 = fx - horizontalGuideBase;
-      root.children!.forEach((c) => addDimensionLine(layer, x2, fy + c.y * fh, x2, fy + (c.y + c.h) * fh, `${Math.round(heightMm * c.h)}`));
+    if (!hideSelectionForExport) {
+      addDimensionLine(layer, mainHeightGuideX, fy, mainHeightGuideX, fy + fh, `${heightMm} `);
+      addDimensionLine(layer, fx, mainWidthGuideY, fx + fw, mainWidthGuideY, `${widthMm} `);
+      if (root.split === "vertical" && (root.children?.length ?? 0) >= 2) {
+        const y2 = fy + fh + verticalGuideBase;
+        root.children!.forEach((c) => addDimensionLine(layer, fx + c.x * fw, y2, fx + (c.x + c.w) * fw, y2, `${Math.round(c.w * widthMm)}`));
+      }
+      if (root.split === "horizontal" && (root.children?.length ?? 0) >= 2) {
+        const x2 = fx - horizontalGuideBase;
+        root.children!.forEach((c) => addDimensionLine(layer, x2, fy + c.y * fh, x2, fy + (c.y + c.h) * fh, `${Math.round(heightMm * c.h)}`));
+      }
     }
     const leaves2: SectionNode[] = [];
     mapLeafNodes(root, (leaf) => leaves2.push(leaf));
@@ -2360,6 +2375,14 @@ export function WindowDoorConfigurator({
 
   return (
     <div className="relative h-full w-full overflow-hidden border border-slate-300 bg-white shadow-2xl">
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close configurator"
+        className="absolute right-4 top-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:bg-gray-50"
+      >
+        <X className="h-5 w-5" />
+      </button>
       <div className="flex h-full">
         <div className="h-full flex-1 min-w-0 border-r border-slate-200 bg-white p-2">
           <div ref={canvasWrapRef} className="relative h-full min-h-[520px] w-full min-w-0">

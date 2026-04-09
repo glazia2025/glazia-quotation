@@ -29,6 +29,12 @@ export function FullPageConfigurator({
     setQuotation(initialQuotation);
   }, [initialQuotation, quotationId, setQuotation]);
 
+  const handleClose = () => {
+    const target = new URL(returnPath, window.location.origin);
+    target.searchParams.set("tab", "item");
+    router.push(`${target.pathname}${target.search}`);
+  };
+
   const handleSaveItem = (nextItem: QuotationItem) => {
     updateItem(itemId, nextItem);
   };
@@ -41,7 +47,7 @@ export function FullPageConfigurator({
             initialItem={item}
             profitPercentage={0}
             onSaveItem={handleSaveItem}
-            onClose={() => router.push(returnPath)}
+            onClose={handleClose}
           />
         ) : (
           <div className="flex h-full items-center justify-center rounded-3xl border border-slate-200 bg-white">
@@ -49,7 +55,7 @@ export function FullPageConfigurator({
               <div className="text-xl font-semibold text-slate-900">Configurator item missing</div>
               <button
                 type="button"
-                onClick={() => router.push(returnPath)}
+                onClick={handleClose}
                 className="mt-4 rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white"
               >
                 Back to quotation
