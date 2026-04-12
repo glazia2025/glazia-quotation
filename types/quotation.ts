@@ -37,7 +37,7 @@ export interface QuotationItem {
   refCode?: string;
   location?: string;
   area?: number;
-  projectLocation: string;
+  projectLocation?: string;
   productType: string;
   systemType?: string;
   material: string;

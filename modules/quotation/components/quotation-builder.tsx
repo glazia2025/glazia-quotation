@@ -42,6 +42,23 @@ import { formatCurrency, formatNumber } from "@/utils/format";
 import { getQuotationPdfDownloadName } from "@/utils/quotationPdf";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loadGlobalConfig } from "../../../utils/globalConfig";
+import {
+  DndContext,
+  closestCenter,
+   PointerSensor,
+  useSensor,
+  useSensors
+} from "@dnd-kit/core";
+
+import {
+  SortableContext,
+  verticalListSortingStrategy
+} from "@dnd-kit/sortable";
+
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import type { DragEndEvent } from "@dnd-kit/core";
+import { rectSortingStrategy } from "@dnd-kit/sortable";
 
 
 const customerSchema = z.object({
@@ -183,6 +200,34 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
   );
 }
 
+// function for drag and drop
+function SortableItem({
+  item,
+  configuratorBasePath,
+}: {
+  item: QuotationItem;
+  configuratorBasePath: string;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <ItemCard item={item} configuratorBasePath={configuratorBasePath} />
+    </div>
+  );
+}
+
 function QuotationPreview({ item }: { item: QuotationItem | undefined }) {
   if (!item) return null;
 
@@ -250,6 +295,22 @@ function ItemTab({ quotationBasePath }: { quotationBasePath: string }) {
     const newItemId = addItem();
     router.push(`${configuratorBasePath}/${newItemId}`);
   };
+   // for reorder item 
+   const reorderItems = useQuotationBuilderStore((s) => s.reorderItems);
+   const sensors = useSensors(
+  useSensor(PointerSensor)
+);
+
+const handleDragEnd = (event:DragEndEvent) => {
+  const { active, over } = event;
+
+  if (!over || active.id === over.id) return;
+
+  const oldIndex = items.findIndex((item) => item.id === active.id);
+  const newIndex = items.findIndex((item) => item.id === over.id);
+
+  reorderItems(oldIndex, newIndex);
+};
 
   return (
     <div className="space-y-4">
@@ -293,26 +354,39 @@ function ItemTab({ quotationBasePath }: { quotationBasePath: string }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {items.map((item, index) => (
-          <ItemCard
-            key={item.id || item.refCode || `${item.location || item.projectLocation || "item"}-${index}`}
-            item={item}
-            configuratorBasePath={configuratorBasePath}
-          />
-        ))}
-        <button
-          type="button"
-          onClick={handleAddItem}
-          className="flex min-h-[260px] flex-col items-center justify-center self-start rounded-2xl border-2 border-dashed border-slate-300 bg-white p-6 text-center transition hover:border-[#124657] hover:bg-slate-50"
-        >
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#124657] text-white">
-            <Plus className="h-7 w-7" />
-          </div>
-          <div className="mt-4 text-lg font-semibold text-slate-900">Add Item</div>
-          <div className="mt-2 max-w-[220px] text-sm text-slate-500">Open the window configurator and add the next quotation item.</div>
-        </button>
-      </div>
+      <DndContext   sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+  <SortableContext
+    items={items.map((item) => item.id)}
+    strategy={rectSortingStrategy}   
+  >
+    <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
+
+    
+      {items.map((item) => (
+        <SortableItem
+          key={item.id}
+          item={item}
+          configuratorBasePath={configuratorBasePath}
+        />
+      ))}
+
+      <button
+        type="button"
+        onClick={handleAddItem}
+        className="flex min-h-[260px] flex-col items-center justify-center self-start rounded-2xl border-2 border-dashed border-slate-300 bg-white p-6 text-center transition hover:border-[#124657] hover:bg-slate-50"
+      >
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#124657] text-white">
+          <Plus className="h-7 w-7" />
+        </div>
+        <div className="mt-4 text-lg font-semibold text-slate-900">Add Item</div>
+        <div className="mt-2 max-w-[220px] text-sm text-slate-500">
+          Open the window configurator and add the next quotation item.
+        </div>
+      </button>
+
+    </div>
+  </SortableContext>
+</DndContext>
     </div>
   );
 }
@@ -815,6 +889,15 @@ export function QuotationBuilder({
   const currentQuotationId = useQuotationBuilderStore((state) => state.quotation.id);
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
   const requestedTab = searchParams.get("tab");
+   const addItem = useQuotationBuilderStore((state) => state.addItem);
+  const router = useRouter();
+  const configuratorBasePath = `${quotationBasePath}/configurator`;
+  const handleAddItem = () => {
+    const newItemId = addItem();
+    router.push(`${configuratorBasePath}/${newItemId}`);
+  };
+
+  
 
  useEffect(() => {
   const fetchData = async () => {
@@ -953,7 +1036,6 @@ const handleLogoUpload = (file: File | null) => {
       description={pageDescription}
       actions={
         <>
-          <Badge variant="outline">{quotation.status}</Badge>
           <Badge variant="success">{saveState}</Badge>
           <Button variant="outline" onClick={exportPdf} disabled={isGeneratingPdf}>
             <Download className="h-4 w-4" />
@@ -971,19 +1053,34 @@ const handleLogoUpload = (file: File | null) => {
     >
       <div id="quotation-pdf-root" className="space-y-6">
           <Card className="border-0 bg-white/90">
-            <CardContent className="flex flex-wrap gap-3 p-4">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`rounded-2xl px-4 py-2 text-sm transition ${
-                    activeTab === tab.key ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </CardContent>
+            <CardContent className="flex items-center justify-between p-4">
+  
+  {/* LEFT SIDE (TABS) */}
+  <div className="flex flex-wrap gap-3">
+    {tabs.map((tab) => (
+      <button
+        key={tab.key}
+        onClick={() => setActiveTab(tab.key)}
+        className={`rounded-2xl px-4 py-2 text-sm transition ${
+          activeTab === tab.key
+            ? "bg-slate-950 text-white"
+            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+        }`}
+      >
+        {tab.label}
+      </button>
+    ))}
+  </div>
+
+  {/* RIGHT SIDE (BUTTON) */}
+  <button
+    onClick={handleAddItem} 
+    className="rounded-xl bg-[#124657] px-4 py-2 text-sm text-white hover:bg-[#0b3642]"
+  >
+     Add Item
+  </button>
+
+</CardContent>
           </Card>
           <AnimatePresence mode="wait">
             <motion.div

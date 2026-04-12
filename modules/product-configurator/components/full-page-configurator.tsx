@@ -35,9 +35,23 @@ export function FullPageConfigurator({
     router.push(`${target.pathname}${target.search}`);
   };
 
+  // const handleSaveItem = (nextItem: QuotationItem) => {
+  //   updateItem(itemId, nextItem);
+  // };
   const handleSaveItem = (nextItem: QuotationItem) => {
+  const exists = quotation.items.find((i) => i.id === itemId);
+
+  if (exists) {
     updateItem(itemId, nextItem);
-  };
+  } else {
+    setQuotation({
+      ...quotation,
+      items: [...quotation.items, nextItem]
+    });
+  }
+};
+
+  
 
   return (
     <div className="fixed inset-0 z-[200] bg-[linear-gradient(180deg,#e2e8f0_0%,#f8fafc_100%)]">

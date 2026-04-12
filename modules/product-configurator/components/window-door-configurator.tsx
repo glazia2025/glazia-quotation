@@ -16,6 +16,7 @@ import { fetchDescriptions, fetchOptions } from "@/lib/quotations/api";
 import type { Description, HandleOption, OptionWithRate, OptionsResponse } from "@/lib/quotations/types";
 import type { QuotationItem, QuotationSubItem } from "@/components/QuotationItemRow";
 
+
 type KonvaGroup = InstanceType<typeof Konva.Group>;
 type KonvaLayer = InstanceType<typeof Konva.Layer>;
 type KonvaStage = InstanceType<typeof Konva.Stage>;
@@ -287,10 +288,10 @@ const buildSplitChildren = (
   const safeCount = Math.max(2, Math.min(requestedCount, 5));
   const normalizedFractions = fractions?.length
     ? (() => {
-        const sliced = fractions.slice(0, safeCount);
-        const sum = sliced.reduce((acc, v) => acc + v, 0) || 1;
-        return sliced.map((v) => v / sum);
-      })()
+      const sliced = fractions.slice(0, safeCount);
+      const sum = sliced.reduce((acc, v) => acc + v, 0) || 1;
+      return sliced.map((v) => v / sum);
+    })()
     : undefined;
 
   if (direction === "vertical") {
@@ -577,11 +578,11 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
     root.mesh = yesNoFromValue(item.meshPresent);
     root.sash =
       item.sash === "fixed" ||
-      item.sash === "left" ||
-      item.sash === "right" ||
-      item.sash === "double" ||
-      item.sash === "top" ||
-      item.sash === "bottom"
+        item.sash === "left" ||
+        item.sash === "right" ||
+        item.sash === "double" ||
+        item.sash === "top" ||
+        item.sash === "bottom"
         ? item.sash
         : root.sash;
     root.panelSashes =
@@ -1850,12 +1851,12 @@ export function WindowDoorConfigurator({
       gridGroupRef.current?.visible(false);
       layerRef.current?.draw();
       const cropPadding = 10;
-      const dataUrl = stageRef.current?.toDataURL({ 
+      const dataUrl = stageRef.current?.toDataURL({
         x: view.offsetX - cropPadding,
         y: view.offsetY - cropPadding,
         width: view.drawW + cropPadding * 2,
         height: view.drawH + cropPadding * 2,
-        pixelRatio: 2 
+        pixelRatio: 2
       }) ?? "";
       gridGroupRef.current?.visible(true);
       layerRef.current?.draw();
@@ -2429,7 +2430,7 @@ export function WindowDoorConfigurator({
                 {isCombinationParentSelection ? (
                   <>
                     <label className="text-xs text-gray-600">Ref Code<input value={meta.refCode} onChange={(e) => setMeta((prev) => ({ ...prev, refCode: e.target.value }))} required className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
-                    <label className="text-xs text-gray-600">Location<input value={meta.location} onChange={(e) => setMeta((prev) => ({ ...prev, location: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                    <label className="text-xs text-gray-600">Location<input value={meta.location} placeholder="Living Room" onChange={(e) => setMeta((prev) => ({ ...prev, location: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                     <label className="text-xs text-gray-600">System<input value={COMBINATION_SYSTEM} readOnly className="mt-1 w-full rounded-md border border-gray-400 bg-gray-50 px-2 py-2 text-sm text-gray-600" /></label>
                     <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                     <label className="text-xs text-gray-600">Rate (Auto)<input value={parentCombinationRate} readOnly className="mt-1 w-full rounded-md border border-gray-400 bg-gray-50 px-2 py-2 text-sm text-gray-600" /></label>
@@ -2442,7 +2443,7 @@ export function WindowDoorConfigurator({
                     ) : (
                       <>
                         <label className="text-xs text-gray-600">Ref Code<input value={meta.refCode} onChange={(e) => setMeta((prev) => ({ ...prev, refCode: e.target.value }))} required className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
-                        <label className="text-xs text-gray-600">Location<input value={meta.location} onChange={(e) => setMeta((prev) => ({ ...prev, location: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                        <label className="text-xs text-gray-600">Location<input value={meta.location} placeholder="Living Room" onChange={(e) => setMeta((prev) => ({ ...prev, location: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                       </>
                     )}
                     {isSlidingPanelSelection ? (

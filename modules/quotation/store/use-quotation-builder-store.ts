@@ -26,6 +26,7 @@ interface QuotationBuilderState {
   markSaved: () => void;
   addRevision: (summary: string) => void;
   rollbackToRevision: (revisionId: string) => void;
+   reorderItems: (startIndex: number, endIndex: number) => void;
 }
 
 export const useQuotationBuilderStore = create<QuotationBuilderState>((set, get) => ({
@@ -176,5 +177,19 @@ export const useQuotationBuilderStore = create<QuotationBuilderState>((set, get)
           ]
         }
       };
-    })
+    }),
+reorderItems: (startIndex, endIndex) =>
+  set((state) => {
+    const items = Array.from(state.quotation.items);
+
+    const [removed] = items.splice(startIndex, 1);
+    items.splice(endIndex, 0, removed);
+
+    return {
+      quotation: {
+        ...state.quotation,
+        items,
+      },
+    };
+  })
 }));

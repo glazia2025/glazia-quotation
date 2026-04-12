@@ -3,7 +3,8 @@ import type { Quotation, QuotationItem, QuotationRevision } from "@/types/quotat
 export function createDefaultItem(): QuotationItem {
   return {
     id: crypto.randomUUID(),
-    projectLocation: "Living Room",
+    projectLocation: "",
+    location: "", 
     productType: "Window",
     material: "Aluminium",
     series: "A50 Sliding",
@@ -22,7 +23,7 @@ export function createDefaultItem(): QuotationItem {
     transportRate: 350,
     discountPercent: 5,
     previewPanels: 2
-  };
+  }
 }
 
 export function createRevision(version: string, summary: string): QuotationRevision {

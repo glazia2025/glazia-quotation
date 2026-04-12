@@ -74,8 +74,29 @@ function buildQuotationPayload(quotation: Quotation) {
       state: quotation.customer.state ?? "",
       pincode: quotation.customer.pincode ?? ""
     },
-    items: quotation.items
+      items: quotation.items
+    //  items: quotation.items.map((item) => ({
+    //   // id: item.id,
+    //   refCode: item.refCode, 
+    //   location: item.location || item.projectLocation,
+
+    //   width: item.width,
+    //   height: item.height,
+    //   quantity: item.quantity,
+
+    //   systemType: item.systemType,
+    //   series: item.series,
+    //   description: item.description,
+
+    //   colorFinish: item.colorFinish,
+    //   glassSpec: item.glassSpec,
+
+    //   rate: item.rate,
+    //   amount: item.amount,
+    //   refImage: item.refImage
+    // }))
   };
+
 }
 
 export async function getQuotations(page = 1, limit = 20): Promise<QuotationsPage> {
@@ -122,6 +143,7 @@ export async function saveQuotationDraft(quotation: Quotation): Promise<BackendQ
   const payload = buildQuotationPayload(quotation);
 
   const response = quotation.persisted
+  
     ? await axios.post(`${API_BASE_URL}/api/quotations/${quotation.id}`, payload, { headers })
     : await axios.post(`${API_BASE_URL}/api/quotations`, payload, { headers });
 
