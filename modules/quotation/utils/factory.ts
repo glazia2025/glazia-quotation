@@ -1,82 +1,74 @@
-import type { Quotation, QuotationItem, QuotationRevision } from "@/types/quotation";
+import type { Quotation, QuotationItem } from "@/types/quotation";
 
 export function createDefaultItem(): QuotationItem {
   return {
     id: crypto.randomUUID(),
     projectLocation: "",
-    location: "", 
+    location: "",
     productType: "Window",
-    material: "Aluminium",
-    series: "A50 Sliding",
-    designType: "2 Track 2 Panel",
-    openingType: "Sliding",
+    material: "",
+    series: "",
+    designType: "",
+    openingType: "",
     width: 1500,
     height: 1500,
     quantity: 1,
-    glassType: "Double Glazed 24mm",
-    glassSpec: "Double Glazed 24mm",
-    accessories: ["handle", "lock"],
-    colorFinish: "Matte Black",
+    glassType: "",
+    glassSpec: "",
+    accessories: [],
+    colorFinish: "",
     specialNotes: "",
-    rate: 1150,
-    laborRate: 48,
-    transportRate: 350,
-    discountPercent: 5,
-    previewPanels: 2
-  }
-}
-
-export function createRevision(version: string, summary: string): QuotationRevision {
-  return {
-    id: crypto.randomUUID(),
-    version,
-    by: "Arjun Kapoor",
-    at: new Date().toISOString(),
-    summary,
-    snapshotTotals: {
-      subtotal: 0,
-      accessoriesTotal: 0,
-      laborTotal: 0,
-      transportTotal: 0,
-      discountTotal: 0,
-      taxableAmount: 0,
-      taxTotal: 0,
-      grandTotal: 0
-    }
+    meshPresent: false,
+    meshType: "",
+    rate: 0,
+    laborRate: 0,
+    transportRate: 0,
+    discountPercent: 0,
+    previewPanels: 1
   };
 }
 
 export function createEmptyQuotation(partial?: Partial<Quotation>): Quotation {
   return {
-    id: partial?.id ?? crypto.randomUUID(),
-    quoteNo: partial?.quoteNo ?? "",
-    persisted: partial?.persisted,
-    status: partial?.status ?? "Draft",
-    customer: partial?.customer ?? {
-      customerName: "",
-      contactPerson: "",
+    _id: partial?._id,
+    user: partial?.user,
+    items: partial?.items ?? [],
+    customerDetails: partial?.customerDetails ?? {
+      name: "",
+      company: "",
       phone: "",
       email: "",
-      projectName: "",
-      siteAddress: ""
+      address: "",
+      city: "",
+      state: "",
+      pincode: ""
     },
-    items: partial?.items ?? [],
-    terms:
-      partial?.terms ??
-      "Delivery within 21 working days from approved drawing and receipt of advance. GST extra as applicable. Material warranty as per manufacturer standard.",
-    internalNotes: partial?.internalNotes ?? "",
-    attachments: partial?.attachments ?? [
-      { id: crypto.randomUUID(), name: "Facade elevation.pdf", type: "Drawing" }
-    ],
-    history: partial?.history ?? [
-      {
-        id: crypto.randomUUID(),
-        title: "Quotation created",
-        by: "Arjun Kapoor",
-        at: new Date().toISOString(),
-        description: "Initial draft prepared from CRM lead conversion"
+    quotationDetails: partial?.quotationDetails ?? {
+      id: crypto.randomUUID(),
+      terms:
+        "Delivery within 21 working days from approved drawing and receipt of advance. GST extra as applicable. Material warranty as per manufacturer standard.",
+      date: new Date().toISOString().slice(0, 10),
+      opportunity: "",
+      notes: ""
+    },
+    breakdown: partial?.breakdown ?? {
+      totalAmount: 0,
+      profitPercentage: 0
+    },
+    globalConfig: partial?.globalConfig ?? {
+      logo: "",
+      terms: "",
+      prerequisites: "",
+      additionalCosts: {
+        installation: 0,
+        transport: 0,
+        loadingUnloading: 0,
+        discountPercent: 0
       }
-    ],
-    revisions: partial?.revisions ?? [createRevision("v1", "Initial draft created")]
+    },
+    generatedId: partial?.generatedId ?? "",
+    createdAt: partial?.createdAt,
+    updatedAt: partial?.updatedAt,
+    __v: partial?.__v
   };
 }

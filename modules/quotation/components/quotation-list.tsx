@@ -48,8 +48,8 @@ export function QuotationList() {
               quotation.customerDetails?.company ||
               "Unknown customer";
             const quotationId = quotation._id || quotation.quotationDetails?.id || "";
-            const quotationNumber = quotation.generatedId || quotation.quotationDetails?.quoteNo || quotationId;
-            const quotationStatus = quotation.quotationDetails?.status || "Draft";
+            const quotationNumber = quotation.generatedId || quotation.quotationDetails?.id || quotationId;
+            const quotationStatus: string = "Draft";
 
             return (
               <div key={`${quotationId}-${index}`} className="grid gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 md:grid-cols-[1.2fr_0.8fr_auto] md:items-center">

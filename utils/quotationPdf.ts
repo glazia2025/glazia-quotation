@@ -14,6 +14,17 @@ type PdfUserData = {
   pincode?: string;
 };
 
+type PdfCustomerData = {
+  name?: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+};
+
 type PdfGlobalConfig = {
   logo?: string;
   logoUrl?: string;
@@ -36,7 +47,6 @@ type QuotationPdfData = Partial<Quotation> & {
   generatedId?: string;
   quotationNumber?: string;
   createdAt?: string;
-  contactPhone?: string;
   globalConfig?: PdfGlobalConfig;
   quotationDetails?: {
     id?: string;
@@ -44,7 +54,6 @@ type QuotationPdfData = Partial<Quotation> & {
     opportunity?: string;
     terms?: string;
     notes?: string;
-    contactPhone?: string;
   };
   customerDetails?: {
     name?: string;
@@ -114,7 +123,7 @@ function formatDate(value?: string) {
 }
 
 function getQuotationNumber(quotation: QuotationPdfData) {
-  return quotation.quoteNo || quotation.quotationNumber || quotation.generatedId || quotation.quotationDetails?.id || quotation.id || "quotation";
+  return quotation.quotationNumber || quotation.generatedId || quotation.quotationDetails?.id || quotation._id || "quotation";
 }
 
 function getQuotationPdfFilename(quotation: QuotationPdfData) {
@@ -155,33 +164,16 @@ function readStoredUser(): PdfUserData {
   }
 }
 
-function getCustomer(quotation: QuotationPdfData) {
-  if (quotation.customerDetails) {
-    return quotation.customerDetails;
-  }
-
-  if (quotation.customer) {
-    return {
-      name: quotation.customer.customerName,
-      company: quotation.customer.projectName,
-      email: quotation.customer.email,
-      phone: quotation.customer.phone,
-      address: quotation.customer.siteAddress,
-      city: quotation.customer.city,
-      state: quotation.customer.state,
-      pincode: quotation.customer.pincode
-    };
-  }
-
-  return {};
+function getCustomer(quotation: QuotationPdfData): PdfCustomerData {
+  return quotation.customerDetails || {};
 }
 
 function getQuotationDate(quotation: QuotationPdfData) {
-  return quotation.quotationDetails?.date || quotation.date || quotation.createdAt || new Date().toISOString();
+  return quotation.quotationDetails?.date || quotation.createdAt || new Date().toISOString();
 }
 
 function getQuotationTerms(quotation: QuotationPdfData, globalConfig?: PdfGlobalConfig) {
-  return quotation.quotationDetails?.terms || quotation.terms || globalConfig?.terms || "";
+  return quotation.quotationDetails?.terms || globalConfig?.terms || "";
 }
 
 function getQuotationPrerequisites(globalConfig?: PdfGlobalConfig) {
@@ -189,7 +181,15 @@ function getQuotationPrerequisites(globalConfig?: PdfGlobalConfig) {
 }
 
 function getContactPhone(quotation: QuotationPdfData, userData: PdfUserData) {
-  return quotation.quotationDetails?.contactPhone || quotation.contactPhone || userData.phone || "";
+  return userData.phone || "";
+}
+
+function formatMeshPresent(value?: boolean) {
+  if (typeof value !== "boolean") {
+    return "-";
+  }
+
+  return value ? "Yes" : "No";
 }
 
 async function imageToBase64(url: string): Promise<string> {
@@ -247,8 +247,7 @@ async function prepareQuotationForPdf(quotation: QuotationPdfData): Promise<Quot
     }
   };
   console.log("[quotation-pdf] prepare start", {
-    quotationId: quotation.id,
-    quoteNo: quotation.quoteNo,
+    quotationId: quotation._id ?? quotation.quotationDetails?.id,
     generatedId: quotation.generatedId,
     itemCount: quotation.items?.length ?? 0,
     globalConfig
@@ -313,7 +312,7 @@ function renderMainItemBlock(item: QuotationItem, isCombinationParent: boolean) 
   const showGlass = escapeHtml(isCombinationParent ? "-" : item.glassSpec || item.glassType || "-");
   const showHandleType = escapeHtml(isCombinationParent ? "-" : item.handleType || "-");
   const showHandleColor = escapeHtml(isCombinationParent ? "-" : item.handleColor || "-");
-  const showMeshPresent = escapeHtml(isCombinationParent ? "-" : item.meshPresent || "-");
+  const showMeshPresent = escapeHtml(isCombinationParent ? "-" : formatMeshPresent(item.meshPresent));
   const showMeshType = escapeHtml(isCombinationParent ? "-" : item.meshType || "-");
   const showQty = escapeHtml(item.quantity || "-");
   const showAmount = formatCurrency(toNumber(item.amount));
@@ -442,7 +441,7 @@ function renderSubItemsTable(subItems: QuotationSubItem[]) {
                   <td>${escapeHtml(item.glassSpec || "-")}</td>
                   <td>${escapeHtml(item.handleType || "-")}</td>
                   <td>${escapeHtml(item.handleColor || "-")}</td>
-                  <td>${escapeHtml(item.meshPresent || "-")}</td>
+                  <td>${escapeHtml(formatMeshPresent(item.meshPresent))}</td>
                   <td>${escapeHtml(item.meshType || "-")}</td>
                   <td>${formatCurrency(toNumber(item.rate))}</td>
                   <td>${escapeHtml(item.quantity || "-")}</td>
@@ -1102,9 +1101,7 @@ function renderCoverPage(params: {
   const { logoSrc, userData, contactPhone, website, customer, preparedQuotation, quotationDate, totalPages } = params;
   const companyName = userData.name || "Glazia";
   const projectName =
-    preparedQuotation.customer?.projectName ||
     preparedQuotation.quotationDetails?.opportunity ||
-    preparedQuotation.opportunity ||
     customer.company ||
     "-";
   const recipientName = customer.name || "Customer";
@@ -1170,9 +1167,7 @@ function renderDetailHeader(params: {
 }) {
   const { logoSrc, userData, preparedQuotation, quotationDate, customer } = params;
   const projectName =
-    preparedQuotation.customer?.projectName ||
     preparedQuotation.quotationDetails?.opportunity ||
-    preparedQuotation.opportunity ||
     customer.company ||
     "-";
 
@@ -1248,7 +1243,7 @@ function renderItemPage(
 ) {
   const itemName = item.description || item.systemType || item.productType || "-";
   const imageMarkup = item.refImage ? `<img src="${item.refImage}" alt="${escapeHtml(itemName)}">` : `<span class="no-image">No image</span>`;
-  const meshLabel = `${item.meshPresent || "-"}${item.meshType ? ` / ${item.meshType}` : ""}`;
+  const meshLabel = `${formatMeshPresent(item.meshPresent)}${item.meshType ? ` / ${item.meshType}` : ""}`;
   const remarks = item.remarks || item.specialNotes || "-";
   const rightRows = [
     ["Size", `${formatDimensionMm(item.width)} x ${formatDimensionMm(item.height)}`],

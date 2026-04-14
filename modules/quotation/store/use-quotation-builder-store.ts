@@ -1,10 +1,11 @@
 "use client";
 
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 
 import { calculateQuotationTotals } from "@/modules/quotation/utils/calculations";
-import { createDefaultItem, createEmptyQuotation, createRevision } from "@/modules/quotation/utils/factory";
-import type { Quotation, QuotationItem, QuotationStatus } from "@/types/quotation";
+import { createDefaultItem, createEmptyQuotation } from "@/modules/quotation/utils/factory";
+import type { Quotation, QuotationItem } from "@/types/quotation";
 
 interface QuotationBuilderState {
   quotation: Quotation;
@@ -13,183 +14,124 @@ interface QuotationBuilderState {
   globalDiscount: number;
   lastSavedAt: string | null;
   setQuotation: (quotation: Quotation) => void;
-  updateCustomer: (key: keyof Quotation["customer"], value: string) => void;
-  updateQuotationField: (key:keyof Quotation, value: any) => void;
+  updateCustomer: (key: keyof Quotation["customerDetails"], value: string) => void;
+  updateQuotationField: (key: keyof Quotation["quotationDetails"], value: string) => void;
   updateItem: (itemId: string, patch: Partial<QuotationItem>) => void;
-  // addItem: () => void;
   addItem: () => string;
   duplicateItem: (itemId: string) => void;
   removeItem: (itemId: string) => void;
   selectItem: (itemId: string) => void;
-  setStatus: (status: QuotationStatus) => void;
   setPricingMeta: (taxPercent: number, globalDiscount: number) => void;
   markSaved: () => void;
-  addRevision: (summary: string) => void;
-  rollbackToRevision: (revisionId: string) => void;
-   reorderItems: (startIndex: number, endIndex: number) => void;
+  reorderItems: (startIndex: number, endIndex: number) => void;
 }
 
-export const useQuotationBuilderStore = create<QuotationBuilderState>((set, get) => ({
-  quotation: createEmptyQuotation(),
-  selectedItemId: null,
-  taxPercent: 18,
-  globalDiscount: 0,
-  lastSavedAt: null,
-  setQuotation: (quotation) =>
-    set({
-      quotation,
-      selectedItemId: quotation.items[0]?.id ?? null
-    }),
-  updateCustomer: (key, value) =>
-    set((state) => ({
-      quotation: {
-        ...state.quotation,
-        customer: {
-          ...createEmptyQuotation().customer,
-          ...state.quotation.customer,
-          [key]: value
-        }
-      }
-    })),
-  updateQuotationField: (key, value) =>
-    set((state) => ({
-      quotation: {
-        ...state.quotation,
-        [key]: value
-      }
-    })),
-  updateItem: (itemId, patch) =>
-    set((state) => ({
-      quotation: {
-        ...state.quotation,
-        items: state.quotation.items.map((item) => (item.id === itemId ? { ...item, ...patch } : item))
-      }
-    })),
-  // addItem: () =>
-  //   set((state) => {
-  //     const next = createEmptyQuotation({ items: [] }).items[0];
-  //     return {
-  //       quotation: {
-  //         ...state.quotation,
-  //         items: [...state.quotation.items, next]
-  //       },
-  //       selectedItemId: next.id
-  //     };
-      
-  //   }),
-  addItem: () => {
-  const next = createDefaultItem();
+export const useQuotationBuilderStore = create<QuotationBuilderState>()(
+  persist(
+    (set, get) => ({
+      quotation: createEmptyQuotation(),
+      selectedItemId: null,
+      taxPercent: 18,
+      globalDiscount: 0,
+      lastSavedAt: null,
+      setQuotation: (quotation) =>
+        set({
+          quotation,
+          selectedItemId: quotation.items[0]?.id ?? null
+        }),
+      updateCustomer: (key, value) =>
+        set((state) => ({
+          quotation: {
+            ...state.quotation,
+            customerDetails: {
+              ...createEmptyQuotation().customerDetails,
+              ...state.quotation.customerDetails,
+              [key]: value
+            }
+          }
+        })),
+      updateQuotationField: (key, value) =>
+        set((state) => ({
+          quotation: {
+            ...state.quotation,
+            quotationDetails: {
+              ...state.quotation.quotationDetails,
+              [key]: value
+            }
+          }
+        })),
+      updateItem: (itemId, patch) =>
+        set((state) => ({
+          quotation: {
+            ...state.quotation,
+            items: state.quotation.items.map((item) => (item.id === itemId ? { ...item, ...patch } : item))
+          }
+        })),
+      addItem: () => {
+        const next = createDefaultItem();
 
-  set((state) => ({
-    quotation: {
-      ...state.quotation,
-      items: [...state.quotation.items, next],
-    },
-    selectedItemId: next.id,
-  }));
-
-  return next.id; //  important
-},
-  duplicateItem: (itemId) =>
-    set((state) => {
-      const item = state.quotation.items.find((entry) => entry.id === itemId);
-      if (!item) return state;
-      const duplicate = { ...item, id: crypto.randomUUID(), projectLocation: `${item.projectLocation} Copy` };
-      return {
-        quotation: {
-          ...state.quotation,
-          items: [...state.quotation.items, duplicate]
-        },
-        selectedItemId: duplicate.id
-      };
-    }),
-  removeItem: (itemId) =>
-    set((state) => {
-      const items = state.quotation.items.filter((item) => item.id !== itemId);
-      return {
-        quotation: {
-          ...state.quotation,
-          items: items.length ? items : state.quotation.items
-        },
-        selectedItemId: items[0]?.id ?? state.selectedItemId
-      };
-    }),
-  selectItem: (itemId) => set({ selectedItemId: itemId }),
-  setStatus: (status) =>
-    set((state) => ({
-      quotation: {
-        ...state.quotation,
-        status,
-        history: [
-          {
-            id: crypto.randomUUID(),
-            title: `Status changed to ${status}`,
-            by: "Arjun Kapoor",
-            at: new Date().toISOString(),
-            description: `Quotation moved to ${status}`
+        set((state) => ({
+          quotation: {
+            ...state.quotation,
+            items: [...state.quotation.items, next]
           },
-          ...state.quotation.history
-        ]
-      }
-    })),
-  setPricingMeta: (taxPercent, globalDiscount) => set({ taxPercent, globalDiscount }),
-  markSaved: () => set({ lastSavedAt: new Date().toISOString() }),
-  addRevision: (summary) =>
-    set((state) => {
-      const version = `v${state.quotation.revisions.length + 1}`;
-      const totals = calculateQuotationTotals(state.quotation.items, state.taxPercent, state.globalDiscount);
-      const revision = { ...createRevision(version, summary), snapshotTotals: totals };
-      return {
-        quotation: {
-          ...state.quotation,
-          status: "Revised",
-          revisions: [revision, ...state.quotation.revisions],
-          history: [
-            {
-              id: crypto.randomUUID(),
-              title: "Revision created",
-              by: "Arjun Kapoor",
-              at: new Date().toISOString(),
-              description: `${version} created`
-            },
-            ...state.quotation.history
-          ]
-        }
-      };
-    }),
-  rollbackToRevision: (revisionId) =>
-    set((state) => {
-      const revision = state.quotation.revisions.find((entry) => entry.id === revisionId);
-      if (!revision) return state;
-      return {
-        quotation: {
-          ...state.quotation,
-          status: "Revised",
-          history: [
-            {
-              id: crypto.randomUUID(),
-              title: "Rollback performed",
-              by: "Arjun Kapoor",
-              at: new Date().toISOString(),
-              description: `Rolled back using ${revision.version}`
-            },
-            ...state.quotation.history
-          ]
-        }
-      };
-    }),
-reorderItems: (startIndex, endIndex) =>
-  set((state) => {
-    const items = Array.from(state.quotation.items);
+          selectedItemId: next.id
+        }));
 
-    const [removed] = items.splice(startIndex, 1);
-    items.splice(endIndex, 0, removed);
-
-    return {
-      quotation: {
-        ...state.quotation,
-        items,
+        return next.id;
       },
-    };
-  })
-}));
+      duplicateItem: (itemId) =>
+        set((state) => {
+          const item = state.quotation.items.find((entry) => entry.id === itemId);
+          if (!item) return state;
+          const duplicate = { ...item, id: crypto.randomUUID(), projectLocation: `${item.projectLocation} Copy` };
+          return {
+            quotation: {
+              ...state.quotation,
+              items: [...state.quotation.items, duplicate]
+            },
+            selectedItemId: duplicate.id
+          };
+        }),
+      removeItem: (itemId) =>
+        set((state) => {
+          const items = state.quotation.items.filter((item) => item.id !== itemId);
+          return {
+            quotation: {
+              ...state.quotation,
+              items: items.length ? items : state.quotation.items
+            },
+            selectedItemId: items[0]?.id ?? state.selectedItemId
+          };
+        }),
+      selectItem: (itemId) => set({ selectedItemId: itemId }),
+      setPricingMeta: (taxPercent, globalDiscount) => set({ taxPercent, globalDiscount }),
+      markSaved: () => set({ lastSavedAt: new Date().toISOString() }),
+      reorderItems: (startIndex, endIndex) =>
+        set((state) => {
+          const items = Array.from(state.quotation.items);
+
+          const [removed] = items.splice(startIndex, 1);
+          items.splice(endIndex, 0, removed);
+
+          return {
+            quotation: {
+              ...state.quotation,
+              items
+            }
+          };
+        })
+    }),
+    {
+      name: "quotation-builder-store",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        quotation: state.quotation,
+        selectedItemId: state.selectedItemId,
+        taxPercent: state.taxPercent,
+        globalDiscount: state.globalDiscount,
+        lastSavedAt: state.lastSavedAt
+      })
+    }
+  )
+);

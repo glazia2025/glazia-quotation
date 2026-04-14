@@ -30,11 +30,9 @@ import { Select } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { PageShell } from "@/components/shared/page-shell";
-import { useRbac } from "@/hooks/use-rbac";
 import { accessoryCatalog, finishes, getDesigns, getOpenings, getSeries, glassTypes, materials } from "@/modules/quotation/data/catalog";
 import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-builder";
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
-import { toEditorQuotation } from "@/modules/quotation/utils/backend-quotation";
 import { calculateQuotationTotals, getArea, getItemGrandTotal, getPerimeter } from "@/modules/quotation/utils/calculations";
 import { getQuotationPdfBlob, saveQuotationDraft } from "@/services/quotation-service";
 import type { Quotation, QuotationItem } from "@/types/quotation";
@@ -391,15 +389,14 @@ const handleDragEnd = (event:DragEndEvent) => {
   );
 }
 function CustomerTab() {
-  const customer = useQuotationBuilderStore((state) => state.quotation.customer);
+  const customer = useQuotationBuilderStore((state) => state.quotation.customerDetails);
   const updateCustomer = useQuotationBuilderStore((state) => state.updateCustomer);
   const customerValues = customer ?? {
-    customerName: "",
-    contactPerson: "",
+    name: "",
+    company: "",
     phone: "",
     email: "",
-    projectName: "",
-    siteAddress: "",
+    address: "",
     city: "",
     state: "",
     pincode: ""
@@ -428,13 +425,27 @@ function CustomerTab() {
           {/* Customer Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Customer Name
+              Name
             </label>
             <input
               type="text"
-              value={customerValues.customerName}
+              value={customerValues.name}
               onChange={(e) =>
-                updateCustomer("customerName", e.target.value)
+                updateCustomer("name", e.target.value)
+              }
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Company
+            </label>
+            <input
+              type="text"
+              value={customerValues.company}
+              onChange={(e) =>
+                updateCustomer("company", e.target.value)
               }
               className="w-full px-4 py-2 border border-gray-300 rounded-lg"
             />
@@ -476,9 +487,9 @@ function CustomerTab() {
               Address
             </label>
             <textarea
-              value={customerValues.siteAddress}
+              value={customerValues.address}
               onChange={(e) =>
-                updateCustomer("siteAddress", e.target.value)
+                updateCustomer("address", e.target.value)
               }
               className="w-full px-4 py-2 border border-gray-300 rounded-lg"
             />
@@ -802,7 +813,7 @@ function GlobalConfigTab({  globalConfig,
   );
 }
 function QuotationDetailsTab() {
-  const quotation = useQuotationBuilderStore((s) => s.quotation);
+  const quotationDetails = useQuotationBuilderStore((s) => s.quotation.quotationDetails);
   const updateQuotationField = useQuotationBuilderStore((s) => s.updateQuotationField);
 
   const [expanded, setExpanded] = useState(true);
@@ -828,7 +839,7 @@ function QuotationDetailsTab() {
             </label>
             <input
               type="date"
-              value={quotation.date || ""}
+              value={quotationDetails.date || ""}
               onChange={(e) =>
                 updateQuotationField("date", e.target.value)
               }
@@ -842,7 +853,7 @@ function QuotationDetailsTab() {
               Opportunity Stage
             </label>
             <select
-              value={quotation.opportunity || "Enquiry"}
+              value={quotationDetails.opportunity || "Enquiry"}
               onChange={(e) =>
                 updateQuotationField("opportunity", e.target.value)
               }
@@ -854,21 +865,6 @@ function QuotationDetailsTab() {
               <option value="Order Confirmed">Order Confirmed</option>
               <option value="Order Lost">Order Lost</option>
             </select>
-          </div>
-
-          {/* Contact Phone */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Contact Phone (for PDF)
-            </label>
-            <input
-              type="tel"
-              value={quotation.contactPhone || ""}
-              onChange={(e) =>
-                updateQuotationField("contactPhone", e.target.value)
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
           </div>
 
         </div>
@@ -886,10 +882,12 @@ export function QuotationBuilder({
   quotationBasePath?: string;
 }) {
   const searchParams = useSearchParams();
-  const currentQuotationId = useQuotationBuilderStore((state) => state.quotation.id);
+  const isCreateMode = quotationBasePath === "/quotations/new";
+  const currentQuotationId = useQuotationBuilderStore((state) => state.quotation._id ?? state.quotation.quotationDetails.id);
+  const currentItemCount = useQuotationBuilderStore((state) => state.quotation.items.length);
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
   const requestedTab = searchParams.get("tab");
-   const addItem = useQuotationBuilderStore((state) => state.addItem);
+  const addItem = useQuotationBuilderStore((state) => state.addItem);
   const router = useRouter();
   const configuratorBasePath = `${quotationBasePath}/configurator`;
   const handleAddItem = () => {
@@ -909,11 +907,20 @@ export function QuotationBuilder({
 
   fetchData();
 }, []);
- useEffect(() => {
-  if (!initialQuotation) return;
-  if (currentQuotationId === initialQuotation.id) return;
-  setQuotation(initialQuotation);
- }, [currentQuotationId, initialQuotation, setQuotation]);
+  useEffect(() => {
+    if (!initialQuotation) return;
+
+    if (isCreateMode) {
+      if (currentItemCount > 0) return;
+      if (currentQuotationId) return;
+      setQuotation(initialQuotation);
+      return;
+    }
+
+    const initialQuotationId = initialQuotation._id ?? initialQuotation.quotationDetails.id;
+    if (currentQuotationId === initialQuotationId) return;
+    setQuotation(initialQuotation);
+  }, [currentItemCount, currentQuotationId, initialQuotation, isCreateMode, setQuotation]);
   const [activeTab, setActiveTab] = useState<TabKey>(() => (isTabKey(requestedTab) ? requestedTab : "customer"));
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
@@ -946,11 +953,11 @@ useEffect(() => {
   if (!isTabKey(requestedTab)) return;
   setActiveTab(requestedTab);
 }, [requestedTab]);
-const handleSave = async () => {
+  const handleSave = async () => {
   try {
     const savedQuotation = await saveQuotationDraft(quotation);
     if (savedQuotation) {
-      setQuotation(toEditorQuotation(savedQuotation));
+      setQuotation(savedQuotation);
     }
     markSaved();
     alert("Saved successfully ");
@@ -958,12 +965,10 @@ const handleSave = async () => {
     console.error(err);
     alert("Error saving ");
   }
-};
+  };
 
   const { quotation, saveState } = useQuotationBuilder();
-  const { can } = useRbac();
   const markSaved = useQuotationBuilderStore((state) => state.markSaved);
-  const setStatus = useQuotationBuilderStore((state) => state.setStatus);
   const logoPreview = globalConfig.logoUrl || globalConfig.logo;
 const handleLogoUpload = (file: File | null) => {
   if (!file) return;
@@ -983,8 +988,8 @@ const handleLogoUpload = (file: File | null) => {
       setIsGeneratingPdf(true);
       console.log(quotation);
       console.log("[quotation-pdf] export requested", {
-        quotationId: quotation.id,
-        quoteNo: quotation.quoteNo,
+        quotationId: quotation._id ?? quotation.quotationDetails.id,
+        quoteNo: quotation.generatedId ?? quotation.quotationDetails.id,
         itemCount: quotation.items?.length ?? 0,
         hasGlobalConfig: Boolean(globalConfig),
         hasLogo: Boolean(globalConfig?.logoUrl || globalConfig?.logo)
@@ -995,7 +1000,7 @@ const handleLogoUpload = (file: File | null) => {
         throw new Error("Failed to save quotation before PDF generation.");
       }
 
-      const blob = await getQuotationPdfBlob(quotation.id);
+      const blob = await getQuotationPdfBlob(savedQuotation._id ?? savedQuotation.quotationDetails.id);
       const nextPdfPreviewUrl = URL.createObjectURL(blob);
       setPdfPreviewUrl((currentUrl) => {
         if (currentUrl) {
@@ -1027,9 +1032,8 @@ const handleLogoUpload = (file: File | null) => {
     link.click();
     document.body.removeChild(link);
   };
-  const isCreateMode = quotationBasePath === "/quotations/new";
   const pageTitle = isCreateMode ? "Create Quotation" : "Edit Quotation";
-  const pageDescription = quotation.quoteNo ? `#${quotation.quoteNo}` : "";
+  const pageDescription = quotation.generatedId ? `#${quotation.generatedId}` : "";
 
   return (
     <PageShell

@@ -1,23 +1,20 @@
-import type { TimelineEntry } from "@/types/common";
-
-export type QuotationStatus =
-  | "Draft"
-  | "Submitted"
-  | "Approved"
-  | "Rejected"
-  | "Revised"
-  | "Converted";
-
-export interface QuotationCustomer {
-  customerName: string;
-  contactPerson: string;
+export interface QuotationCustomerDetails {
+  name: string;
+  company: string;
   phone: string;
   email: string;
-  projectName: string;
-  siteAddress: string;
-   city?: string;
-  state?: string;
-  pincode?: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+}
+
+export interface QuotationDetails {
+  id: string;
+  terms: string;
+  date?: string;
+  opportunity?: string;
+  notes?: string;
 }
 
 export interface AccessoryOption {
@@ -56,7 +53,7 @@ export interface QuotationItem {
   handleType?: string;
   handleColor?: string;
   meshType?: string;
-  meshPresent?: string;
+  meshPresent?: boolean;
   configuratorStep?: string;
   rate: number;
   amount?: number;
@@ -93,7 +90,7 @@ export interface QuotationSubItem {
   handleType: string;
   handleColor: string;
   handleCount: number;
-  meshPresent: string;
+  meshPresent: boolean;
   meshType: string;
   rate: number;
   quantity: number;
@@ -121,28 +118,29 @@ export interface QuotationTotals {
   grandTotal: number;
 }
 
-export interface QuotationRevision {
-  id: string;
-  version: string;
-  by: string;
-  at: string;
-  summary: string;
-  snapshotTotals: QuotationTotals;
-}
-
 export interface Quotation {
-  id: string;
-  quoteNo: string;
-  persisted?: boolean;
-  status: QuotationStatus;
-  customer: QuotationCustomer;
+  _id?: string;
+  user?: string;
   items: QuotationItem[];
-  terms: string;
-  internalNotes: string;
-  attachments: { id: string; name: string; type: string }[];
-  history: TimelineEntry[];
-  revisions: QuotationRevision[];
-  date?: string;
-opportunity?: string;
-contactPhone?: string;
+  customerDetails: QuotationCustomerDetails;
+  quotationDetails: QuotationDetails;
+  breakdown?: {
+    totalAmount?: number;
+    profitPercentage?: number;
+  };
+  globalConfig?: {
+    logo?: string;
+    terms?: string;
+    prerequisites?: string;
+    additionalCosts?: {
+      installation?: number;
+      transport?: number;
+      loadingUnloading?: number;
+      discountPercent?: number;
+    };
+  };
+  generatedId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: number;
 }

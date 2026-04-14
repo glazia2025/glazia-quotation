@@ -61,44 +61,6 @@ function toQuotationsPage(payload: unknown): QuotationsPage {
   };
 }
 
-function buildQuotationPayload(quotation: Quotation) {
-  return {
-    quotationDetails: quotation,
-    customerDetails: {
-      name: quotation.customer.contactPerson || quotation.customer.customerName,
-      company: quotation.customer.customerName,
-      email: quotation.customer.email,
-      phone: quotation.customer.phone,
-      address: quotation.customer.siteAddress,
-      city: quotation.customer.city ?? "",
-      state: quotation.customer.state ?? "",
-      pincode: quotation.customer.pincode ?? ""
-    },
-      items: quotation.items
-    //  items: quotation.items.map((item) => ({
-    //   // id: item.id,
-    //   refCode: item.refCode, 
-    //   location: item.location || item.projectLocation,
-
-    //   width: item.width,
-    //   height: item.height,
-    //   quantity: item.quantity,
-
-    //   systemType: item.systemType,
-    //   series: item.series,
-    //   description: item.description,
-
-    //   colorFinish: item.colorFinish,
-    //   glassSpec: item.glassSpec,
-
-    //   rate: item.rate,
-    //   amount: item.amount,
-    //   refImage: item.refImage
-    // }))
-  };
-
-}
-
 export async function getQuotations(page = 1, limit = 20): Promise<QuotationsPage> {
   const response = await axios.get(`${API_BASE_URL}/api/quotations`, {
     headers: getAuthHeaders(),
@@ -140,11 +102,10 @@ export async function getQuotationPdfBlob(quotationId: string): Promise<Blob> {
 
 export async function saveQuotationDraft(quotation: Quotation): Promise<BackendQuotationRecord | null> {
   const headers = getAuthHeaders();
-  const payload = buildQuotationPayload(quotation);
+  const payload = quotation;
 
-  const response = quotation.persisted
-  
-    ? await axios.post(`${API_BASE_URL}/api/quotations/${quotation.id}`, payload, { headers })
+  const response = quotation._id
+    ? await axios.post(`${API_BASE_URL}/api/quotations/${quotation._id}`, payload, { headers })
     : await axios.post(`${API_BASE_URL}/api/quotations`, payload, { headers });
 
   return extractBackendQuotation(response.data);

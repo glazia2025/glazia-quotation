@@ -601,7 +601,7 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
     glassSpec: item.glassSpec || "",
     handleType: item.handleType || "",
     handleColor: item.handleColor || "",
-    meshPresent: item.meshPresent || "No",
+    meshPresent: yesNoFromValue(item.meshPresent),
     meshType: item.meshType || "",
     location: item.location || item.projectLocation || "",
     quantity: item.quantity || 1,
@@ -1910,7 +1910,7 @@ export function WindowDoorConfigurator({
           handleType: leafMeta.handleType,
           handleColor: leafMeta.handleColor,
           handleCount: calc.handleCount,
-          meshPresent: leaf.mesh,
+          meshPresent: leaf.mesh === "Yes",
           meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "",
           rate: roundToTwo(resolvedRate),
           quantity,
@@ -1929,7 +1929,7 @@ export function WindowDoorConfigurator({
       };
       const subItems = await Promise.all(leafNodes.map((leaf, idx) => buildSubItem(leaf, idx)));
       const isCombination = subItems.length > 1;
-      const anyMesh = subItems.some((item) => item.meshPresent === "Yes");
+      const anyMesh = subItems.some((item) => item.meshPresent === true);
       const singleLeaf = leafNodes[0];
       let rate = 0;
       let amount = 0;
@@ -1978,7 +1978,7 @@ export function WindowDoorConfigurator({
         handleType: isCombination ? "" : meta.handleType,
         handleColor: isCombination ? "" : meta.handleColor,
         handleCount,
-        meshPresent: isCombination ? "" : singleLeaf?.mesh || "No",
+        meshPresent: isCombination ? undefined : singleLeaf?.mesh === "Yes",
         meshType: isCombination ? "" : anyMesh ? meta.meshType : "",
         rate,
         quantity: Math.max(1, meta.quantity || 1),

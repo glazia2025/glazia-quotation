@@ -2,7 +2,6 @@
 
 import { PageShell } from "@/components/shared/page-shell";
 import { QuotationBuilder } from "@/modules/quotation/components/quotation-builder";
-import { toEditorQuotation } from "@/modules/quotation/utils/backend-quotation";
 import { useTenantQuery } from "@/hooks/use-tenant-query";
 import { getQuotation } from "@/services/quotation-service";
 
@@ -36,5 +35,5 @@ export function QuotationDetailPage({ quotationId }: { quotationId: string }) {
     );
   }
 
-  return <QuotationBuilder initialQuotation={toEditorQuotation(quotation)} quotationBasePath={`/quotations/${quotationId}`} />;
+  return <QuotationBuilder initialQuotation={quotation} quotationBasePath={`/quotations/${quotationId}`} />;
 }
