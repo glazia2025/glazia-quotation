@@ -89,6 +89,8 @@ export function LoginScreen() {
     }
     setIsLoading(true);
 
+    console.log(API_BASE_URL);
+
     try {
       await axios.post(`${API_BASE_URL}/api/auth/send-otp`, { phoneNumber });
       setStep("otp");

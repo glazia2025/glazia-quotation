@@ -981,6 +981,7 @@ const handleLogoUpload = (file: File | null) => {
   const exportPdf = async () => {
     try {
       setIsGeneratingPdf(true);
+      console.log(quotation);
       console.log("[quotation-pdf] export requested", {
         quotationId: quotation.id,
         quoteNo: quotation.quoteNo,

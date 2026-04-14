@@ -47,7 +47,7 @@ export function QuotationList() {
               quotation.customerDetails?.name ||
               quotation.customerDetails?.company ||
               "Unknown customer";
-            const quotationId = quotation.quotationDetails?.id || quotation._id || "";
+            const quotationId = quotation._id || quotation.quotationDetails?.id || "";
             const quotationNumber = quotation.generatedId || quotation.quotationDetails?.quoteNo || quotationId;
             const quotationStatus = quotation.quotationDetails?.status || "Draft";
 
