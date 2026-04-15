@@ -7,6 +7,7 @@ import { Plus, Search } from "lucide-react";
 import { API_BASE_URL } from "@/services/api";
 import { defaultSettingsSection } from "@/modules/settings/constants";
 import { loadGlobalConfig, saveGlobalConfig } from "../../../utils/globalConfig";
+import { getAuthToken } from "@/utils/auth-cookie";
 
 type RateRow = {
   id: string;
@@ -32,14 +33,14 @@ const SETTINGS_PREFIXES = [
 
 const settingsApi = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: false,
+  withCredentials: true,
 });
 
 function getSettingsAuthToken(): string {
   if (typeof window === "undefined") {
     return "";
   }
-  return localStorage.getItem("adminToken") || localStorage.getItem("authToken") || "";
+  return localStorage.getItem("adminToken") || getAuthToken() || "";
 }
 
 

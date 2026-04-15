@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import type { Organization, Permission, User } from "@/types/auth";
+import { clearAuthToken, getAuthToken, setAuthToken } from "@/utils/auth-cookie";
 
 interface AuthState {
   token: string | null;
@@ -38,12 +39,10 @@ const defaultUser: User = {
 };
 
 function syncAuthToken(token: string | null) {
-  if (typeof window === "undefined") return;
-
   if (token) {
-    localStorage.setItem("authToken", token);
+    setAuthToken(token);
   } else {
-    localStorage.removeItem("authToken");
+    clearAuthToken();
   }
 }
 
@@ -89,7 +88,7 @@ function clearClientAuthData() {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      token: null,
+      token: getAuthToken(),
       user: null,
       organization: null,
       hydrated: false,
@@ -124,10 +123,12 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "glazia-auth",
-      onRehydrateStorage: () => (state) => {
-        const token = state?.token ?? null;
-        syncAuthToken(token);
-        useAuthStore.setState({ hydrated: true });
+      onRehydrateStorage: () => () => {
+        const token = getAuthToken();
+        if (!token) {
+          useAuthStore.persist.clearStorage();
+        }
+        useAuthStore.setState({ token, hydrated: true });
       }
     }
   )

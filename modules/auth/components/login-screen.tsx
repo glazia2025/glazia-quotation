@@ -9,6 +9,7 @@ import Image from "next/image";
 import UserRegistrationForm from "@/components/UserRegistrationForm";
 import { API_BASE_URL } from "@/services/api";
 import { useAuthStore } from "@/store/auth-store";
+import { getAuthToken, setAuthToken } from "@/utils/auth-cookie";
 
 async function postAuthRoute<T>(route: "send-otp" | "verify-otp", payload: Record<string, unknown>) {
   const candidates = [`${API_BASE_URL}/api/auth/${route}`, `${API_BASE_URL}/${route}`];
@@ -43,7 +44,7 @@ export function LoginScreen() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (token) {
+    if (token || getAuthToken()) {
       router.replace("/dashboard");
     }
   }, [router, token]);
@@ -92,7 +93,7 @@ export function LoginScreen() {
     console.log(API_BASE_URL);
 
     try {
-      await axios.post(`${API_BASE_URL}/api/auth/send-otp`, { phoneNumber });
+      await axios.post(`${API_BASE_URL}/api/auth/send-otp`, { phoneNumber }, { withCredentials: true });
       setStep("otp");
       setCountdown(30);
       startCountdown();
@@ -131,7 +132,11 @@ export function LoginScreen() {
     setIsLoading(true);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/auth/verify-otp`, { phoneNumber, otp: otpValue });
+      const response = await axios.post(
+        `${API_BASE_URL}/api/auth/verify-otp`,
+        { phoneNumber, otp: otpValue },
+        { withCredentials: true }
+      );
       const { userExists, token: authToken, existingUser } = response.data as {
         userExists?: boolean;
         token?: string;
@@ -160,7 +165,9 @@ export function LoginScreen() {
       if (!userExists) {
         setStep("register");
       } else if (userExists && existingUser) {
-        localStorage.setItem("authToken", authToken ?? "");
+        if (authToken) {
+          setAuthToken(authToken);
+        }
         const userData = {
           id: existingUser._id || existingUser.id,
           name: existingUser.userName || existingUser.name,
@@ -183,7 +190,7 @@ export function LoginScreen() {
         localStorage.setItem("glazia-user", JSON.stringify(userData));
 
         setSession({
-          token: authToken ?? "",
+          token: authToken ?? getAuthToken() ?? "",
           user: {
             id: String(existingUser._id || existingUser.id || "usr-1"),
             name: existingUser.userName || existingUser.name || "Glazia User",
@@ -215,7 +222,7 @@ export function LoginScreen() {
     setIsLoading(true);
     setError("");
     try {
-      await axios.post(`${API_BASE_URL}/api/auth/send-otp`, { phoneNumber });
+      await axios.post(`${API_BASE_URL}/api/auth/send-otp`, { phoneNumber }, { withCredentials: true });
       setCountdown(30);
       startCountdown();
     } catch {

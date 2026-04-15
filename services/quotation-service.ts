@@ -4,9 +4,10 @@ import { extractBackendQuotation, type BackendQuotationRecord } from "@/modules/
 import { API_BASE_URL } from "@/services/api";
 import { useAuthStore } from "@/store/auth-store";
 import type { Quotation, QuotationSubItem } from "@/types/quotation";
+import { getAuthToken } from "@/utils/auth-cookie";
 
 function getAuthHeaders() {
-  const token = useAuthStore.getState().token ?? (typeof window !== "undefined" ? localStorage.getItem("authToken") : null);
+  const token = useAuthStore.getState().token ?? getAuthToken();
 
   if (!token) {
     throw new Error("Authentication token missing.");
@@ -185,6 +186,7 @@ function toQuotationsPage(payload: unknown): QuotationsPage {
 export async function getQuotations(page = 1, limit = 20): Promise<QuotationsPage> {
   const response = await axios.get(`${API_BASE_URL}/api/quotations`, {
     headers: getAuthHeaders(),
+    withCredentials: true,
     params: { page, limit }
   });
 
@@ -198,7 +200,8 @@ export async function getQuotations(page = 1, limit = 20): Promise<QuotationsPag
 export async function getQuotation(quotationId: string): Promise<BackendQuotationRecord | null> {
   try {
     const response = await axios.get(`${API_BASE_URL}/api/quotations/${quotationId}`, {
-      headers: getAuthHeaders()
+      headers: getAuthHeaders(),
+      withCredentials: true,
     });
 
     console.log("[quotation-service] getQuotation raw response", quotationId, response.data);
@@ -215,6 +218,7 @@ export async function getQuotation(quotationId: string): Promise<BackendQuotatio
 export async function getQuotationPdfBlob(quotationId: string): Promise<Blob> {
   const response = await axios.get(`${API_BASE_URL}/api/quotations/${quotationId}/pdf`, {
     headers: getAuthHeaders(),
+    withCredentials: true,
     responseType: "blob"
   });
 

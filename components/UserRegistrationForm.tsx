@@ -34,7 +34,7 @@ async function postRegister(payload: RegistrationPayload) {
 
   for (const url of candidates) {
     try {
-      const response = await axios.post(url, payload);
+      const response = await axios.post(url, payload, { withCredentials: true });
       return response.data;
     } catch (error) {
       lastError = error;
