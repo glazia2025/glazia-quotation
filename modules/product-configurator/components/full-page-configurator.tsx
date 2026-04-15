@@ -7,6 +7,12 @@ import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotatio
 import { WindowDoorConfigurator } from "@/modules/product-configurator/components/window-door-configurator";
 import type { Quotation, QuotationItem } from "@/types/quotation";
 
+const getQuotationItemIdentity = (item: QuotationItem | null | undefined) => {
+  if (!item) return "";
+  const withBackendId = item as QuotationItem & { _id?: string };
+  return String(item.id || withBackendId._id || item.refCode || "");
+};
+
 export function FullPageConfigurator({
   itemId,
   returnPath = "/quotations/new",
@@ -21,7 +27,9 @@ export function FullPageConfigurator({
   const quotation = useQuotationBuilderStore((state) => state.quotation);
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
   const updateItem = useQuotationBuilderStore((state) => state.updateItem);
-  const item = initialQuotation?.items.find((entry) => entry.id === itemId) ?? quotation.items.find((entry) => entry.id === itemId);
+  const item =
+    initialQuotation?.items.find((entry) => getQuotationItemIdentity(entry) === itemId) ??
+    quotation.items.find((entry) => getQuotationItemIdentity(entry) === itemId);
 
   useEffect(() => {
     if (!initialQuotation) return;
@@ -40,10 +48,10 @@ export function FullPageConfigurator({
   //   updateItem(itemId, nextItem);
   // };
   const handleSaveItem = (nextItem: QuotationItem) => {
-  const exists = quotation.items.find((i) => i.id === itemId);
+  const exists = quotation.items.find((i) => getQuotationItemIdentity(i) === itemId);
 
   if (exists) {
-    updateItem(itemId, nextItem);
+    updateItem(exists.id, nextItem);
   } else {
     setQuotation({
       ...quotation,

@@ -34,6 +34,7 @@ import { accessoryCatalog, finishes, getDesigns, getOpenings, getSeries, glassTy
 import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-builder";
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { calculateQuotationTotals, getArea, getItemGrandTotal, getPerimeter } from "@/modules/quotation/utils/calculations";
+import { createEmptyQuotation } from "@/modules/quotation/utils/factory";
 import { getQuotationPdfBlob, saveQuotationDraft } from "@/services/quotation-service";
 import type { Quotation, QuotationItem } from "@/types/quotation";
 import { formatCurrency, formatNumber } from "@/utils/format";
@@ -84,6 +85,10 @@ const isTabKey = (value: string | null): value is TabKey =>
 const formatDimensionMm = (value: number | string | undefined) => `${value ?? "-"} mm`;
 const formatSizeMm = (width: number | string | undefined, height: number | string | undefined) =>
   `${formatDimensionMm(width)} x ${formatDimensionMm(height)}`;
+const getQuotationItemIdentity = (item: QuotationItem) => {
+  const withBackendId = item as QuotationItem & { _id?: string };
+  return String(item.id || withBackendId._id || item.refCode || "");
+};
 
 function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configuratorBasePath: string }) {
   const [showSections, setShowSections] = useState(false);
@@ -94,10 +99,11 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
   const refCodeLabel = item.refCode || (item.id ? item.id.slice(0, 8).toUpperCase() : "Item");
   const hasSections = (item.subItems?.length ?? 0) > 1 || item.systemType === "Combination";
   const canDelete = itemCount > 1;
+  const itemIdentity = getQuotationItemIdentity(item);
 
   const handleDelete = () => {
     if (!canDelete) return;
-    removeItem(item.id);
+    removeItem(itemIdentity);
   };
 
   return (
@@ -141,7 +147,7 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
 
       <div className="flex flex-wrap items-center gap-2 border-t pt-2">
         <Button size="sm" asChild className="bg-[#124657] hover:bg-[#0b3642]">
-          <Link href={`${configuratorBasePath}/${item.id}`}>Edit</Link>
+          <Link href={`${configuratorBasePath}/${itemIdentity}`}>Edit</Link>
         </Button>
         {hasSections ? (
           <Button size="sm" variant="outline" onClick={() => setShowSections(true)}>
@@ -885,6 +891,7 @@ export function QuotationBuilder({
   const isCreateMode = quotationBasePath === "/quotations/new";
   const currentQuotationId = useQuotationBuilderStore((state) => state.quotation._id ?? state.quotation.quotationDetails.id);
   const currentItemCount = useQuotationBuilderStore((state) => state.quotation.items.length);
+  const resetQuotation = useQuotationBuilderStore((state) => state.resetQuotation);
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
   const requestedTab = searchParams.get("tab");
   const addItem = useQuotationBuilderStore((state) => state.addItem);
@@ -908,17 +915,20 @@ export function QuotationBuilder({
   fetchData();
 }, []);
   useEffect(() => {
-    if (!initialQuotation) return;
-
+    if (!isCreateMode) return;
+    resetQuotation();
+  }, [isCreateMode, resetQuotation]);
+  useEffect(() => {
     if (isCreateMode) {
-      if (currentItemCount > 0) return;
-      if (currentQuotationId) return;
-      setQuotation(initialQuotation);
+      if (initialQuotation) {
+        setQuotation(initialQuotation);
+      } else if (currentItemCount === 0 && !currentQuotationId) {
+        setQuotation(createEmptyQuotation());
+      }
       return;
     }
 
-    const initialQuotationId = initialQuotation._id ?? initialQuotation.quotationDetails.id;
-    if (currentQuotationId === initialQuotationId) return;
+    if (!initialQuotation) return;
     setQuotation(initialQuotation);
   }, [currentItemCount, currentQuotationId, initialQuotation, isCreateMode, setQuotation]);
   const [activeTab, setActiveTab] = useState<TabKey>(() => (isTabKey(requestedTab) ? requestedTab : "customer"));
@@ -995,12 +1005,17 @@ const handleLogoUpload = (file: File | null) => {
         hasLogo: Boolean(globalConfig?.logoUrl || globalConfig?.logo)
       });
       const savedQuotation = await saveQuotationDraft(quotation);
+      const pdfQuotationId =
+        savedQuotation?._id ??
+        quotation._id ??
+        savedQuotation?.quotationDetails.id ??
+        quotation.quotationDetails.id;
 
-      if (!savedQuotation) {
-        throw new Error("Failed to save quotation before PDF generation.");
+      if (!pdfQuotationId) {
+        throw new Error("Failed to resolve quotation id before PDF generation.");
       }
 
-      const blob = await getQuotationPdfBlob(savedQuotation._id ?? savedQuotation.quotationDetails.id);
+      const blob = await getQuotationPdfBlob(pdfQuotationId);
       const nextPdfPreviewUrl = URL.createObjectURL(blob);
       setPdfPreviewUrl((currentUrl) => {
         if (currentUrl) {

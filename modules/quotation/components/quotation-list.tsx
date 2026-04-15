@@ -18,6 +18,8 @@ export function QuotationList() {
     queryKey: ["quotations", String(page)],
     queryFn: () => getQuotations(page, pageSize)
   });
+
+  console.log(data, "DATAAAAAAA")
   const quotations = data?.quotations ?? [];
   const total = data?.total ?? 0;
   const totalPages = data?.totalPages ?? 1;
