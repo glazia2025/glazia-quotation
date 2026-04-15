@@ -141,8 +141,13 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
       </div>
 
       <div className="flex justify-between text-sm">
-        <span className="text-gray-500">Size</span>
-        <span className="font-medium">{formatSizeMm(item.width, item.height)}</span>
+        <span className="text-gray-500">Area</span>
+        <span className="font-medium">{formatNumber(item.area ?? getArea(item))} sq.ft</span>
+      </div>
+
+      <div className="flex justify-between text-sm">
+        <span className="text-gray-500">Rate</span>
+        <span className="font-medium">{formatCurrency(item.rate ?? 0)}</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-t pt-2">
