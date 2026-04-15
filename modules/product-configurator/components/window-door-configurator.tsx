@@ -73,15 +73,18 @@ type SectionOptionMeta = Pick<
   "colorFinish" | "glassSpec" | "handleType" | "handleColor" | "meshType"
 >;
 
+const DEFAULT_GLASS_SPEC = "6mm Clear Toughned";
+const DEFAULT_HANDLE_COLOR = "Black";
+
 const DEFAULT_META: ProductMeta = {
   productType: "Window",
   systemType: "Casement",
   series: "",
   description: "",
   colorFinish: "",
-  glassSpec: "",
+  glassSpec: DEFAULT_GLASS_SPEC,
   handleType: "",
-  handleColor: "",
+  handleColor: DEFAULT_HANDLE_COLOR,
   meshPresent: "No",
   meshType: "",
   location: "",
@@ -93,9 +96,9 @@ const DEFAULT_META: ProductMeta = {
 
 const DEFAULT_SECTION_OPTION_META: SectionOptionMeta = {
   colorFinish: "",
-  glassSpec: "",
+  glassSpec: DEFAULT_GLASS_SPEC,
   handleType: "",
-  handleColor: "",
+  handleColor: DEFAULT_HANDLE_COLOR,
   meshType: "",
 };
 
@@ -598,9 +601,9 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
     series: item.series || "",
     description: item.description || "",
     colorFinish: item.colorFinish || "",
-    glassSpec: item.glassSpec || "",
+    glassSpec: item.glassSpec || DEFAULT_GLASS_SPEC,
     handleType: item.handleType || "",
-    handleColor: item.handleColor || "",
+    handleColor: item.handleColor || DEFAULT_HANDLE_COLOR,
     meshPresent: yesNoFromValue(item.meshPresent),
     meshType: item.meshType || "",
     location: item.location || item.projectLocation || "",
@@ -2349,7 +2352,13 @@ export function WindowDoorConfigurator({
     sortedLeaves.forEach((leaf, idx) => {
       if (subItems[idx]?.rate !== undefined) nextManualRates[leaf.id] = Number(subItems[idx].rate) || 0;
       if (subItems[idx]) {
-        nextChildSectionMeta[leaf.id] = { colorFinish: subItems[idx].colorFinish || "", glassSpec: subItems[idx].glassSpec || "", handleType: subItems[idx].handleType || "", handleColor: subItems[idx].handleColor || "", meshType: subItems[idx].meshType || "" };
+        nextChildSectionMeta[leaf.id] = {
+          colorFinish: subItems[idx].colorFinish || "",
+          glassSpec: subItems[idx].glassSpec || DEFAULT_GLASS_SPEC,
+          handleType: subItems[idx].handleType || "",
+          handleColor: subItems[idx].handleColor || DEFAULT_HANDLE_COLOR,
+          meshType: subItems[idx].meshType || "",
+        };
         leaf.exhaustFanX = typeof subItems[idx].exhaustFanX === "number" ? subItems[idx].exhaustFanX : leaf.exhaustFanX;
         leaf.exhaustFanY = typeof subItems[idx].exhaustFanY === "number" ? subItems[idx].exhaustFanY : leaf.exhaustFanY;
         leaf.exhaustFanSize = typeof subItems[idx].exhaustFanSize === "number" ? subItems[idx].exhaustFanSize : leaf.exhaustFanSize;
@@ -2395,10 +2404,12 @@ export function WindowDoorConfigurator({
                   type="number"
                   value={label.value}
                   onChange={(e) => label.onChange(Number(e.target.value))}
-                  onFocus={() => {
+                  onFocus={(e) => {
                     setSelectedId(label.selectId);
                     setSelectedSlidingPanelIndex(label.panelIndex ?? null);
+                    e.currentTarget.select();
                   }}
+                  onClick={(e) => e.currentTarget.select()}
                   data-dim-input="true"
                   className="pointer-events-auto absolute h-7 w-[88px] rounded-sm border border-gray-400 bg-white text-center text-sm text-gray-900 shadow-sm focus:border-[#124657] focus:outline-none focus:ring-2 focus:ring-[#124657]"
                   style={{ left: label.x, top: label.y }}
@@ -2471,7 +2482,7 @@ export function WindowDoorConfigurator({
                           <>
                             <label className="text-xs text-gray-600">Color Finish<select value={selectedSectionMeta.colorFinish} onChange={(e) => updateSelectedSectionMeta({ colorFinish: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.colorFinishes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
                             <label className="text-xs text-gray-600">Glass Spec<select value={selectedSectionMeta.glassSpec} onChange={(e) => updateSelectedSectionMeta({ glassSpec: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.glassSpecs.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
-                            <label className="text-xs text-gray-600">Handle Type<select value={selectedSectionMeta.handleType} onChange={(e) => updateSelectedSectionMeta({ handleType: e.target.value, handleColor: "" })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.handleOptions.map((opt: HandleOption) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
+                            <label className="text-xs text-gray-600">Handle Type<select value={selectedSectionMeta.handleType} onChange={(e) => updateSelectedSectionMeta({ handleType: e.target.value, handleColor: DEFAULT_HANDLE_COLOR })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.handleOptions.map((opt: HandleOption) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
                             <label className="text-xs text-gray-600">Handle Color<select value={selectedSectionMeta.handleColor} onChange={(e) => updateSelectedSectionMeta({ handleColor: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{(metaHandleOption?.colors ?? []).map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
                           </>
                         )}
