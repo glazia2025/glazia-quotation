@@ -26,6 +26,7 @@ export function FullPageConfigurator({
   const quotationId = useQuotationBuilderStore((state) => state.quotation._id ?? state.quotation.quotationDetails.id);
   const quotation = useQuotationBuilderStore((state) => state.quotation);
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
+  const ensureItem = useQuotationBuilderStore((state) => state.ensureItem);
   const updateItem = useQuotationBuilderStore((state) => state.updateItem);
   const item =
     initialQuotation?.items.find((entry) => getQuotationItemIdentity(entry) === itemId) ??
@@ -37,6 +38,11 @@ export function FullPageConfigurator({
     if (quotationId === initialQuotationId) return;
     setQuotation(initialQuotation);
   }, [initialQuotation, quotationId, setQuotation]);
+
+  useEffect(() => {
+    if (initialQuotation || item) return;
+    ensureItem(itemId);
+  }, [ensureItem, initialQuotation, item, itemId]);
 
   const handleClose = () => {
     const target = new URL(returnPath, window.location.origin);

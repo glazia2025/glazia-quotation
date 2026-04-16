@@ -23,7 +23,8 @@ interface QuotationBuilderState {
   updateCustomer: (key: keyof Quotation["customerDetails"], value: string) => void;
   updateQuotationField: (key: keyof Quotation["quotationDetails"], value: string) => void;
   updateItem: (itemId: string, patch: Partial<QuotationItem>) => void;
-  addItem: () => string;
+  addItem: (itemId?: string) => string;
+  ensureItem: (itemId: string) => void;
   duplicateItem: (itemId: string) => void;
   removeItem: (itemId: string) => void;
   selectItem: (itemId: string) => void;
@@ -79,8 +80,8 @@ export const useQuotationBuilderStore = create<QuotationBuilderState>()((set, ge
         items: state.quotation.items.map((item) => (getQuotationItemIdentity(item) === itemId ? { ...item, ...patch } : item))
       }
     })),
-  addItem: () => {
-    const next = createDefaultItem();
+  addItem: (itemId) => {
+    const next = createDefaultItem(itemId);
 
     set((state) => ({
       quotation: {
@@ -92,6 +93,20 @@ export const useQuotationBuilderStore = create<QuotationBuilderState>()((set, ge
 
     return next.id;
   },
+  ensureItem: (itemId) =>
+    set((state) => {
+      const exists = state.quotation.items.some((item) => getQuotationItemIdentity(item) === itemId);
+      if (exists) return state;
+
+      const next = createDefaultItem(itemId);
+      return {
+        quotation: {
+          ...state.quotation,
+          items: [...state.quotation.items, next]
+        },
+        selectedItemId: itemId
+      };
+    }),
   duplicateItem: (itemId) =>
     set((state) => {
       const item = state.quotation.items.find((entry) => getQuotationItemIdentity(entry) === itemId);

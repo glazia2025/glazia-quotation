@@ -1,8 +1,8 @@
 import type { Quotation, QuotationItem } from "@/types/quotation";
 
-export function createDefaultItem(): QuotationItem {
+export function createDefaultItem(id: string = crypto.randomUUID()): QuotationItem {
   return {
-    id: crypto.randomUUID(),
+    id,
     refCode: "",
     projectLocation: "",
     location: "",
