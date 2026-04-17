@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState,useEffect } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -89,6 +89,24 @@ const getQuotationItemIdentity = (item: QuotationItem) => {
   const withBackendId = item as QuotationItem & { _id?: string };
   return String(item.id || withBackendId._id || item.refCode || "");
 };
+
+const createBuilderGlobalConfig = () => ({
+  logo: "",
+  logoUrl: "",
+  prerequisites: "",
+  website: "",
+  terms: "",
+  additionalCosts: {
+    installation: 0,
+    transport: 0,
+    loadingUnloading: 0,
+    discountPercent: 0,
+    showInstallation: true,
+    showTransport: true,
+    showLoadingUnloading: true,
+    showDiscount: true,
+  },
+});
 
 function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configuratorBasePath: string }) {
   const [showSections, setShowSections] = useState(false);
@@ -931,51 +949,110 @@ export function QuotationBuilder({
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
-  const [globalConfig, setGlobalConfig] = useState({
-  logo: "",
-  logoUrl: "",
-  prerequisites: "",
-  website: "",
-  terms: "",
-  additionalCosts: {
-    installation: 0,
-    transport: 0,
-    loadingUnloading: 0,
-    discountPercent: 0,
-    showInstallation: true,
-    showTransport: true,
-    showLoadingUnloading: true,
-    showDiscount: true,
-  },
-});
-useEffect(() => {
-  return () => {
-    if (pdfPreviewUrl) {
-      URL.revokeObjectURL(pdfPreviewUrl);
-    }
-  };
-}, [pdfPreviewUrl]);
-useEffect(() => {
-  if (!isTabKey(requestedTab)) return;
-  setActiveTab(requestedTab);
-}, [requestedTab]);
-  const handleSave = async () => {
-  try {
-    const savedQuotation = await saveQuotationDraft(quotation);
-    if (savedQuotation) {
-      setQuotation(savedQuotation);
-    }
-    markSaved();
-    alert("Saved successfully ");
-  } catch (err) {
-    console.error(err);
-    alert("Error saving ");
-  }
-  };
+  const [globalConfig, setGlobalConfig] = useState(createBuilderGlobalConfig);
+  const hydratedGlobalConfigKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    return () => {
+      if (pdfPreviewUrl) {
+        URL.revokeObjectURL(pdfPreviewUrl);
+      }
+    };
+  }, [pdfPreviewUrl]);
+  useEffect(() => {
+    if (!isTabKey(requestedTab)) return;
+    setActiveTab(requestedTab);
+  }, [requestedTab]);
 
   const { quotation, saveState } = useQuotationBuilder();
   const markSaved = useQuotationBuilderStore((state) => state.markSaved);
   const logoPreview = globalConfig.logoUrl || globalConfig.logo;
+  const quotationWithGlobalConfig = useMemo(
+    () => ({
+      ...quotation,
+      globalConfig: {
+        logo: globalConfig.logo || "",
+        terms: globalConfig.terms || "",
+        prerequisites: globalConfig.prerequisites || "",
+        additionalCosts: {
+          installation: Number(globalConfig.additionalCosts.installation) || 0,
+          transport: Number(globalConfig.additionalCosts.transport) || 0,
+          loadingUnloading: Number(globalConfig.additionalCosts.loadingUnloading) || 0,
+          discountPercent: Number(globalConfig.additionalCosts.discountPercent) || 0,
+        },
+      },
+    }),
+    [globalConfig, quotation]
+  );
+
+  useEffect(() => {
+    const savedGlobalConfig = quotation.globalConfig;
+    const quotationKey = quotation._id ?? null;
+
+    if (!savedGlobalConfig || !quotationKey) return;
+    if (hydratedGlobalConfigKeyRef.current === quotationKey) return;
+
+    hydratedGlobalConfigKeyRef.current = quotationKey;
+    setGlobalConfig((prev) => ({
+      ...prev,
+      logo: savedGlobalConfig.logo ?? prev.logo,
+      logoUrl: savedGlobalConfig.logo ?? prev.logoUrl,
+      prerequisites: savedGlobalConfig.prerequisites ?? prev.prerequisites,
+      terms: savedGlobalConfig.terms ?? prev.terms,
+      additionalCosts: {
+        ...prev.additionalCosts,
+        installation: savedGlobalConfig.additionalCosts?.installation ?? prev.additionalCosts.installation,
+        transport: savedGlobalConfig.additionalCosts?.transport ?? prev.additionalCosts.transport,
+        loadingUnloading: savedGlobalConfig.additionalCosts?.loadingUnloading ?? prev.additionalCosts.loadingUnloading,
+        discountPercent: savedGlobalConfig.additionalCosts?.discountPercent ?? prev.additionalCosts.discountPercent,
+      },
+    }));
+  }, [quotation._id, quotation.globalConfig]);
+
+  useEffect(() => {
+    const nextGlobalConfig = {
+      logo: globalConfig.logo || "",
+      terms: globalConfig.terms || "",
+      prerequisites: globalConfig.prerequisites || "",
+      additionalCosts: {
+        installation: Number(globalConfig.additionalCosts.installation) || 0,
+        transport: Number(globalConfig.additionalCosts.transport) || 0,
+        loadingUnloading: Number(globalConfig.additionalCosts.loadingUnloading) || 0,
+        discountPercent: Number(globalConfig.additionalCosts.discountPercent) || 0,
+      },
+    };
+
+    const currentGlobalConfig = quotation.globalConfig;
+    const isSameGlobalConfig =
+      (currentGlobalConfig?.logo || "") === nextGlobalConfig.logo &&
+      (currentGlobalConfig?.terms || "") === nextGlobalConfig.terms &&
+      (currentGlobalConfig?.prerequisites || "") === nextGlobalConfig.prerequisites &&
+      (Number(currentGlobalConfig?.additionalCosts?.installation) || 0) === nextGlobalConfig.additionalCosts.installation &&
+      (Number(currentGlobalConfig?.additionalCosts?.transport) || 0) === nextGlobalConfig.additionalCosts.transport &&
+      (Number(currentGlobalConfig?.additionalCosts?.loadingUnloading) || 0) === nextGlobalConfig.additionalCosts.loadingUnloading &&
+      (Number(currentGlobalConfig?.additionalCosts?.discountPercent) || 0) === nextGlobalConfig.additionalCosts.discountPercent;
+
+    if (isSameGlobalConfig) return;
+
+    setQuotation({
+      ...quotation,
+      globalConfig: nextGlobalConfig,
+    });
+  }, [globalConfig, quotation, setQuotation]);
+
+  const handleSave = async () => {
+    try {
+      const savedQuotation = await saveQuotationDraft(quotationWithGlobalConfig);
+      if (savedQuotation) {
+        setQuotation(savedQuotation);
+      }
+      markSaved();
+      alert("Saved successfully ");
+    } catch (err) {
+      console.error(err);
+      alert("Error saving ");
+    }
+  };
+
 const handleLogoUpload = (file: File | null) => {
   if (!file) return;
 
@@ -992,20 +1069,20 @@ const handleLogoUpload = (file: File | null) => {
   const exportPdf = async () => {
     try {
       setIsGeneratingPdf(true);
-      console.log(quotation);
+      console.log(quotationWithGlobalConfig);
       console.log("[quotation-pdf] export requested", {
-        quotationId: quotation._id ?? quotation.quotationDetails.id,
-        quoteNo: quotation.generatedId ?? quotation.quotationDetails.id,
-        itemCount: quotation.items?.length ?? 0,
+        quotationId: quotationWithGlobalConfig._id ?? quotationWithGlobalConfig.quotationDetails.id,
+        quoteNo: quotationWithGlobalConfig.generatedId ?? quotationWithGlobalConfig.quotationDetails.id,
+        itemCount: quotationWithGlobalConfig.items?.length ?? 0,
         hasGlobalConfig: Boolean(globalConfig),
         hasLogo: Boolean(globalConfig?.logoUrl || globalConfig?.logo)
       });
-      const savedQuotation = await saveQuotationDraft(quotation);
+      const savedQuotation = await saveQuotationDraft(quotationWithGlobalConfig);
       const pdfQuotationId =
         savedQuotation?._id ??
-        quotation._id ??
+        quotationWithGlobalConfig._id ??
         savedQuotation?.quotationDetails.id ??
-        quotation.quotationDetails.id;
+        quotationWithGlobalConfig.quotationDetails.id;
 
       if (!pdfQuotationId) {
         throw new Error("Failed to resolve quotation id before PDF generation.");
