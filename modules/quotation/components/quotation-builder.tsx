@@ -2,38 +2,22 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { formatDistanceToNow } from "date-fns";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  CheckCircle2,
-  Copy,
   Download,
-  FileClock,
   Plus,
-  RotateCcw,
-  Send,
   Share2,
-  Trash2,
-  WandSparkles,
-  XCircle
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import { PageShell } from "@/components/shared/page-shell";
-import { accessoryCatalog, finishes, getDesigns, getOpenings, getSeries, glassTypes, materials } from "@/modules/quotation/data/catalog";
 import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-builder";
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
-import { calculateQuotationTotals, getArea, getItemGrandTotal, getPerimeter } from "@/modules/quotation/utils/calculations";
+import { getArea, getPerimeter } from "@/modules/quotation/utils/calculations";
 import { createEmptyQuotation } from "@/modules/quotation/utils/factory";
 import { getQuotationPdfBlob, saveQuotationDraft } from "@/services/quotation-service";
 import type { Quotation, QuotationItem } from "@/types/quotation";
@@ -51,7 +35,6 @@ import {
 
 import {
   SortableContext,
-  verticalListSortingStrategy
 } from "@dnd-kit/sortable";
 
 import { useSortable } from "@dnd-kit/sortable";
@@ -59,15 +42,6 @@ import { CSS } from "@dnd-kit/utilities";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { rectSortingStrategy } from "@dnd-kit/sortable";
 
-
-const customerSchema = z.object({
-  customerName: z.string().min(2),
-  contactPerson: z.string().min(2),
-  phone: z.string().min(8),
-  email: z.string().email(),
-  projectName: z.string().min(2),
-  siteAddress: z.string().min(3)
-});
 
 type TabKey = "customer" | "quotation" | "global"|"item";
 
