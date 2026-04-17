@@ -3,6 +3,7 @@ import type { Quotation, QuotationItem } from "@/types/quotation";
 export function createDefaultItem(id: string = crypto.randomUUID()): QuotationItem {
   return {
     id,
+    configuratorStep: "draft",
     refCode: "",
     projectLocation: "",
     location: "",

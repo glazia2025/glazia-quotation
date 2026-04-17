@@ -894,11 +894,9 @@ export function QuotationBuilder({
 }) {
   const searchParams = useSearchParams();
   const isCreateMode = quotationBasePath === "/quotations/new";
-  const currentQuotationId = useQuotationBuilderStore((state) => state.quotation._id ?? state.quotation.quotationDetails.id);
-  const currentItemCount = useQuotationBuilderStore((state) => state.quotation.items.length);
-  const resetQuotation = useQuotationBuilderStore((state) => state.resetQuotation);
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
   const requestedTab = searchParams.get("tab");
+  const isReturningFromConfigurator = isCreateMode && requestedTab === "item";
   const addItem = useQuotationBuilderStore((state) => state.addItem);
   const router = useRouter();
   const configuratorBasePath = `${quotationBasePath}/configurator`;
@@ -920,22 +918,15 @@ export function QuotationBuilder({
   fetchData();
 }, []);
   useEffect(() => {
-    if (!isCreateMode) return;
-    resetQuotation();
-  }, [isCreateMode, resetQuotation]);
-  useEffect(() => {
     if (isCreateMode) {
-      if (initialQuotation) {
-        setQuotation(initialQuotation);
-      } else if (currentItemCount === 0 && !currentQuotationId) {
-        setQuotation(createEmptyQuotation());
-      }
+      if (isReturningFromConfigurator) return;
+      setQuotation(initialQuotation ?? createEmptyQuotation());
       return;
     }
 
     if (!initialQuotation) return;
     setQuotation(initialQuotation);
-  }, [currentItemCount, currentQuotationId, initialQuotation, isCreateMode, setQuotation]);
+  }, [initialQuotation, isCreateMode, isReturningFromConfigurator, setQuotation]);
   const [activeTab, setActiveTab] = useState<TabKey>(() => (isTabKey(requestedTab) ? requestedTab : "customer"));
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);

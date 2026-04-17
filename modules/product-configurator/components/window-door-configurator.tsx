@@ -1542,6 +1542,8 @@ export function WindowDoorConfigurator({
   initialItem?: QuotationItem | null;
   profitPercentage: number;
 }) {
+  const persistedItem = initialItem ?? null;
+  const editingItem = persistedItem && persistedItem.configuratorStep !== "draft" ? persistedItem : null;
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<KonvaStage | null>(null);
@@ -1959,7 +1961,7 @@ export function WindowDoorConfigurator({
         amount = roundToTwo(perFrameAmount * parentQuantity);
       }
       const nextItem: QuotationItem = {
-        id: initialItem?.id ?? crypto.randomUUID(),
+        id: persistedItem?.id ?? crypto.randomUUID(),
         refCode: trimmedRefCode,
         location: meta.location || "",
         projectLocation: meta.location || "",
@@ -1967,12 +1969,13 @@ export function WindowDoorConfigurator({
         height: heightMm,
         area: areaSqft,
         productType: meta.productType,
-        material: initialItem?.material ?? "",
-        designType: initialItem?.designType ?? "",
-        openingType: initialItem?.openingType ?? "",
-        glassType: initialItem?.glassType ?? "",
-        accessories: initialItem?.accessories ?? [],
+        material: persistedItem?.material ?? "",
+        designType: persistedItem?.designType ?? "",
+        openingType: persistedItem?.openingType ?? "",
+        glassType: persistedItem?.glassType ?? "",
+        accessories: persistedItem?.accessories ?? [],
         specialNotes: meta.remarks || "",
+        configuratorStep: "complete",
         systemType: isCombination ? COMBINATION_SYSTEM : singleLeaf?.systemType || baseSystemType,
         series: isCombination ? "" : singleLeaf?.series || "",
         description: isCombination ? "" : singleLeaf?.description || getDefaultLeafDescription(singleLeaf?.systemType || baseSystemType, meta.productType, singleLeaf?.hasExhaustFan),
@@ -1997,10 +2000,10 @@ export function WindowDoorConfigurator({
         baseRate,
         areaSlabIndex,
         subItems: isCombination ? subItems : [],
-        laborRate: initialItem?.laborRate ?? 0,
-        transportRate: initialItem?.transportRate ?? 0,
-        discountPercent: initialItem?.discountPercent ?? 0,
-        previewPanels: initialItem?.previewPanels ?? 1,
+        laborRate: persistedItem?.laborRate ?? 0,
+        transportRate: persistedItem?.transportRate ?? 0,
+        discountPercent: persistedItem?.discountPercent ?? 0,
+        previewPanels: persistedItem?.previewPanels ?? 1,
       };
       onSaveItem(nextItem);
       onClose();
@@ -2329,8 +2332,8 @@ export function WindowDoorConfigurator({
   useEffect(() => { renderCanvas(); }, [renderCanvas]);
 
   useEffect(() => {
-    if (!initialItem) return;
-    const mapped = mapItemToConfiguratorState(initialItem);
+    if (!editingItem) return;
+    const mapped = mapItemToConfiguratorState(editingItem);
     setWidthMm(mapped.width);
     setHeightMm(mapped.height);
     setBaseSystemType(mapped.baseSystemType);
@@ -2346,7 +2349,7 @@ export function WindowDoorConfigurator({
     const leaves: SectionNode[] = [];
     mapLeafNodes(mapped.root, (leaf) => leaves.push(leaf));
     const sortedLeaves = leaves.sort((a, b) => (a.y - b.y) || (a.x - b.x));
-    const subItems = initialItem.subItems ?? [];
+    const subItems = editingItem.subItems ?? [];
     const nextManualRates: Record<string, number> = {};
     const nextChildSectionMeta: Record<string, SectionOptionMeta> = {};
     sortedLeaves.forEach((leaf, idx) => {
@@ -2367,17 +2370,17 @@ export function WindowDoorConfigurator({
     setManualChildRates(nextManualRates);
     setAutoChildRates({});
     setChildSectionMeta(nextChildSectionMeta);
-  }, [initialItem, reset]);
+  }, [editingItem, reset]);
 
   useEffect(() => {
-    if (initialItem) return;
+    if (editingItem) return;
     reset(buildPreset(baseSystemType, baseGlass, baseMesh));
     setSelectedId(null);
     setManualChildRates({});
     setAutoChildRates({});
     setChildSectionMeta({});
     setIsManualRate(false);
-  }, [baseGlass, baseMesh, baseSystemType, initialItem, reset]);
+  }, [baseGlass, baseMesh, baseSystemType, editingItem, reset]);
 
   useEffect(() => {
     setIsManualRate(false);
@@ -2507,7 +2510,7 @@ export function WindowDoorConfigurator({
               <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"><span className="text-gray-500">Height</span><span className="font-semibold">{heightMm} mm</span></div>
               <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"><span className="text-gray-500">Area</span><span className="font-semibold">{areaSqft} sq ft</span></div>
               <div className="pt-2">
-                <button type="button" onClick={handleSaveItem} disabled={isSaving} className="w-full rounded-lg bg-[#124657] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0b3642] disabled:opacity-60">{isSaving ? "Saving..." : initialItem ? "Update Item" : "Add to Quotation"}</button>
+                <button type="button" onClick={handleSaveItem} disabled={isSaving} className="w-full rounded-lg bg-[#124657] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0b3642] disabled:opacity-60">{isSaving ? "Saving..." : editingItem ? "Update Item" : "Add to Quotation"}</button>
                 <button type="button" onClick={onClose} className="mt-2 w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
               </div>
               <div className="text-xs text-gray-400">Selected: <span className="font-medium text-gray-600">{selectedId === null ? "None" : selectedNode.id === "root" ? "Whole Frame" : isSlidingPanelSelection ? `Sliding Panel ${selectedSlidingPanelIndex! + 1}` : "Section"}</span></div>
@@ -2517,7 +2520,7 @@ export function WindowDoorConfigurator({
         {!showSummaryPopup && (
           <div className="pointer-events-none absolute bottom-4 right-4 z-30">
             <div className="pointer-events-auto flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
-              <button type="button" onClick={handleSaveItem} disabled={isSaving} className="rounded-lg bg-[#124657] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b3642] disabled:opacity-60">{isSaving ? "Saving..." : initialItem ? "Update Item" : "Add to Quotation"}</button>
+              <button type="button" onClick={handleSaveItem} disabled={isSaving} className="rounded-lg bg-[#124657] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b3642] disabled:opacity-60">{isSaving ? "Saving..." : editingItem ? "Update Item" : "Add to Quotation"}</button>
               <button type="button" onClick={onClose} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
             </div>
           </div>
