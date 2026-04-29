@@ -12,6 +12,23 @@ const getQuotationItemIdentity = (item: QuotationItem | null | undefined) => {
   return String(item.id || withBackendId._id || item.refCode || "");
 };
 
+const duplicateQuotationItem = (item: QuotationItem): QuotationItem => {
+  const { _id: _itemBackendId, ...itemWithoutBackendId } = item as QuotationItem & { _id?: string };
+
+  return {
+    ...itemWithoutBackendId,
+    id: crypto.randomUUID(),
+    subItems: item.subItems?.map((subItem) => {
+      const { _id: _subItemBackendId, ...subItemWithoutBackendId } = subItem as typeof subItem & { _id?: string };
+
+      return {
+        ...subItemWithoutBackendId,
+        id: crypto.randomUUID(),
+      };
+    }),
+  };
+};
+
 interface QuotationBuilderState {
   quotation: Quotation;
   selectedItemId: string | null;
@@ -109,13 +126,17 @@ export const useQuotationBuilderStore = create<QuotationBuilderState>()((set, ge
     }),
   duplicateItem: (itemId) =>
     set((state) => {
-      const item = state.quotation.items.find((entry) => getQuotationItemIdentity(entry) === itemId);
+      const sourceIndex = state.quotation.items.findIndex((entry) => getQuotationItemIdentity(entry) === itemId);
+      const item = state.quotation.items[sourceIndex];
       if (!item) return state;
-      const duplicate = { ...item, id: crypto.randomUUID(), projectLocation: `${item.projectLocation} Copy` };
+      const duplicate = duplicateQuotationItem(item);
+      const items = [...state.quotation.items];
+      items.splice(sourceIndex + 1, 0, duplicate);
+
       return {
         quotation: {
           ...state.quotation,
-          items: [...state.quotation.items, duplicate]
+          items
         },
         selectedItemId: duplicate.id
       };

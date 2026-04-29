@@ -18,7 +18,7 @@ const normalizeSubItem = (value: unknown): QuotationSubItem => {
   const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
 
   return {
-    id: toStringValue(source.id) || toStringValue(source.refCode) || createClientId(),
+    id: toStringValue(source.id) || toStringValue(source._id) || toStringValue(source.refCode) || createClientId(),
     refCode: toStringValue(source.refCode),
     location: toStringValue(source.location),
     width: toNumberValue(source.width),
@@ -51,7 +51,7 @@ const normalizeItem = (value: unknown): QuotationItem => {
   const remarks = toStringValue(source.remarks);
 
   return {
-    id: toStringValue(source.id) || toStringValue(source.refCode) || createClientId(),
+    id: toStringValue(source.id) || toStringValue(source._id) || toStringValue(source.refCode) || createClientId(),
     refCode: toStringValue(source.refCode),
     location,
     projectLocation: location,
@@ -81,6 +81,10 @@ const normalizeItem = (value: unknown): QuotationItem => {
     refImage: toStringValue(source.refImage),
     remarks,
     subItems: Array.isArray(source.subItems) ? source.subItems.map(normalizeSubItem) : [],
+    configuratorLayout:
+      typeof source.configuratorLayout === "object" && source.configuratorLayout !== null
+        ? (source.configuratorLayout as Record<string, unknown>)
+        : undefined,
     laborRate: 0,
     transportRate: 0,
     discountPercent: 0,

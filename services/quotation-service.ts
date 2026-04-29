@@ -110,6 +110,7 @@ function toBackendItem(item: Quotation["items"][number]) {
     refImage: item.refImage || "",
     remarks: item.remarks || item.specialNotes || "",
     subItems: Array.isArray(item.subItems) ? item.subItems.map(toBackendSubItem) : [],
+    configuratorLayout: item.configuratorLayout || undefined,
   };
 }
 
@@ -217,6 +218,16 @@ export async function getQuotation(quotationId: string): Promise<BackendQuotatio
 
 export async function getQuotationPdfBlob(quotationId: string): Promise<Blob> {
   const response = await axios.get(`${API_BASE_URL}/api/quotations/${quotationId}/pdf`, {
+    headers: getAuthHeaders(),
+    withCredentials: true,
+    responseType: "blob"
+  });
+
+  return response.data;
+}
+
+export async function getCuttingSchedulePdfBlob(quotationId: string): Promise<Blob> {
+  const response = await axios.get(`${API_BASE_URL}/api/quotations/${quotationId}/cutting-schedule`, {
     headers: getAuthHeaders(),
     withCredentials: true,
     responseType: "blob"

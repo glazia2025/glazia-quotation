@@ -381,6 +381,69 @@ const yesNoFromValue = (value?: string | boolean): YesNo => {
   return "No";
 };
 
+const normalizeSashType = (value: unknown, fallback: SashType = "fixed"): SashType => {
+  if (
+    value === "fixed" ||
+    value === "left" ||
+    value === "right" ||
+    value === "double" ||
+    value === "top" ||
+    value === "bottom"
+  ) {
+    return value;
+  }
+  return fallback;
+};
+
+const normalizeSplitDirection = (value: unknown): SplitDirection => {
+  if (value === "vertical" || value === "horizontal") return value;
+  return "none";
+};
+
+const normalizeStoredSectionNode = (value: unknown, fallbackSystemType: SystemType): SectionNode | null => {
+  if (!value || typeof value !== "object") return null;
+
+  const source = value as Record<string, unknown>;
+  const systemType = normalizeSystemType(typeof source.systemType === "string" ? source.systemType : fallbackSystemType);
+  const children = Array.isArray(source.children)
+    ? source.children
+      .map((child) => normalizeStoredSectionNode(child, systemType))
+      .filter((child): child is SectionNode => Boolean(child))
+    : undefined;
+  const split = children && children.length > 0 ? normalizeSplitDirection(source.split) : "none";
+  const panelSashes = Array.isArray(source.panelSashes)
+    ? source.panelSashes
+      .map((value) => normalizeSashType(value, "fixed"))
+      .filter(Boolean)
+    : undefined;
+
+  return {
+    id: typeof source.id === "string" && source.id ? source.id : crypto.randomUUID(),
+    x: clampValue(Number(source.x) || 0, 0, 1),
+    y: clampValue(Number(source.y) || 0, 0, 1),
+    w: clampValue(Number(source.w) || 1, 0, 1),
+    h: clampValue(Number(source.h) || 1, 0, 1),
+    split,
+    ratio: Number(source.ratio) || 0.5,
+    sash: normalizeSashType(source.sash),
+    systemType,
+    series: typeof source.series === "string" ? source.series : "",
+    description: typeof source.description === "string" ? source.description : "",
+    hasExhaustFan: Boolean(source.hasExhaustFan),
+    exhaustFanX: typeof source.exhaustFanX === "number" ? source.exhaustFanX : DEFAULT_EXHAUST_FAN_X,
+    exhaustFanY: typeof source.exhaustFanY === "number" ? source.exhaustFanY : DEFAULT_EXHAUST_FAN_Y,
+    exhaustFanSize: typeof source.exhaustFanSize === "number" ? source.exhaustFanSize : DEFAULT_EXHAUST_FAN_SIZE,
+    panelFractions: Array.isArray(source.panelFractions)
+      ? source.panelFractions.map((entry) => Number(entry)).filter((entry) => Number.isFinite(entry) && entry > 0)
+      : undefined,
+    panelMeshCount: typeof source.panelMeshCount === "number" ? source.panelMeshCount : undefined,
+    panelSashes,
+    glass: yesNoFromValue(source.glass as string | boolean | undefined),
+    mesh: yesNoFromValue(source.mesh as string | boolean | undefined),
+    children: split === "none" ? undefined : children,
+  };
+};
+
 const calculateRateForItem = (
   next: {
     area: number;
@@ -427,7 +490,7 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
     ? normalizeSystemType(subItems[0]?.systemType)
     : normalizeSystemType(item.systemType);
 
-  const root = createRoot(sourceSystem);
+  let root = createRoot(sourceSystem);
   root.glass = yesNoFromValue(
     hasSubItems
       ? subItems.some((sub) => Boolean(sub.glassSpec && sub.glassSpec.trim()))
@@ -460,7 +523,11 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
     return description;
   };
 
-  if (hasSubItems) {
+  const storedRoot = normalizeStoredSectionNode(item.configuratorLayout, sourceSystem);
+
+  if (storedRoot) {
+    root = storedRoot;
+  } else if (hasSubItems) {
     const avgHeightMatch =
       subItems.reduce((sum, sub) => sum + ((sub.height || 0) / Math.max(height, 1)), 0) /
       subItems.length;
@@ -2000,6 +2067,7 @@ export function WindowDoorConfigurator({
         baseRate,
         areaSlabIndex,
         subItems: isCombination ? subItems : [],
+        configuratorLayout: cloneTree(root) as unknown as Record<string, unknown>,
         laborRate: persistedItem?.laborRate ?? 0,
         transportRate: persistedItem?.transportRate ?? 0,
         discountPercent: persistedItem?.discountPercent ?? 0,

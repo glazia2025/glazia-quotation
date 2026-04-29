@@ -5,8 +5,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  Copy,
   Download,
   Plus,
+  Ruler,
   Share2,
 } from "lucide-react";
 
@@ -19,7 +21,7 @@ import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-bui
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { getArea, getPerimeter } from "@/modules/quotation/utils/calculations";
 import { createEmptyQuotation } from "@/modules/quotation/utils/factory";
-import { getQuotationPdfBlob, saveQuotationDraft } from "@/services/quotation-service";
+import { getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationDraft } from "@/services/quotation-service";
 import type { Quotation, QuotationItem } from "@/types/quotation";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { getQuotationPdfDownloadName } from "@/utils/quotationPdf";
@@ -85,6 +87,7 @@ const createBuilderGlobalConfig = () => ({
 function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configuratorBasePath: string }) {
   const [showSections, setShowSections] = useState(false);
   const removeItem = useQuotationBuilderStore((state) => state.removeItem);
+  const duplicateItem = useQuotationBuilderStore((state) => state.duplicateItem);
   const itemCount = useQuotationBuilderStore((state) => state.quotation.items.length);
   const systemLabel = item.systemType || item.series || item.openingType || "Not configured";
   const locationLabel = item.location || item.projectLocation || "Not specified";
@@ -96,6 +99,10 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
   const handleDelete = () => {
     if (!canDelete) return;
     removeItem(itemIdentity);
+  };
+
+  const handleDuplicate = () => {
+    duplicateItem(itemIdentity);
   };
 
   return (
@@ -145,6 +152,10 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
       <div className="flex flex-wrap items-center gap-2 border-t pt-2">
         <Button size="sm" asChild className="bg-[#124657] hover:bg-[#0b3642]">
           <Link href={`${configuratorBasePath}/${itemIdentity}`}>Edit</Link>
+        </Button>
+        <Button size="sm" variant="outline" onClick={handleDuplicate} title="Duplicate item">
+          <Copy className="h-4 w-4" />
+          Duplicate
         </Button>
         {hasSections ? (
           <Button size="sm" variant="outline" onClick={() => setShowSections(true)}>
@@ -280,10 +291,12 @@ function QuotationPreview({ item }: { item: QuotationItem | undefined }) {
 //   }
 // };
 function ItemTab({ quotationBasePath }: { quotationBasePath: string }) {
-  const items = useQuotationBuilderStore((state) => state.quotation.items);
+  const quotation = useQuotationBuilderStore((state) => state.quotation);
+  const items = quotation.items;
   const addItem = useQuotationBuilderStore((state) => state.addItem);
+  const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
   const router = useRouter();
-  const [profit, setProfit] = useState(0);
+  const profit = Number(quotation.breakdown?.profitPercentage) || 0;
   const configuratorBasePath = `${quotationBasePath}/configurator`;
 
   const totalQuantity = items.reduce((sum, item) => sum + Math.max(1, item.quantity || 1), 0);
@@ -291,6 +304,20 @@ function ItemTab({ quotationBasePath }: { quotationBasePath: string }) {
   const totalAmount = items.reduce((sum, item) => sum + (item.amount || 0), 0);
   const finalAmount = totalAmount + (totalAmount * profit) / 100;
   const finalWithGST = finalAmount + (finalAmount * 18) / 100;
+  const updateProfit = (nextProfit: number) => {
+    const safeProfit = Number.isFinite(nextProfit) ? nextProfit : 0;
+    const nextFinalAmount = totalAmount + (totalAmount * safeProfit) / 100;
+    const nextFinalWithGST = nextFinalAmount + (nextFinalAmount * 18) / 100;
+
+    setQuotation({
+      ...quotation,
+      breakdown: {
+        ...quotation.breakdown,
+        totalAmount: nextFinalWithGST,
+        profitPercentage: safeProfit,
+      },
+    });
+  };
 
   const handleAddItem = () => {
     const newItemId = addItem();
@@ -339,7 +366,7 @@ const handleDragEnd = (event:DragEndEvent) => {
               <input
                 type="number"
                 value={profit}
-                onChange={(e) => setProfit(Number(e.target.value))}
+                onChange={(e) => updateProfit(Number(e.target.value))}
                 className="mt-1 w-24 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
               />
             </div>
@@ -921,8 +948,11 @@ export function QuotationBuilder({
   }, [initialQuotation, isCreateMode, isReturningFromConfigurator, setQuotation]);
   const [activeTab, setActiveTab] = useState<TabKey>(() => (isTabKey(requestedTab) ? requestedTab : "customer"));
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isGeneratingCuttingSchedule, setIsGeneratingCuttingSchedule] = useState(false);
   const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [pdfPreviewTitle, setPdfPreviewTitle] = useState("Quotation PDF Preview");
+  const [pdfDownloadName, setPdfDownloadName] = useState("");
   const [globalConfig, setGlobalConfig] = useState(createBuilderGlobalConfig);
   const hydratedGlobalConfigKeyRef = useRef<string | null>(null);
   useEffect(() => {
@@ -1064,6 +1094,8 @@ const handleLogoUpload = (file: File | null) => {
 
       const blob = await getQuotationPdfBlob(pdfQuotationId);
       const nextPdfPreviewUrl = URL.createObjectURL(blob);
+      setPdfPreviewTitle("Quotation PDF Preview");
+      setPdfDownloadName(getQuotationPdfDownloadName({ ...(savedQuotation ?? quotationWithGlobalConfig), globalConfig }));
       setPdfPreviewUrl((currentUrl) => {
         if (currentUrl) {
           URL.revokeObjectURL(currentUrl);
@@ -1079,6 +1111,44 @@ const handleLogoUpload = (file: File | null) => {
       setIsGeneratingPdf(false);
     }
   };
+  const exportCuttingSchedule = async () => {
+    try {
+      setIsGeneratingCuttingSchedule(true);
+      const savedQuotation = await saveQuotationDraft(quotationWithGlobalConfig);
+      const pdfQuotationId =
+        savedQuotation?._id ??
+        quotationWithGlobalConfig._id ??
+        savedQuotation?.quotationDetails.id ??
+        quotationWithGlobalConfig.quotationDetails.id;
+
+      if (!pdfQuotationId) {
+        throw new Error("Failed to resolve quotation id before cutting schedule generation.");
+      }
+
+      const blob = await getCuttingSchedulePdfBlob(pdfQuotationId);
+      const nextPdfPreviewUrl = URL.createObjectURL(blob);
+      const quoteNo =
+        savedQuotation?.generatedId ||
+        savedQuotation?.quotationDetails.id ||
+        quotationWithGlobalConfig.generatedId ||
+        quotationWithGlobalConfig.quotationDetails.id ||
+        "quotation";
+      setPdfPreviewTitle("Cutting Schedule PDF Preview");
+      setPdfDownloadName(`${quoteNo}-cutting-schedule.pdf`);
+      setPdfPreviewUrl((currentUrl) => {
+        if (currentUrl) {
+          URL.revokeObjectURL(currentUrl);
+        }
+        return nextPdfPreviewUrl;
+      });
+      setIsPdfPreviewOpen(true);
+    } catch (error) {
+      console.error("Failed to export cutting schedule PDF", error);
+      alert("Failed to generate cutting schedule.");
+    } finally {
+      setIsGeneratingCuttingSchedule(false);
+    }
+  };
   const closePdfPreview = () => {
     setIsPdfPreviewOpen(false);
   };
@@ -1086,10 +1156,7 @@ const handleLogoUpload = (file: File | null) => {
     if (!pdfPreviewUrl) return;
     const link = document.createElement("a");
     link.href = pdfPreviewUrl;
-    link.download = getQuotationPdfDownloadName({
-      ...quotation,
-      globalConfig
-    });
+    link.download = pdfDownloadName || getQuotationPdfDownloadName({ ...quotation, globalConfig });
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1104,6 +1171,10 @@ const handleLogoUpload = (file: File | null) => {
       actions={
         <>
           <Badge variant="success">{saveState}</Badge>
+          <Button variant="outline" onClick={exportCuttingSchedule} disabled={isGeneratingCuttingSchedule}>
+            <Ruler className="h-4 w-4" />
+            {isGeneratingCuttingSchedule ? "Generating..." : "Cutting"}
+          </Button>
           <Button variant="outline" onClick={exportPdf} disabled={isGeneratingPdf}>
             <Download className="h-4 w-4" />
             {isGeneratingPdf ? "Generating..." : "PDF"}
@@ -1176,8 +1247,8 @@ const handleLogoUpload = (file: File | null) => {
               <div className="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
                 <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
                   <div>
-                    <div className="text-lg font-semibold text-slate-900">Quotation PDF Preview</div>
-                    <div className="text-sm text-slate-500">{getQuotationPdfDownloadName({ ...quotation, globalConfig })}</div>
+                    <div className="text-lg font-semibold text-slate-900">{pdfPreviewTitle}</div>
+                    <div className="text-sm text-slate-500">{pdfDownloadName || getQuotationPdfDownloadName({ ...quotation, globalConfig })}</div>
                   </div>
                   <div className="flex items-center gap-3">
                     <Button variant="outline" onClick={downloadPreviewedPdf}>

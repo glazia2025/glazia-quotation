@@ -69,6 +69,7 @@ export interface QuotationItem {
   baseRate?: number;
   areaSlabIndex?: number;
   subItems?: QuotationSubItem[];
+  configuratorLayout?: Record<string, unknown>;
   laborRate: number;
   transportRate: number;
   discountPercent: number;
