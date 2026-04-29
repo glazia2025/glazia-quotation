@@ -26,7 +26,6 @@ export function FullPageConfigurator({
   const quotationId = useQuotationBuilderStore((state) => state.quotation._id ?? state.quotation.quotationDetails.id);
   const quotation = useQuotationBuilderStore((state) => state.quotation);
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
-  const ensureItem = useQuotationBuilderStore((state) => state.ensureItem);
   const updateItem = useQuotationBuilderStore((state) => state.updateItem);
   const item =
     initialQuotation?.items.find((entry) => getQuotationItemIdentity(entry) === itemId) ??
@@ -38,11 +37,6 @@ export function FullPageConfigurator({
     if (quotationId === initialQuotationId) return;
     setQuotation(initialQuotation);
   }, [initialQuotation, quotationId, setQuotation]);
-
-  useEffect(() => {
-    if (initialQuotation || item) return;
-    ensureItem(itemId);
-  }, [ensureItem, initialQuotation, item, itemId]);
 
   const handleClose = () => {
     const target = new URL(returnPath, window.location.origin);
@@ -71,9 +65,9 @@ export function FullPageConfigurator({
   return (
     <div className="fixed inset-0 z-[200] bg-[linear-gradient(180deg,#e2e8f0_0%,#f8fafc_100%)]">
       <div className="h-full w-full">
-        {item ? (
+        {item || !initialQuotation ? (
           <WindowDoorConfigurator
-            initialItem={item}
+            initialItem={item ?? null}
             profitPercentage={0}
             onSaveItem={handleSaveItem}
             onClose={handleClose}

@@ -88,16 +88,13 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
   const [showSections, setShowSections] = useState(false);
   const removeItem = useQuotationBuilderStore((state) => state.removeItem);
   const duplicateItem = useQuotationBuilderStore((state) => state.duplicateItem);
-  const itemCount = useQuotationBuilderStore((state) => state.quotation.items.length);
   const systemLabel = item.systemType || item.series || item.openingType || "Not configured";
   const locationLabel = item.location || item.projectLocation || "Not specified";
   const refCodeLabel = item.refCode || (item.id ? item.id.slice(0, 8).toUpperCase() : "Item");
   const hasSections = (item.subItems?.length ?? 0) > 1 || item.systemType === "Combination";
-  const canDelete = itemCount > 1;
   const itemIdentity = getQuotationItemIdentity(item);
 
   const handleDelete = () => {
-    if (!canDelete) return;
     removeItem(itemIdentity);
   };
 
@@ -149,7 +146,7 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
         <span className="font-medium">{formatCurrency(item.rate ?? 0)}</span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-t pt-2">
+      <div className="flex flex-wrap items-center gap-2 border-t pt-2" onPointerDown={(event) => event.stopPropagation()}>
         <Button size="sm" asChild className="bg-[#124657] hover:bg-[#0b3642]">
           <Link href={`${configuratorBasePath}/${itemIdentity}`}>Edit</Link>
         </Button>
@@ -162,13 +159,13 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
             Show Sections
           </Button>
         ) : null}
-        <Button size="sm" variant="outline" onClick={handleDelete} disabled={!canDelete} className="text-red-600 hover:text-red-700">
+        <Button size="sm" variant="outline" onClick={handleDelete} className="text-red-600 hover:text-red-700">
           Delete
         </Button>
       </div>
     </div>
     {showSections ? (
-      <div className="fixed inset-0 z-[220] flex items-center justify-center bg-slate-950/60 p-4">
+      <div className="fixed inset-0 z-[220] flex items-center justify-center bg-slate-950/60 p-4" onPointerDown={(event) => event.stopPropagation()}>
         <div className="w-full max-w-5xl rounded-2xl bg-white shadow-2xl">
           <div className="flex items-center justify-between border-b px-6 py-4">
             <div>
@@ -293,7 +290,6 @@ function QuotationPreview({ item }: { item: QuotationItem | undefined }) {
 function ItemTab({ quotationBasePath }: { quotationBasePath: string }) {
   const quotation = useQuotationBuilderStore((state) => state.quotation);
   const items = quotation.items;
-  const addItem = useQuotationBuilderStore((state) => state.addItem);
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
   const router = useRouter();
   const profit = Number(quotation.breakdown?.profitPercentage) || 0;
@@ -320,7 +316,7 @@ function ItemTab({ quotationBasePath }: { quotationBasePath: string }) {
   };
 
   const handleAddItem = () => {
-    const newItemId = addItem();
+    const newItemId = crypto.randomUUID();
     router.push(`${configuratorBasePath}/${newItemId}`);
   };
    // for reorder item 
@@ -423,7 +419,6 @@ function CustomerTab() {
   const updateCustomer = useQuotationBuilderStore((state) => state.updateCustomer);
   const customerValues = customer ?? {
     name: "",
-    company: "",
     phone: "",
     email: "",
     address: "",
@@ -462,20 +457,6 @@ function CustomerTab() {
               value={customerValues.name}
               onChange={(e) =>
                 updateCustomer("name", e.target.value)
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Company
-            </label>
-            <input
-              type="text"
-              value={customerValues.company}
-              onChange={(e) =>
-                updateCustomer("company", e.target.value)
               }
               className="w-full px-4 py-2 border border-gray-300 rounded-lg"
             />
@@ -916,11 +897,10 @@ export function QuotationBuilder({
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
   const requestedTab = searchParams.get("tab");
   const isReturningFromConfigurator = isCreateMode && requestedTab === "item";
-  const addItem = useQuotationBuilderStore((state) => state.addItem);
   const router = useRouter();
   const configuratorBasePath = `${quotationBasePath}/configurator`;
   const handleAddItem = () => {
-    const newItemId = addItem();
+    const newItemId = crypto.randomUUID();
     router.push(`${configuratorBasePath}/${newItemId}`);
   };
 

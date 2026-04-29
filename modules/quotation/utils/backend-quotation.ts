@@ -132,7 +132,6 @@ export function extractBackendQuotation(payload: unknown): BackendQuotationRecor
           typeof source.customerDetails === "object" && source.customerDetails !== null
             ? {
                 name: toStringValue((source.customerDetails as Record<string, unknown>).name),
-                company: toStringValue((source.customerDetails as Record<string, unknown>).company),
                 phone: toStringValue((source.customerDetails as Record<string, unknown>).phone),
                 email: toStringValue((source.customerDetails as Record<string, unknown>).email),
                 address: toStringValue((source.customerDetails as Record<string, unknown>).address),
@@ -142,7 +141,6 @@ export function extractBackendQuotation(payload: unknown): BackendQuotationRecor
               }
             : {
                 name: "",
-                company: "",
                 phone: "",
                 email: "",
                 address: "",

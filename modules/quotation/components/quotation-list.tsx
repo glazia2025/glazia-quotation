@@ -47,7 +47,6 @@ export function QuotationList() {
           {quotations.map((quotation, index) => {
             const customerName =
               quotation.customerDetails?.name ||
-              quotation.customerDetails?.company ||
               "Unknown customer";
             const quotationId = quotation._id || quotation.quotationDetails?.id || "";
             const quotationNumber = quotation.generatedId || quotation.quotationDetails?.id || quotationId;

@@ -47,7 +47,6 @@ export function createEmptyQuotation(partial?: Partial<Quotation>): Quotation {
     items: partial?.items ?? [],
     customerDetails: partial?.customerDetails ?? {
       name: "",
-      company: "",
       phone: "",
       email: "",
       address: "",

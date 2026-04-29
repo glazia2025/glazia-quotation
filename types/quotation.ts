@@ -1,6 +1,5 @@
 export interface QuotationCustomerDetails {
   name: string;
-  company: string;
   phone: string;
   email: string;
   address: string;

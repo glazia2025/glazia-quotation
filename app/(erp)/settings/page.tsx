@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import axios, { AxiosError } from "axios";
-import { Plus, Search } from "lucide-react";
+import { Plus, Save, Search } from "lucide-react";
 import { API_BASE_URL } from "@/services/api";
 import { defaultSettingsSection } from "@/modules/settings/constants";
 import { loadGlobalConfig, saveGlobalConfig } from "../../../utils/globalConfig";
@@ -1006,6 +1006,24 @@ export default function QuotationSettingsPage() {
         <div className="space-y-8">
           {activeTab === "profileStructure" && (
               <>
+                <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h1 className="text-xl font-bold text-[#124657]">Quotation Structure</h1>
+                    <p className="mt-1 text-sm text-gray-500">Save branding, legal terms, and quotation cost defaults.</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    {status ? <span className="text-sm text-green-600">{status}</span> : null}
+                    <button
+                      type="button"
+                      onClick={handleSave}
+                      className="inline-flex items-center gap-2 rounded-lg bg-[#124657] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0b3642]"
+                    >
+                      <Save className="h-4 w-4" />
+                      <span>Save Settings</span>
+                    </button>
+                  </div>
+                </div>
+
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                   <h2 className="text-xl font-bold text-gray-900 mb-6">Branding</h2>
 

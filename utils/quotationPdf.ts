@@ -16,7 +16,6 @@ type PdfUserData = {
 
 type PdfCustomerData = {
   name?: string;
-  company?: string;
   email?: string;
   phone?: string;
   address?: string;
@@ -57,7 +56,6 @@ type QuotationPdfData = Partial<Quotation> & {
   };
   customerDetails?: {
     name?: string;
-    company?: string;
     email?: string;
     phone?: string;
     address?: string;
@@ -1102,7 +1100,7 @@ function renderCoverPage(params: {
   const companyName = userData.name || "Glazia";
   const projectName =
     preparedQuotation.quotationDetails?.opportunity ||
-    customer.company ||
+    customer.name ||
     "-";
   const recipientName = customer.name || "Customer";
 
@@ -1168,7 +1166,7 @@ function renderDetailHeader(params: {
   const { logoSrc, userData, preparedQuotation, quotationDate, customer } = params;
   const projectName =
     preparedQuotation.quotationDetails?.opportunity ||
-    customer.company ||
+    customer.name ||
     "-";
 
   return `

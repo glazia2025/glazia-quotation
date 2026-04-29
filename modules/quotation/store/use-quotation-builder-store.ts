@@ -147,9 +147,9 @@ export const useQuotationBuilderStore = create<QuotationBuilderState>()((set, ge
       return {
         quotation: {
           ...state.quotation,
-          items: items.length ? items : state.quotation.items
+          items
         },
-        selectedItemId: items[0]?.id ?? state.selectedItemId
+        selectedItemId: items[0]?.id ?? null
       };
     }),
   selectItem: (itemId) => set({ selectedItemId: itemId }),

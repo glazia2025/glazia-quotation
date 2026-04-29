@@ -120,7 +120,6 @@ function toBackendQuotation(quotation: Quotation) {
     items: Array.isArray(quotation.items) ? quotation.items.map(toBackendItem) : [],
     customerDetails: {
       name: quotation.customerDetails?.name || "",
-      company: quotation.customerDetails?.company || "",
       email: quotation.customerDetails?.email || "",
       phone: quotation.customerDetails?.phone || "",
       address: quotation.customerDetails?.address || "",
