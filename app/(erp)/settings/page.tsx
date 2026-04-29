@@ -11,11 +11,18 @@ import { getAuthToken } from "@/utils/auth-cookie";
 
 type RateRow = {
   id: string;
+  systemType?: string;
   name: string;
   unit: string;
   code: string;
   rate: number;
   rates: number[];
+  colors?: ColorRate[];
+};
+
+type ColorRate = {
+  name: string;
+  rate: number;
 };
 
 type OptionSetType = "meshType" | "glassSpec" | "colorFinish" | "handle";
@@ -23,7 +30,8 @@ type RateSectionType = OptionSetType;
 type FlatRateSectionType = Exclude<RateSectionType, "handle">;
 type GroupedRows = Record<string, RateRow[]>;
 type NewItemDraft = { name: string; rate: string };
-type NewHardwareDrafts = Record<string, NewItemDraft>;
+type NewHardwareDraft = { name: string; blackRate: string; silverRate: string };
+type NewHardwareDrafts = Record<string, NewHardwareDraft>;
 
 const SETTINGS_PREFIXES = [
    process.env.NEXT_PUBLIC_QUOTATION_SETTINGS_PATH,
@@ -82,6 +90,15 @@ function extractArray(data: unknown): unknown[] {
 
 function normalizeRateRow(item: unknown): RateRow {
   const raw = (item ?? {}) as Record<string, unknown>;
+  const rawColors = raw.colors;
+  const colors: ColorRate[] = Array.isArray(rawColors)
+    ? rawColors.map((entry) => {
+        const record = (entry ?? {}) as Record<string, unknown>;
+        return { name: asString(record.name), rate: asNumber(record.rate) };
+      }).filter((entry) => entry.name)
+    : rawColors && typeof rawColors === "object"
+      ? Object.entries(rawColors as Record<string, unknown>).map(([name, rate]) => ({ name, rate: asNumber(rate) }))
+      : [];
   const rawRatesArray = Array.isArray(raw.rates)
     ? (raw.rates as unknown[]).map((entry) => asNumber(entry)).filter((entry) => Number.isFinite(entry))
     : Array.isArray(raw.adminRates)
@@ -97,6 +114,7 @@ function normalizeRateRow(item: unknown): RateRow {
 
   return {
     id,
+    systemType: asString(raw.systemType),
     name:
       asString(raw.name) ||
       asString(raw.description) ||
@@ -107,6 +125,7 @@ function normalizeRateRow(item: unknown): RateRow {
     unit: asString(raw.unit) || asString(raw.per),
     rate: rawRatesArray.length > 0 ? rawRatesArray[0] : asNumber(raw.rate ?? raw.price ?? raw.baseRate),
     rates: rawRatesArray,
+    colors,
   };
 }
 
@@ -138,7 +157,7 @@ function normalizeHandleRowsBySystem(items: unknown): GroupedRows {
       const row = normalizeRateRow(item);
       return {
         ...row,
-        id: `${system}::${row.id || row.name}`,
+        id: row.id || `${system}::${row.name}`,
       };
     });
   });
@@ -268,6 +287,27 @@ async function setOptionSetRate(type: OptionSetType, name: string, rate: number)
     `/option-sets/${encodeURIComponent(type)}/admin-items/${encodeURIComponent(name)}/rate`,
     { rate }
   );
+}
+
+async function requestAdminQuotationSettings<T>(method: "post" | "put", endpoint: string, payload: unknown): Promise<T> {
+  const token = getSettingsAuthToken();
+  const response = await settingsApi.request<T>({
+    method,
+    url: `/api/admin/quotations${endpoint}`,
+    data: payload,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  return response.data;
+}
+
+async function createHandleOption(payload: { systemType: string; name: string; colors: Record<string, number> }) {
+  return requestAdminQuotationSettings("post", "/handle-options", payload);
+}
+
+async function updateHandleOption(id: string, payload: { colors: Record<string, number> }) {
+  return requestAdminQuotationSettings("put", `/handle-options/${encodeURIComponent(id)}`, payload);
 }
 
 type RateSectionProps = {
@@ -417,9 +457,10 @@ type HardwareSectionProps = {
   newItems: NewHardwareDrafts;
   onSearchChange: (value: string) => void;
   onNewNameChange: (system: string, value: string) => void;
-  onNewRateChange: (system: string, value: string) => void;
+  onNewBlackRateChange: (system: string, value: string) => void;
+  onNewSilverRateChange: (system: string, value: string) => void;
   onAdd: (system: string) => void;
-  onRowRateChange: (system: string, id: string, rate: number) => void;
+  onRowColorRateChange: (system: string, id: string, color: string, rate: number) => void;
   onSave: () => void;
   onReset: () => void;
 };
@@ -432,9 +473,10 @@ function HardwareSection({
   newItems,
   onSearchChange,
   onNewNameChange,
-  onNewRateChange,
+  onNewBlackRateChange,
+  onNewSilverRateChange,
   onAdd,
-  onRowRateChange,
+  onRowColorRateChange,
   onSave,
   onReset,
 }: HardwareSectionProps) {
@@ -475,7 +517,7 @@ function HardwareSection({
             </div>
 
             <div className="px-4 py-3 border-b border-gray-100 bg-white">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_140px_auto] gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_140px_140px_auto] gap-2">
                 <input
                   type="text"
                   placeholder="Name"
@@ -485,9 +527,16 @@ function HardwareSection({
                 />
                 <input
                   type="number"
-                  placeholder="Rate"
-                  value={newItems[system]?.rate || ""}
-                  onChange={(e) => onNewRateChange(system, e.target.value)}
+                  placeholder="Black rate"
+                  value={newItems[system]?.blackRate || ""}
+                  onChange={(e) => onNewBlackRateChange(system, e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#124657] focus:outline-none"
+                />
+                <input
+                  type="number"
+                  placeholder="Silver rate"
+                  value={newItems[system]?.silverRate || ""}
+                  onChange={(e) => onNewSilverRateChange(system, e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#124657] focus:outline-none"
                 />
                 <button
@@ -506,7 +555,7 @@ function HardwareSection({
               <thead className="bg-gray-50 text-gray-600">
                 <tr>
                   <th className="px-4 py-3 text-left">Handle Name</th>
-                  <th className="px-4 py-3 text-left">Price Level</th>
+                  <th className="px-4 py-3 text-left">Colour Rates</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -521,12 +570,19 @@ function HardwareSection({
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">{item.name}</td>
                     <td className="px-4 py-3">
-                      <input
-                        type="number"
-                        value={item.rate}
-                        onChange={(e) => onRowRateChange(system, item.id, asNumber(e.target.value))}
-                        className="w-28 px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#124657] focus:outline-none"
-                      />
+                      <div className="flex flex-wrap gap-3">
+                        {(item.colors?.length ? item.colors : [{ name: "Black", rate: 0 }, { name: "Silver", rate: 0 }]).map((color) => (
+                          <label key={`${item.id}-${color.name}`} className="flex items-center gap-2 text-xs text-gray-600">
+                            <span className="min-w-12">{color.name}</span>
+                            <input
+                              type="number"
+                              value={color.rate}
+                              onChange={(e) => onRowColorRateChange(system, item.id, color.name, asNumber(e.target.value))}
+                              className="w-28 px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#124657] focus:outline-none"
+                            />
+                          </label>
+                        ))}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -826,21 +882,22 @@ export default function QuotationSettingsPage() {
     }));
   };
 
-  const updateNewHardwareDraft = (system: string, field: keyof NewItemDraft, value: string) => {
+  const updateNewHardwareDraft = (system: string, field: keyof NewHardwareDraft, value: string) => {
     setNewHardwareBySystem((prev) => ({
       ...prev,
       [system]: {
         name: prev[system]?.name || "",
-        rate: prev[system]?.rate || "",
+        blackRate: prev[system]?.blackRate || "",
+        silverRate: prev[system]?.silverRate || "",
         [field]: value,
       },
     }));
   };
 
   const addHardwareItem = async (system: string) => {
-    const draft = newHardwareBySystem[system] || { name: "", rate: "" };
+    const draft = newHardwareBySystem[system] || { name: "", blackRate: "", silverRate: "" };
     const name = draft.name.trim();
-    const rate = asNumber(draft.rate);
+    const systemType = hardwareRows[system]?.[0]?.systemType || formatSystemLabel(system);
 
     if (!name) {
       setStatus("Name is required.");
@@ -849,11 +906,18 @@ export default function QuotationSettingsPage() {
 
     setIsRatesSaving(true);
     try {
-      await addOptionSetItem("handle", { name, rate, system });
+      await createHandleOption({
+        systemType,
+        name,
+        colors: {
+          Black: asNumber(draft.blackRate),
+          Silver: asNumber(draft.silverRate),
+        },
+      });
       await fetchRates();
       setNewHardwareBySystem((prev) => ({
         ...prev,
-        [system]: { name: "", rate: "" },
+        [system]: { name: "", blackRate: "", silverRate: "" },
       }));
       setStatus("Item added.");
     } catch (error) {
@@ -937,7 +1001,14 @@ export default function QuotationSettingsPage() {
       setIsRatesSaving(true);
       try {
         const allHandleRows = Object.values(hardwareRows).flat();
-        await Promise.all(allHandleRows.map((row) => setOptionSetRate("handle", row.name, row.rate)));
+        await Promise.all(
+          allHandleRows.map((row) =>
+            updateHandleOption(
+              row.id,
+              { colors: Object.fromEntries((row.colors ?? []).map((color) => [color.name, color.rate])) }
+            )
+          )
+        );
         await fetchRates();
         setStatus("Rates updated.");
       } catch (error) {
@@ -996,6 +1067,25 @@ export default function QuotationSettingsPage() {
       return;
     }
     setColorFinishRows(initialColorFinishRows);
+  };
+
+  const updateHardwareColorRate = (system: string, id: string, colorName: string, rate: number) => {
+    setHardwareRows((prev) => ({
+      ...prev,
+      [system]: (prev[system] || []).map((row) => {
+        if (row.id !== id) {
+          return row;
+        }
+
+        const existingColors = row.colors?.length ? row.colors : [{ name: "Black", rate: 0 }, { name: "Silver", rate: 0 }];
+        const hasColor = existingColors.some((color) => color.name === colorName);
+        const colors = hasColor
+          ? existingColors.map((color) => (color.name === colorName ? { ...color, rate } : color))
+          : [...existingColors, { name: colorName, rate }];
+
+        return { ...row, colors };
+      }),
+    }));
   };
 
   const logoPreview = config?.logoUrl || config?.logo || "";
@@ -1260,9 +1350,10 @@ export default function QuotationSettingsPage() {
               newItems={newHardwareBySystem}
               onSearchChange={setHardwareSearch}
               onNewNameChange={(system, value) => updateNewHardwareDraft(system, "name", value)}
-              onNewRateChange={(system, value) => updateNewHardwareDraft(system, "rate", value)}
+              onNewBlackRateChange={(system, value) => updateNewHardwareDraft(system, "blackRate", value)}
+              onNewSilverRateChange={(system, value) => updateNewHardwareDraft(system, "silverRate", value)}
               onAdd={(system) => void addHardwareItem(system)}
-              onRowRateChange={updateHardwareRate}
+              onRowColorRateChange={updateHardwareColorRate}
               onSave={() => void saveSectionRates("handle")}
               onReset={() => resetSectionRates("handle")}
             />
