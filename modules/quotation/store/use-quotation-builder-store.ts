@@ -12,18 +12,30 @@ const getQuotationItemIdentity = (item: QuotationItem | null | undefined) => {
   return String(item.id || withBackendId._id || item.refCode || "");
 };
 
-const duplicateQuotationItem = (item: QuotationItem): QuotationItem => {
+const indexToAlphaLower = (index: number): string => {
+  let n = index;
+  let result = "";
+  while (n >= 0) {
+    result = String.fromCharCode(97 + (n % 26)) + result;
+    n = Math.floor(n / 26) - 1;
+  }
+  return result;
+};
+
+const duplicateQuotationItem = (item: QuotationItem, refCode: string): QuotationItem => {
   const { _id: _itemBackendId, ...itemWithoutBackendId } = item as QuotationItem & { _id?: string };
 
   return {
     ...itemWithoutBackendId,
     id: crypto.randomUUID(),
-    subItems: item.subItems?.map((subItem) => {
+    refCode,
+    subItems: item.subItems?.map((subItem, index) => {
       const { _id: _subItemBackendId, ...subItemWithoutBackendId } = subItem as typeof subItem & { _id?: string };
 
       return {
         ...subItemWithoutBackendId,
         id: crypto.randomUUID(),
+        refCode: `${refCode}-${indexToAlphaLower(index)}`,
       };
     }),
   };
@@ -42,7 +54,7 @@ interface QuotationBuilderState {
   updateItem: (itemId: string, patch: Partial<QuotationItem>) => void;
   addItem: (itemId?: string) => string;
   ensureItem: (itemId: string) => void;
-  duplicateItem: (itemId: string) => void;
+  duplicateItem: (itemId: string, refCode: string) => void;
   removeItem: (itemId: string) => void;
   selectItem: (itemId: string) => void;
   setPricingMeta: (taxPercent: number, globalDiscount: number) => void;
@@ -124,12 +136,12 @@ export const useQuotationBuilderStore = create<QuotationBuilderState>()((set, ge
         selectedItemId: itemId
       };
     }),
-  duplicateItem: (itemId) =>
+  duplicateItem: (itemId, refCode) =>
     set((state) => {
       const sourceIndex = state.quotation.items.findIndex((entry) => getQuotationItemIdentity(entry) === itemId);
       const item = state.quotation.items[sourceIndex];
       if (!item) return state;
-      const duplicate = duplicateQuotationItem(item);
+      const duplicate = duplicateQuotationItem(item, refCode);
       const items = [...state.quotation.items];
       items.splice(sourceIndex + 1, 0, duplicate);
 

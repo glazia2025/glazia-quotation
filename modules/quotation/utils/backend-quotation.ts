@@ -10,8 +10,19 @@ const createClientId = () => {
   return `tmp-${Math.random().toString(36).slice(2, 10)}`;
 };
 
-const toStringValue = (value: unknown, fallback = "") => (typeof value === "string" ? value : fallback);
-const toNumberValue = (value: unknown, fallback = 0) => (typeof value === "number" && Number.isFinite(value) ? value : fallback);
+const toStringValue = (value: unknown, fallback = "") => {
+  if (typeof value === "string") return value;
+  if (value instanceof Date) return value.toISOString();
+  return fallback;
+};
+const toNumberValue = (value: unknown, fallback = 0) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  return fallback;
+};
 const toBooleanValue = (value: unknown, fallback = false) => (typeof value === "boolean" ? value : fallback);
 
 const normalizeSubItem = (value: unknown): QuotationSubItem => {
@@ -170,7 +181,12 @@ export function extractBackendQuotation(payload: unknown): BackendQuotationRecor
                 totalAmount: toNumberValue((source.breakdown as Record<string, unknown>).totalAmount),
                 profitPercentage: toNumberValue((source.breakdown as Record<string, unknown>).profitPercentage),
               }
-            : undefined,
+            : typeof source.totalAmount !== "undefined"
+              ? {
+                  totalAmount: toNumberValue(source.totalAmount),
+                  profitPercentage: 0,
+                }
+              : undefined,
         globalConfig:
           typeof source.globalConfig === "object" && source.globalConfig !== null
             ? {
@@ -190,7 +206,7 @@ export function extractBackendQuotation(payload: unknown): BackendQuotationRecor
               }
             : undefined,
         generatedId: toStringValue(source.generatedId) || undefined,
-        createdAt: toStringValue(source.createdAt) || undefined,
+        createdAt: toStringValue(source.createdAt) || toStringValue(source.date) || undefined,
         updatedAt: toStringValue(source.updatedAt) || undefined,
         __v: typeof source.__v === "number" ? source.__v : undefined,
       };

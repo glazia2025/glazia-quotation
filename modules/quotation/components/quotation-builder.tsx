@@ -86,6 +86,10 @@ const createBuilderGlobalConfig = () => ({
 
 function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configuratorBasePath: string }) {
   const [showSections, setShowSections] = useState(false);
+  const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [duplicateRefCode, setDuplicateRefCode] = useState("");
+  const [duplicateError, setDuplicateError] = useState("");
   const removeItem = useQuotationBuilderStore((state) => state.removeItem);
   const duplicateItem = useQuotationBuilderStore((state) => state.duplicateItem);
   const systemLabel = item.systemType || item.series || item.openingType || "Not configured";
@@ -95,11 +99,31 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
   const itemIdentity = getQuotationItemIdentity(item);
 
   const handleDelete = () => {
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = () => {
     removeItem(itemIdentity);
+    setIsDeleteModalOpen(false);
   };
 
   const handleDuplicate = () => {
-    duplicateItem(itemIdentity);
+    setDuplicateRefCode("");
+    setDuplicateError("");
+    setIsDuplicateModalOpen(true);
+  };
+
+  const confirmDuplicate = () => {
+    const trimmedRefCode = duplicateRefCode.trim();
+    if (!trimmedRefCode) {
+      setDuplicateError("Ref Code is required to duplicate an item.");
+      return;
+    }
+
+    duplicateItem(itemIdentity, trimmedRefCode);
+    setIsDuplicateModalOpen(false);
+    setDuplicateRefCode("");
+    setDuplicateError("");
   };
 
   return (
@@ -201,6 +225,55 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+    ) : null}
+    {isDeleteModalOpen ? (
+      <div className="fixed inset-0 z-[230] flex items-center justify-center bg-slate-950/60 p-4" onPointerDown={(event) => event.stopPropagation()}>
+        <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+          <h3 className="text-lg font-semibold text-slate-900">Delete Item</h3>
+          <p className="mt-2 text-sm text-slate-600">Delete item {refCodeLabel}? This action cannot be undone.</p>
+          <div className="mt-6 flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsDeleteModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={confirmDelete} className="bg-red-600 text-white hover:bg-red-700">
+              Delete
+            </Button>
+          </div>
+        </div>
+      </div>
+    ) : null}
+    {isDuplicateModalOpen ? (
+      <div className="fixed inset-0 z-[230] flex items-center justify-center bg-slate-950/60 p-4" onPointerDown={(event) => event.stopPropagation()}>
+        <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+          <h3 className="text-lg font-semibold text-slate-900">Duplicate Item</h3>
+          <p className="mt-1 text-sm text-slate-500">Enter a new ref code for {refCodeLabel}.</p>
+          <label className="mt-5 block text-sm font-medium text-slate-700">
+            Ref Code
+            <input
+              value={duplicateRefCode}
+              onChange={(event) => {
+                setDuplicateRefCode(event.target.value);
+                setDuplicateError("");
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") confirmDuplicate();
+                if (event.key === "Escape") setIsDuplicateModalOpen(false);
+              }}
+              autoFocus
+              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+            />
+          </label>
+          {duplicateError ? <p className="mt-2 text-sm text-red-600">{duplicateError}</p> : null}
+          <div className="mt-6 flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setIsDuplicateModalOpen(false); setDuplicateError(""); }}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={confirmDuplicate} className="bg-[#124657] hover:bg-[#0b3642]">
+              Duplicate
+            </Button>
           </div>
         </div>
       </div>
@@ -962,6 +1035,10 @@ export function QuotationBuilder({
           transport: Number(globalConfig.additionalCosts.transport) || 0,
           loadingUnloading: Number(globalConfig.additionalCosts.loadingUnloading) || 0,
           discountPercent: Number(globalConfig.additionalCosts.discountPercent) || 0,
+          showInstallation: globalConfig.additionalCosts.showInstallation ?? true,
+          showTransport: globalConfig.additionalCosts.showTransport ?? true,
+          showLoadingUnloading: globalConfig.additionalCosts.showLoadingUnloading ?? true,
+          showDiscount: globalConfig.additionalCosts.showDiscount ?? true,
         },
       },
     }),
@@ -988,6 +1065,10 @@ export function QuotationBuilder({
         transport: savedGlobalConfig.additionalCosts?.transport ?? prev.additionalCosts.transport,
         loadingUnloading: savedGlobalConfig.additionalCosts?.loadingUnloading ?? prev.additionalCosts.loadingUnloading,
         discountPercent: savedGlobalConfig.additionalCosts?.discountPercent ?? prev.additionalCosts.discountPercent,
+        showInstallation: savedGlobalConfig.additionalCosts?.showInstallation ?? prev.additionalCosts.showInstallation,
+        showTransport: savedGlobalConfig.additionalCosts?.showTransport ?? prev.additionalCosts.showTransport,
+        showLoadingUnloading: savedGlobalConfig.additionalCosts?.showLoadingUnloading ?? prev.additionalCosts.showLoadingUnloading,
+        showDiscount: savedGlobalConfig.additionalCosts?.showDiscount ?? prev.additionalCosts.showDiscount,
       },
     }));
   }, [quotation._id, quotation.globalConfig]);
@@ -1002,6 +1083,10 @@ export function QuotationBuilder({
         transport: Number(globalConfig.additionalCosts.transport) || 0,
         loadingUnloading: Number(globalConfig.additionalCosts.loadingUnloading) || 0,
         discountPercent: Number(globalConfig.additionalCosts.discountPercent) || 0,
+        showInstallation: globalConfig.additionalCosts.showInstallation ?? true,
+        showTransport: globalConfig.additionalCosts.showTransport ?? true,
+        showLoadingUnloading: globalConfig.additionalCosts.showLoadingUnloading ?? true,
+        showDiscount: globalConfig.additionalCosts.showDiscount ?? true,
       },
     };
 
@@ -1013,7 +1098,11 @@ export function QuotationBuilder({
       (Number(currentGlobalConfig?.additionalCosts?.installation) || 0) === nextGlobalConfig.additionalCosts.installation &&
       (Number(currentGlobalConfig?.additionalCosts?.transport) || 0) === nextGlobalConfig.additionalCosts.transport &&
       (Number(currentGlobalConfig?.additionalCosts?.loadingUnloading) || 0) === nextGlobalConfig.additionalCosts.loadingUnloading &&
-      (Number(currentGlobalConfig?.additionalCosts?.discountPercent) || 0) === nextGlobalConfig.additionalCosts.discountPercent;
+      (Number(currentGlobalConfig?.additionalCosts?.discountPercent) || 0) === nextGlobalConfig.additionalCosts.discountPercent &&
+      (currentGlobalConfig?.additionalCosts?.showInstallation ?? true) === nextGlobalConfig.additionalCosts.showInstallation &&
+      (currentGlobalConfig?.additionalCosts?.showTransport ?? true) === nextGlobalConfig.additionalCosts.showTransport &&
+      (currentGlobalConfig?.additionalCosts?.showLoadingUnloading ?? true) === nextGlobalConfig.additionalCosts.showLoadingUnloading &&
+      (currentGlobalConfig?.additionalCosts?.showDiscount ?? true) === nextGlobalConfig.additionalCosts.showDiscount;
 
     if (isSameGlobalConfig) return;
 
@@ -1030,7 +1119,6 @@ export function QuotationBuilder({
         setQuotation(savedQuotation);
       }
       markSaved();
-      alert("Saved successfully ");
     } catch (err) {
       console.error(err);
       alert("Error saving ");

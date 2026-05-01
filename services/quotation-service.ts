@@ -1,10 +1,11 @@
 import axios from "axios";
 
-import { extractBackendQuotation, type BackendQuotationRecord } from "@/modules/quotation/utils/backend-quotation";
 import { API_BASE_URL } from "@/services/api";
 import { useAuthStore } from "@/store/auth-store";
 import type { Quotation, QuotationSubItem } from "@/types/quotation";
 import { getAuthToken } from "@/utils/auth-cookie";
+
+export type BackendQuotationRecord = Quotation;
 
 function getAuthHeaders() {
   const token = useAuthStore.getState().token ?? getAuthToken();
@@ -56,13 +57,15 @@ function findQuotationEnvelope(payload: unknown): Record<string, unknown> | null
       return source;
     }
 
-    queue.push(source.quotation, source.data, source.result, source.record);
+    queue.push(source.quotation, source.updatedQuotation, source.data, source.result, source.record);
   }
 
   return null;
 }
 
 function toBackendSubItem(subItem: QuotationSubItem) {
+  const handleType = subItem.handleType || "";
+
   return {
     refCode: subItem.refCode || "",
     location: subItem.location || "",
@@ -74,8 +77,8 @@ function toBackendSubItem(subItem: QuotationSubItem) {
     description: subItem.description || "",
     colorFinish: subItem.colorFinish || "",
     glassSpec: subItem.glassSpec || "",
-    handleType: subItem.handleType || "",
-    handleColor: subItem.handleColor || "",
+    handleType,
+    handleColor: handleType ? subItem.handleColor || "" : "",
     handleCount: Number(subItem.handleCount) || 0,
     meshPresent: Boolean(subItem.meshPresent),
     meshType: subItem.meshType || "",
@@ -88,6 +91,8 @@ function toBackendSubItem(subItem: QuotationSubItem) {
 }
 
 function toBackendItem(item: Quotation["items"][number]) {
+  const handleType = item.handleType || "";
+
   return {
     refCode: item.refCode || "",
     location: item.location || item.projectLocation || "",
@@ -99,8 +104,8 @@ function toBackendItem(item: Quotation["items"][number]) {
     description: item.description || "",
     colorFinish: item.colorFinish || "",
     glassSpec: item.glassSpec || "",
-    handleType: item.handleType || "",
-    handleColor: item.handleColor || "",
+    handleType,
+    handleColor: handleType ? item.handleColor || "" : "",
     handleCount: Number(item.handleCount) || 0,
     meshPresent: Boolean(item.meshPresent),
     meshType: item.meshType || "",
@@ -115,6 +120,12 @@ function toBackendItem(item: Quotation["items"][number]) {
 }
 
 function toBackendQuotation(quotation: Quotation) {
+  const itemTotal = Array.isArray(quotation.items)
+    ? quotation.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+    : 0;
+  const profitPercentage = Number(quotation.breakdown?.profitPercentage) || 0;
+  const computedTotalAmount = itemTotal + (itemTotal * profitPercentage) / 100;
+
   return {
     user: quotation.user,
     items: Array.isArray(quotation.items) ? quotation.items.map(toBackendItem) : [],
@@ -135,8 +146,8 @@ function toBackendQuotation(quotation: Quotation) {
       notes: quotation.quotationDetails?.notes || "",
     },
     breakdown: {
-      totalAmount: Number(quotation.breakdown?.totalAmount) || 0,
-      profitPercentage: Number(quotation.breakdown?.profitPercentage) || 0,
+      totalAmount: Number(quotation.breakdown?.totalAmount) || computedTotalAmount,
+      profitPercentage,
     },
     globalConfig: {
       logo: quotation.globalConfig?.logo || "",
@@ -147,27 +158,21 @@ function toBackendQuotation(quotation: Quotation) {
         transport: Number(quotation.globalConfig?.additionalCosts?.transport) || 0,
         loadingUnloading: Number(quotation.globalConfig?.additionalCosts?.loadingUnloading) || 0,
         discountPercent: Number(quotation.globalConfig?.additionalCosts?.discountPercent) || 0,
+        showInstallation: quotation.globalConfig?.additionalCosts?.showInstallation ?? true,
+        showTransport: quotation.globalConfig?.additionalCosts?.showTransport ?? true,
+        showLoadingUnloading: quotation.globalConfig?.additionalCosts?.showLoadingUnloading ?? true,
+        showDiscount: quotation.globalConfig?.additionalCosts?.showDiscount ?? true,
       },
     },
     generatedId: quotation.generatedId || undefined,
   };
 }
 
-function toQuotationList(payload: unknown): BackendQuotationRecord[] {
-  const source =
-    typeof payload === "object" && payload !== null
-      ? ((payload as { quotations?: unknown }).quotations ??
-        (payload as { data?: unknown }).data ??
-        payload)
-      : payload;
+function unwrapQuotationList(payload: unknown): BackendQuotationRecord[] {
+  const source = typeof payload === "object" && payload !== null ? (payload as ApiQuotationListResponse) : {};
+  const quotations = source.quotations ?? source.data ?? payload;
 
-  if (!Array.isArray(source)) {
-    return [];
-  }
-
-  return source
-    .map((entry) => extractBackendQuotation(entry))
-    .filter((entry): entry is BackendQuotationRecord => Boolean(entry));
+  return Array.isArray(quotations) ? (quotations as BackendQuotationRecord[]) : [];
 }
 
 function toQuotationsPage(payload: unknown): QuotationsPage {
@@ -175,7 +180,7 @@ function toQuotationsPage(payload: unknown): QuotationsPage {
     typeof payload === "object" && payload !== null ? (payload as ApiQuotationListResponse) : {};
 
   return {
-    quotations: toQuotationList(source),
+    quotations: unwrapQuotationList(source),
     page: source.page ?? 1,
     limit: source.limit ?? 20,
     total: source.total ?? 0,
@@ -190,11 +195,7 @@ export async function getQuotations(page = 1, limit = 20): Promise<QuotationsPag
     params: { page, limit }
   });
 
-  const mapped = toQuotationsPage(response.data);
-  console.log("[quotation-service] getQuotations raw response", response.data);
-  console.log("[quotation-service] getQuotations mapped page", mapped);
-
-  return mapped;
+  return toQuotationsPage(response.data);
 }
 
 export async function getQuotation(quotationId: string): Promise<BackendQuotationRecord | null> {
@@ -204,8 +205,12 @@ export async function getQuotation(quotationId: string): Promise<BackendQuotatio
       withCredentials: true,
     });
 
-    console.log("[quotation-service] getQuotation raw response", quotationId, response.data);
-    return extractBackendQuotation(response.data);
+    const source = response.data;
+    if (source && typeof source === "object" && "quotation" in source) {
+      return (source as { quotation?: BackendQuotationRecord }).quotation ?? null;
+    }
+
+    return source as BackendQuotationRecord;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 404) {
       return null;
@@ -243,56 +248,13 @@ export async function saveQuotationDraft(quotation: Quotation): Promise<BackendQ
     ? await axios.post(`${API_BASE_URL}/api/quotations/${quotation._id}`, payload, { headers })
     : await axios.post(`${API_BASE_URL}/api/quotations`, payload, { headers });
 
-  const extracted = extractBackendQuotation(response.data);
-  if (extracted) {
-    return extracted;
-  }
-
   const envelope = findQuotationEnvelope(response.data);
-  const resolvedId =
-    quotation._id ||
-    (typeof envelope?._id === "string" ? envelope._id : undefined);
-  const resolvedGeneratedId =
-    quotation.generatedId ||
-    (typeof envelope?.generatedId === "string" ? envelope.generatedId : undefined);
-  const resolvedQuotationDetails =
-    typeof envelope?.quotationDetails === "object" && envelope.quotationDetails !== null
-      ? {
-          ...quotation.quotationDetails,
-          ...(envelope.quotationDetails as Record<string, unknown>),
-        }
-      : quotation.quotationDetails;
-
-  if (resolvedId || resolvedGeneratedId) {
-    return {
-      ...quotation,
-      _id: resolvedId,
-      generatedId: resolvedGeneratedId,
-      quotationDetails: {
-        id: typeof resolvedQuotationDetails.id === "string" ? resolvedQuotationDetails.id : quotation.quotationDetails.id,
-        date: typeof resolvedQuotationDetails.date === "string" ? resolvedQuotationDetails.date : quotation.quotationDetails.date,
-        opportunity:
-          typeof resolvedQuotationDetails.opportunity === "string"
-            ? resolvedQuotationDetails.opportunity
-            : quotation.quotationDetails.opportunity,
-        terms: typeof resolvedQuotationDetails.terms === "string" ? resolvedQuotationDetails.terms : quotation.quotationDetails.terms,
-        notes: typeof resolvedQuotationDetails.notes === "string" ? resolvedQuotationDetails.notes : quotation.quotationDetails.notes,
-      },
-    };
-  }
-
-  if (quotation._id) {
-    return {
-      ...quotation,
-      _id: quotation._id,
-    };
-  }
-
-  return null;
+  return envelope ? (envelope as unknown as BackendQuotationRecord) : null;
 }
 
 export async function deleteQuotation(quotationId: string) {
   await axios.delete(`${API_BASE_URL}/api/quotations/${quotationId}`, {
-    headers: getAuthHeaders()
+    headers: getAuthHeaders(),
+    withCredentials: true,
   });
 }

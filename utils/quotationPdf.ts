@@ -297,6 +297,11 @@ function formatDimensionMm(value: number | string | undefined) {
   return `${value || "-"} mm`;
 }
 
+function formatHandleLabel(handleType?: string, handleColor?: string) {
+  if (!handleType) return "-";
+  return [handleType, handleColor].filter(Boolean).join(" / ");
+}
+
 function renderMainItemBlock(item: QuotationItem, isCombinationParent: boolean) {
   const showRef = escapeHtml(item.refCode || "-");
   const showSystem = escapeHtml(item.systemType || item.productType || "-");
@@ -308,8 +313,7 @@ function renderMainItemBlock(item: QuotationItem, isCombinationParent: boolean) 
   const showLocation = escapeHtml(item.location || item.projectLocation || "-");
   const showDescription = escapeHtml(isCombinationParent ? "-" : item.description || item.productType || "-");
   const showGlass = escapeHtml(isCombinationParent ? "-" : item.glassSpec || item.glassType || "-");
-  const showHandleType = escapeHtml(isCombinationParent ? "-" : item.handleType || "-");
-  const showHandleColor = escapeHtml(isCombinationParent ? "-" : item.handleColor || "-");
+  const showHandle = escapeHtml(isCombinationParent ? "-" : formatHandleLabel(item.handleType, item.handleColor));
   const showMeshPresent = escapeHtml(isCombinationParent ? "-" : formatMeshPresent(item.meshPresent));
   const showMeshType = escapeHtml(isCombinationParent ? "-" : item.meshType || "-");
   const showQty = escapeHtml(item.quantity || "-");
@@ -332,7 +336,7 @@ function renderMainItemBlock(item: QuotationItem, isCombinationParent: boolean) 
           <td class="label">Product</td>
           <td>${showSystem}</td>
           <td class="label">Handle</td>
-          <td>${showHandleType} - ${showHandleColor}</td>
+          <td>${showHandle}</td>
           <td class="label">Description</td>
           <td>${showDescription}</td>
         </tr>
@@ -438,7 +442,7 @@ function renderSubItemsTable(subItems: QuotationSubItem[]) {
                   <td>${escapeHtml(item.description || "-")}</td>
                   <td>${escapeHtml(item.glassSpec || "-")}</td>
                   <td>${escapeHtml(item.handleType || "-")}</td>
-                  <td>${escapeHtml(item.handleColor || "-")}</td>
+                  <td>${escapeHtml(item.handleType ? item.handleColor || "-" : "-")}</td>
                   <td>${escapeHtml(formatMeshPresent(item.meshPresent))}</td>
                   <td>${escapeHtml(item.meshType || "-")}</td>
                   <td>${formatCurrency(toNumber(item.rate))}</td>
@@ -1248,7 +1252,7 @@ function renderItemPage(
     ["System", item.systemType || item.productType || "-"],
     ["Series", item.series || "-"],
     ["Glass", item.glassSpec || item.glassType || "-"],
-    ["Handle", [item.handleType, item.handleColor].filter(Boolean).join(" / ") || "-"],
+    ["Handle", formatHandleLabel(item.handleType, item.handleColor)],
     ["Mesh", meshLabel],
     ["Sq.Ft. per Unit", item.area.toFixed(2)],
     ["Value per Sq.Ft.", formatCurrency(toNumber(item.rate))],

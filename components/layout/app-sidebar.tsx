@@ -3,21 +3,12 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  BarChart3,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ClipboardPenLine,
-  ContactRound,
-  Factory,
-  FileSpreadsheet,
   LogOut,
-  Package,
-  ReceiptText,
-  ScanSearch,
   SendToBack,
-  Truck,
-  Wrench
 } from "lucide-react";
 import { Settings } from "lucide-react";
 
@@ -26,8 +17,6 @@ import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/utils/cn";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
-  { href: "/crm/leads", label: "CRM", icon: ContactRound },
   { href: "/quotations", label: "Quotations", icon: ClipboardPenLine },
   { href: `/settings?section=${defaultSettingsSection}`, label: "Global settings", icon: Settings, matchHref: "/settings" },
  

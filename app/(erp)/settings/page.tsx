@@ -18,6 +18,7 @@ type RateRow = {
   rate: number;
   rates: number[];
   colors?: ColorRate[];
+  canDelete?: boolean;
 };
 
 type ColorRate = {
@@ -126,6 +127,7 @@ function normalizeRateRow(item: unknown): RateRow {
     rate: rawRatesArray.length > 0 ? rawRatesArray[0] : asNumber(raw.rate ?? raw.price ?? raw.baseRate),
     rates: rawRatesArray,
     colors,
+    canDelete: raw.canDelete === true,
   };
 }
 
@@ -250,6 +252,23 @@ async function requestWithFallback<T>(
   throw lastError ?? new Error("Unable to reach quotation settings API.");
 }
 
+async function requestUserQuotationSettings<T>(
+  method: "post" | "put" | "delete",
+  endpoint: string,
+  payload?: unknown
+): Promise<T> {
+  const token = getSettingsAuthToken();
+  const response = await settingsApi.request<T>({
+    method,
+    url: `/api/user/quotation-data${endpoint}`,
+    data: payload,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  return response.data;
+}
+
 async function listDescriptionRates(): Promise<RateRow[]> {
   const data = await requestWithFallback<unknown>("get", "/description-rates");
   return extractArray(data).map(normalizeRateRow).filter((row) => row.id);
@@ -289,25 +308,16 @@ async function setOptionSetRate(type: OptionSetType, name: string, rate: number)
   );
 }
 
-async function requestAdminQuotationSettings<T>(method: "post" | "put", endpoint: string, payload: unknown): Promise<T> {
-  const token = getSettingsAuthToken();
-  const response = await settingsApi.request<T>({
-    method,
-    url: `/api/admin/quotations${endpoint}`,
-    data: payload,
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-  return response.data;
-}
-
 async function createHandleOption(payload: { systemType: string; name: string; colors: Record<string, number> }) {
-  return requestAdminQuotationSettings("post", "/handle-options", payload);
+  return requestUserQuotationSettings("post", "/handle-options", payload);
 }
 
 async function updateHandleOption(id: string, payload: { colors: Record<string, number> }) {
-  return requestAdminQuotationSettings("put", `/handle-options/${encodeURIComponent(id)}`, payload);
+  return requestUserQuotationSettings("put", `/handle-options/${encodeURIComponent(id)}`, payload);
+}
+
+async function deleteHandleOption(id: string) {
+  return requestUserQuotationSettings("delete", `/handle-options/${encodeURIComponent(id)}`);
 }
 
 type RateSectionProps = {
@@ -461,6 +471,7 @@ type HardwareSectionProps = {
   onNewSilverRateChange: (system: string, value: string) => void;
   onAdd: (system: string) => void;
   onRowColorRateChange: (system: string, id: string, color: string, rate: number) => void;
+  onDelete: (system: string, id: string) => void;
   onSave: () => void;
   onReset: () => void;
 };
@@ -477,6 +488,7 @@ function HardwareSection({
   onNewSilverRateChange,
   onAdd,
   onRowColorRateChange,
+  onDelete,
   onSave,
   onReset,
 }: HardwareSectionProps) {
@@ -556,12 +568,13 @@ function HardwareSection({
                 <tr>
                   <th className="px-4 py-3 text-left">Handle Name</th>
                   <th className="px-4 py-3 text-left">Colour Rates</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={2} className="px-4 py-4 text-center text-gray-500">
+                    <td colSpan={3} className="px-4 py-4 text-center text-gray-500">
                       No items found.
                     </td>
                   </tr>
@@ -583,6 +596,20 @@ function HardwareSection({
                           </label>
                         ))}
                       </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {item.canDelete ? (
+                        <button
+                          type="button"
+                          onClick={() => onDelete(system, item.id)}
+                          disabled={isSaving}
+                          className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                        >
+                          Delete
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-400">Admin item</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -925,6 +952,27 @@ export default function QuotationSettingsPage() {
         (error as AxiosError<{ message?: string }>)?.response?.data?.message ||
         (error as Error).message ||
         "Failed to add item.";
+      setStatus(message);
+    } finally {
+      setIsRatesSaving(false);
+      window.setTimeout(() => setStatus(""), 2200);
+    }
+  };
+
+  const deleteHardwareItem = async (system: string, id: string) => {
+    const row = hardwareRows[system]?.find((item) => item.id === id);
+    if (!row?.canDelete) return;
+
+    setIsRatesSaving(true);
+    try {
+      await deleteHandleOption(id);
+      await fetchRates();
+      setStatus("Item deleted.");
+    } catch (error) {
+      const message =
+        (error as AxiosError<{ message?: string }>)?.response?.data?.message ||
+        (error as Error).message ||
+        "Failed to delete item.";
       setStatus(message);
     } finally {
       setIsRatesSaving(false);
@@ -1354,6 +1402,7 @@ export default function QuotationSettingsPage() {
               onNewSilverRateChange={(system, value) => updateNewHardwareDraft(system, "silverRate", value)}
               onAdd={(system) => void addHardwareItem(system)}
               onRowColorRateChange={updateHardwareColorRate}
+              onDelete={(system, id) => void deleteHardwareItem(system, id)}
               onSave={() => void saveSectionRates("handle")}
               onReset={() => resetSectionRates("handle")}
             />

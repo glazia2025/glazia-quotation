@@ -137,6 +137,10 @@ export interface Quotation {
       transport?: number;
       loadingUnloading?: number;
       discountPercent?: number;
+      showInstallation?: boolean;
+      showTransport?: boolean;
+      showLoadingUnloading?: boolean;
+      showDiscount?: boolean;
     };
   };
   generatedId?: string;
