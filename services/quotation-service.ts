@@ -28,6 +28,12 @@ type ApiQuotationListResponse = {
   data?: unknown;
 };
 
+const normalizeCutAngle = (value: unknown, fallback: "45" | "90" = "90"): "45" | "90" =>
+  value === "45" || value === 45 ? "45" : value === "90" || value === 90 ? "90" : fallback;
+
+const makeCuttingScheduleKey = (horizontalAngle: "45" | "90", verticalAngle: "45" | "90") =>
+  `${horizontalAngle}_${verticalAngle}`;
+
 export type QuotationsPage = {
   quotations: BackendQuotationRecord[];
   page: number;
@@ -65,6 +71,8 @@ function findQuotationEnvelope(payload: unknown): Record<string, unknown> | null
 
 function toBackendSubItem(subItem: QuotationSubItem) {
   const handleType = subItem.handleType || "";
+  const horizontalCutAngle = normalizeCutAngle(subItem.horizontalCutAngle);
+  const verticalCutAngle = normalizeCutAngle(subItem.verticalCutAngle);
 
   return {
     refCode: subItem.refCode || "",
@@ -87,11 +95,16 @@ function toBackendSubItem(subItem: QuotationSubItem) {
     amount: Number(subItem.amount) || 0,
     refImage: subItem.refImage || "",
     remarks: subItem.remarks || "",
+    horizontalCutAngle,
+    verticalCutAngle,
+    cuttingScheduleKey: makeCuttingScheduleKey(horizontalCutAngle, verticalCutAngle),
   };
 }
 
 function toBackendItem(item: Quotation["items"][number]) {
   const handleType = item.handleType || "";
+  const horizontalCutAngle = normalizeCutAngle(item.horizontalCutAngle);
+  const verticalCutAngle = normalizeCutAngle(item.verticalCutAngle);
 
   return {
     refCode: item.refCode || "",
@@ -114,6 +127,9 @@ function toBackendItem(item: Quotation["items"][number]) {
     amount: Number(item.amount) || 0,
     refImage: item.refImage || "",
     remarks: item.remarks || item.specialNotes || "",
+    horizontalCutAngle,
+    verticalCutAngle,
+    cuttingScheduleKey: makeCuttingScheduleKey(horizontalCutAngle, verticalCutAngle),
     subItems: Array.isArray(item.subItems) ? item.subItems.map(toBackendSubItem) : [],
     configuratorLayout: item.configuratorLayout || undefined,
   };

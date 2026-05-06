@@ -24,9 +24,15 @@ const toNumberValue = (value: unknown, fallback = 0) => {
   return fallback;
 };
 const toBooleanValue = (value: unknown, fallback = false) => (typeof value === "boolean" ? value : fallback);
+const toCutAngleValue = (value: unknown, fallback: "45" | "90" = "90"): "45" | "90" =>
+  value === "45" || value === 45 ? "45" : value === "90" || value === 90 ? "90" : fallback;
+const toCuttingScheduleKey = (horizontalAngle: "45" | "90", verticalAngle: "45" | "90") =>
+  `${horizontalAngle}_${verticalAngle}` as "45_45" | "45_90" | "90_45" | "90_90";
 
 const normalizeSubItem = (value: unknown): QuotationSubItem => {
   const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+  const horizontalCutAngle = toCutAngleValue(source.horizontalCutAngle);
+  const verticalCutAngle = toCutAngleValue(source.verticalCutAngle);
 
   return {
     id: toStringValue(source.id) || toStringValue(source._id) || toStringValue(source.refCode) || createClientId(),
@@ -50,6 +56,9 @@ const normalizeSubItem = (value: unknown): QuotationSubItem => {
     amount: toNumberValue(source.amount),
     refImage: toStringValue(source.refImage),
     remarks: toStringValue(source.remarks),
+    horizontalCutAngle,
+    verticalCutAngle,
+    cuttingScheduleKey: toCuttingScheduleKey(horizontalCutAngle, verticalCutAngle),
   };
 };
 
@@ -60,6 +69,8 @@ const normalizeItem = (value: unknown): QuotationItem => {
   const height = toNumberValue(source.height);
   const glassSpec = toStringValue(source.glassSpec);
   const remarks = toStringValue(source.remarks);
+  const horizontalCutAngle = toCutAngleValue(source.horizontalCutAngle);
+  const verticalCutAngle = toCutAngleValue(source.verticalCutAngle);
 
   return {
     id: toStringValue(source.id) || toStringValue(source._id) || toStringValue(source.refCode) || createClientId(),
@@ -91,6 +102,9 @@ const normalizeItem = (value: unknown): QuotationItem => {
     rate: toNumberValue(source.rate),
     refImage: toStringValue(source.refImage),
     remarks,
+    horizontalCutAngle,
+    verticalCutAngle,
+    cuttingScheduleKey: toCuttingScheduleKey(horizontalCutAngle, verticalCutAngle),
     subItems: Array.isArray(source.subItems) ? source.subItems.map(normalizeSubItem) : [],
     configuratorLayout:
       typeof source.configuratorLayout === "object" && source.configuratorLayout !== null

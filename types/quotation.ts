@@ -61,6 +61,9 @@ export interface QuotationItem {
   panelSashes?: ("fixed" | "left" | "right" | "double" | "top" | "bottom")[];
   refImage?: string;
   remarks?: string;
+  horizontalCutAngle?: "45" | "90";
+  verticalCutAngle?: "45" | "90";
+  cuttingScheduleKey?: "45_45" | "45_90" | "90_45" | "90_90";
   hasExhaustFan?: boolean;
   exhaustFanX?: number;
   exhaustFanY?: number;
@@ -99,6 +102,9 @@ export interface QuotationSubItem {
   panelSashes?: ("fixed" | "left" | "right" | "double" | "top" | "bottom")[];
   refImage?: string;
   remarks?: string;
+  horizontalCutAngle?: "45" | "90";
+  verticalCutAngle?: "45" | "90";
+  cuttingScheduleKey?: "45_45" | "45_90" | "90_45" | "90_90";
   hasExhaustFan?: boolean;
   exhaustFanX?: number;
   exhaustFanY?: number;
