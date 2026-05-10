@@ -28,6 +28,16 @@ const toCutAngleValue = (value: unknown, fallback: "45" | "90" = "90"): "45" | "
   value === "45" || value === 45 ? "45" : value === "90" || value === 90 ? "90" : fallback;
 const toCuttingScheduleKey = (horizontalAngle: "45" | "90", verticalAngle: "45" | "90") =>
   `${horizontalAngle}_${verticalAngle}` as "45_45" | "45_90" | "90_45" | "90_90";
+const toSashValue = (value: unknown) =>
+  value === "fixed" || value === "left" || value === "right" || value === "double" || value === "top" || value === "bottom"
+    ? value
+    : undefined;
+const toPanelSashes = (value: unknown) =>
+  Array.isArray(value)
+    ? value
+        .map(toSashValue)
+        .filter((entry): entry is NonNullable<ReturnType<typeof toSashValue>> => Boolean(entry))
+    : undefined;
 
 const normalizeSubItem = (value: unknown): QuotationSubItem => {
   const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
@@ -59,6 +69,14 @@ const normalizeSubItem = (value: unknown): QuotationSubItem => {
     horizontalCutAngle,
     verticalCutAngle,
     cuttingScheduleKey: toCuttingScheduleKey(horizontalCutAngle, verticalCutAngle),
+    sash: toSashValue(source.sash),
+    panelSashes: toPanelSashes(source.panelSashes),
+    hasExhaustFan: toBooleanValue(source.hasExhaustFan),
+    exhaustFanX: typeof source.exhaustFanX !== "undefined" ? toNumberValue(source.exhaustFanX) : undefined,
+    exhaustFanY: typeof source.exhaustFanY !== "undefined" ? toNumberValue(source.exhaustFanY) : undefined,
+    exhaustFanSize: typeof source.exhaustFanSize !== "undefined" ? toNumberValue(source.exhaustFanSize) : undefined,
+    baseRate: toNumberValue(source.baseRate),
+    areaSlabIndex: toNumberValue(source.areaSlabIndex),
   };
 };
 
@@ -105,6 +123,14 @@ const normalizeItem = (value: unknown): QuotationItem => {
     horizontalCutAngle,
     verticalCutAngle,
     cuttingScheduleKey: toCuttingScheduleKey(horizontalCutAngle, verticalCutAngle),
+    sash: toSashValue(source.sash),
+    panelSashes: toPanelSashes(source.panelSashes),
+    hasExhaustFan: toBooleanValue(source.hasExhaustFan),
+    exhaustFanX: typeof source.exhaustFanX !== "undefined" ? toNumberValue(source.exhaustFanX) : undefined,
+    exhaustFanY: typeof source.exhaustFanY !== "undefined" ? toNumberValue(source.exhaustFanY) : undefined,
+    exhaustFanSize: typeof source.exhaustFanSize !== "undefined" ? toNumberValue(source.exhaustFanSize) : undefined,
+    baseRate: toNumberValue(source.baseRate),
+    areaSlabIndex: toNumberValue(source.areaSlabIndex),
     subItems: Array.isArray(source.subItems) ? source.subItems.map(normalizeSubItem) : [],
     configuratorLayout:
       typeof source.configuratorLayout === "object" && source.configuratorLayout !== null

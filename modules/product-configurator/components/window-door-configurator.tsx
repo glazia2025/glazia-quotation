@@ -158,6 +158,20 @@ const DEFAULT_EXHAUST_FAN_X = 0.5;
 const DEFAULT_EXHAUST_FAN_Y = 0.5;
 const DEFAULT_EXHAUST_FAN_SIZE = 0.48;
 const clampValue = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+const safeDrawSize = (value: number) => (Number.isFinite(value) ? Math.max(0, value) : 0);
+const getPanelBounds = (x: number, y: number, w: number, h: number, inset: number) => {
+  const safeW = safeDrawSize(w);
+  const safeH = safeDrawSize(h);
+  const insetX = Math.min(inset, Math.max(0, safeW / 2 - 0.5));
+  const insetY = Math.min(inset, Math.max(0, safeH / 2 - 0.5));
+
+  return {
+    x: x + insetX,
+    y: y + insetY,
+    w: Math.max(1, safeW - insetX * 2),
+    h: Math.max(1, safeH - insetY * 2),
+  };
+};
 
 const createRoot = (baseSystem: SystemType): SectionNode => ({
   id: "root",
@@ -1403,10 +1417,12 @@ const drawLouversGuide = (group: KonvaGroup, x: number, y: number, w: number, h:
 };
 
 const getExhaustFanGeometry = (x: number, y: number, w: number, h: number, centerXRatio = DEFAULT_EXHAUST_FAN_X, centerYRatio = DEFAULT_EXHAUST_FAN_Y, sizeRatio = DEFAULT_EXHAUST_FAN_SIZE) => {
+  const safeW = Math.max(1, safeDrawSize(w));
+  const safeH = Math.max(1, safeDrawSize(h));
   const fanSize = clampValue(sizeRatio, 0.2, 0.9);
-  const centerX = x + w * clampValue(centerXRatio, 0.18, 0.82);
-  const centerY = y + h * clampValue(centerYRatio, 0.18, 0.82);
-  const radius = Math.min(w, h) * fanSize * 0.5;
+  const centerX = x + safeW * clampValue(centerXRatio, 0.18, 0.82);
+  const centerY = y + safeH * clampValue(centerYRatio, 0.18, 0.82);
+  const radius = Math.max(0.5, Math.min(safeW, safeH) * fanSize * 0.5);
   const outerRadius = radius * 1.18;
   return { centerX, centerY, radius, outerRadius, diameter: outerRadius * 2 };
 };
@@ -1465,7 +1481,6 @@ const isSlideNFoldThreePanelOnePlusTwo = (desc: string) => /^3\s*Panel\s*\(\s*1\
 const isSlideNFoldFourPanelOnePlusThree = (desc: string) => /^4\s*Panel\s*\(\s*1\s*\+\s*3\s*\)$/i.test(desc);
 const isSlideNFoldFivePanelOnePlusFour = (desc: string) => /^5\s*Panel\s*\(\s*1\s*\+\s*4\s*\)$/i.test(desc);
 const isSlideNFoldSixPanelOnePlusFive = (desc: string) => /^6\s*Panel\s*\(\s*1\s*\+\s*5\s*\)$/i.test(desc);
-const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
 const useHistory = (initial: SectionNode) => {
   const [past, setPast] = useState<SectionNode[]>([]);
@@ -1530,14 +1545,18 @@ const COLORS = {
 const PROFILE = { outer: 10, inner: 4, mullion: 12, sash: 6, gap: 2 };
 
 function addProfileRect(layer: KonvaLayer | KonvaGroup, x: number, y: number, w: number, h: number, selected = false) {
-  layer.add(new Konva.Rect({ x, y, width: w, height: h, stroke: selected ? COLORS.selected : COLORS.frameDark, strokeWidth: PROFILE.outer, listening: false }));
-  layer.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + 2, y: y + PROFILE.outer / 2 + 2, width: w - (PROFILE.outer + 4), height: h - (PROFILE.outer + 4), stroke: COLORS.frameMid, strokeWidth: PROFILE.inner, listening: false }));
-  layer.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + 6, y: y + PROFILE.outer / 2 + 6, width: w - (PROFILE.outer + 12), height: h - (PROFILE.outer + 12), stroke: COLORS.frameLight, strokeWidth: 1, opacity: 0.6, listening: false }));
+  const safeW = safeDrawSize(w);
+  const safeH = safeDrawSize(h);
+  layer.add(new Konva.Rect({ x, y, width: safeW, height: safeH, stroke: selected ? COLORS.selected : COLORS.frameDark, strokeWidth: PROFILE.outer, listening: false }));
+  layer.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + 2, y: y + PROFILE.outer / 2 + 2, width: safeDrawSize(safeW - (PROFILE.outer + 4)), height: safeDrawSize(safeH - (PROFILE.outer + 4)), stroke: COLORS.frameMid, strokeWidth: PROFILE.inner, listening: false }));
+  layer.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + 6, y: y + PROFILE.outer / 2 + 6, width: safeDrawSize(safeW - (PROFILE.outer + 12)), height: safeDrawSize(safeH - (PROFILE.outer + 12)), stroke: COLORS.frameLight, strokeWidth: 1, opacity: 0.6, listening: false }));
 }
 
 function addMemberRect(layer: KonvaLayer | KonvaGroup, x: number, y: number, w: number, h: number) {
-  layer.add(new Konva.Rect({ x, y, width: w, height: h, fill: "#FFFFFF", stroke: COLORS.frameDark, strokeWidth: 2, listening: false }));
-  layer.add(new Konva.Rect({ x: x + 2, y: y + 2, width: w - 4, height: h - 4, stroke: COLORS.frameMid, strokeWidth: 1, opacity: 0.7, listening: false }));
+  const safeW = safeDrawSize(w);
+  const safeH = safeDrawSize(h);
+  layer.add(new Konva.Rect({ x, y, width: safeW, height: safeH, fill: "#FFFFFF", stroke: COLORS.frameDark, strokeWidth: 2, listening: false }));
+  layer.add(new Konva.Rect({ x: x + 2, y: y + 2, width: safeDrawSize(safeW - 4), height: safeDrawSize(safeH - 4), stroke: COLORS.frameMid, strokeWidth: 1, opacity: 0.7, listening: false }));
 }
 
 function addTag(layer: KonvaLayer | KonvaGroup, x: number, y: number, text: string) {
@@ -1583,31 +1602,6 @@ function drawMeshTriangle(group: KonvaGroup, x: number, y: number, size: number)
   }
   for (let i = step; i < meshSize; i += step) {
     group.add(new Konva.Line({ points: [x - i, y, x - i, y - (meshSize - i)], stroke: "#334155", strokeWidth: 0.8, opacity: 0.75, listening: false }));
-  }
-}
-
-function resizeChildrenByDivider(parent: SectionNode, direction: "vertical" | "horizontal", dividerIndex: number, newBoundary: number, minFrac: number) {
-  if (!parent.children || parent.children.length < 2) return;
-  const kids = parent.children;
-  const a = kids[dividerIndex];
-  const b = kids[dividerIndex + 1];
-  if (!a || !b) return;
-  if (direction === "vertical") {
-    const leftEdge = a.x;
-    const rightEdge = b.x + b.w;
-    const boundary = clamp(newBoundary, leftEdge + minFrac, rightEdge - minFrac);
-    a.w = boundary - leftEdge;
-    b.x = boundary;
-    b.w = rightEdge - boundary;
-    for (let i = 1; i < kids.length; i++) kids[i].x = kids[i - 1].x + kids[i - 1].w;
-  } else {
-    const topEdge = a.y;
-    const bottomEdge = b.y + b.h;
-    const boundary = clamp(newBoundary, topEdge + minFrac, bottomEdge - minFrac);
-    a.h = boundary - topEdge;
-    b.y = boundary;
-    b.h = bottomEdge - boundary;
-    for (let i = 1; i < kids.length; i++) kids[i].y = kids[i - 1].y + kids[i - 1].h;
   }
 }
 
@@ -2171,8 +2165,6 @@ export function WindowDoorConfigurator({
       if (!parent.children || parent.children.length < 2) return;
       const dir = parent.split;
       if (dir !== "vertical" && dir !== "horizontal") return;
-      const minPx = 70;
-      const minFrac = (minPx / (dir === "vertical" ? fw : fh)) * parent[dir === "vertical" ? "w" : "h"];
       for (let i = 0; i < parent.children.length - 1; i++) {
         const a = parent.children[i];
         const boundary = dir === "vertical" ? a.x + a.w : a.y + a.h;
@@ -2183,7 +2175,6 @@ export function WindowDoorConfigurator({
           const y = fy + boundary * fh;
           addMemberRect(layer, fx + PROFILE.outer, y - PROFILE.mullion / 2, fw - PROFILE.outer * 2, PROFILE.mullion);
         }
-        resizeChildrenByDivider(parent, dir, i, boundary, minFrac);
       }
       parent.children.forEach(drawParentDividers);
     };
@@ -2194,8 +2185,8 @@ export function WindowDoorConfigurator({
     leaves.forEach((leaf, idx) => {
       const x = fx + leaf.x * fw;
       const y = fy + leaf.y * fh;
-      const w = leaf.w * fw;
-      const h = leaf.h * fh;
+      const w = safeDrawSize(leaf.w * fw);
+      const h = safeDrawSize(leaf.h * fh);
       const isSelected = leaf.id === selectedForRender;
       const g = new Konva.Group({ listening: true, draggable: false });
       const leafHit = new Konva.Rect({ x, y, width: w, height: h, fill: "rgba(255,255,255,0.01)", listening: true });
@@ -2205,16 +2196,14 @@ export function WindowDoorConfigurator({
         setSelectedSlidingPanelIndex(null);
       });
       g.add(leafHit);
-      g.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + PROFILE.gap, y: y + PROFILE.outer / 2 + PROFILE.gap, width: w - (PROFILE.outer + PROFILE.gap * 2), height: h - (PROFILE.outer + PROFILE.gap * 2), stroke: isSelected ? COLORS.selected : COLORS.frameDark, strokeWidth: PROFILE.sash, listening: false }));
+      g.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + PROFILE.gap, y: y + PROFILE.outer / 2 + PROFILE.gap, width: safeDrawSize(w - (PROFILE.outer + PROFILE.gap * 2)), height: safeDrawSize(h - (PROFILE.outer + PROFILE.gap * 2)), stroke: isSelected ? COLORS.selected : COLORS.frameDark, strokeWidth: PROFILE.sash, listening: false }));
       const inset = PROFILE.outer / 2 + PROFILE.sash + 6;
+      const innerBounds = getPanelBounds(x, y, w, h, inset);
       const handledByDescription = (() => {
         const desc = leaf.description;
         if (!desc) return false;
-        const innerX = x + inset;
-        const innerY = y + inset;
-        const innerW = w - inset * 2;
-        const innerH = h - inset * 2;
-        const fixedPanel = (px: number, py: number, pw: number, ph: number) => g.add(new Konva.Rect({ x: px, y: py, width: pw, height: ph, fill: leaf.glass === "Yes" ? COLORS.glass : "#FFFFFF", stroke: COLORS.glassStroke, strokeWidth: 1, opacity: leaf.glass === "Yes" ? 1 : 0.6, listening: false }));
+        const { x: innerX, y: innerY, w: innerW, h: innerH } = innerBounds;
+        const fixedPanel = (px: number, py: number, pw: number, ph: number) => g.add(new Konva.Rect({ x: px, y: py, width: safeDrawSize(pw), height: safeDrawSize(ph), fill: leaf.glass === "Yes" ? COLORS.glass : "#FFFFFF", stroke: COLORS.glassStroke, strokeWidth: 1, opacity: leaf.glass === "Yes" ? 1 : 0.6, listening: false }));
         const drawPanels = (fractions: number[], sashTypes?: SashType[], meshCount = 0) => {
           const isPanelizedSliding = leaf.systemType === "Sliding" && fractions.length > 1;
           const panelSashes = isPanelizedSliding ? (leaf.panelSashes && leaf.panelSashes.length === fractions.length ? leaf.panelSashes : buildDefaultSlidingPanelSashes(fractions.length)) : [];
@@ -2276,7 +2265,7 @@ export function WindowDoorConfigurator({
         }
         return false;
       })();
-      if (!handledByDescription) g.add(new Konva.Rect({ x: x + inset, y: y + inset, width: w - inset * 2, height: h - inset * 2, fill: leaf.glass === "Yes" ? COLORS.glass : "#FFFFFF", stroke: COLORS.glassStroke, strokeWidth: 0.6, opacity: leaf.glass === "Yes" ? 1 : 0.6, listening: false }));
+      if (!handledByDescription) g.add(new Konva.Rect({ x: innerBounds.x, y: innerBounds.y, width: innerBounds.w, height: innerBounds.h, fill: leaf.glass === "Yes" ? COLORS.glass : "#FFFFFF", stroke: COLORS.glassStroke, strokeWidth: 0.6, opacity: leaf.glass === "Yes" ? 1 : 0.6, listening: false }));
       const parsedPattern = parsePanelPattern(leaf.description || "");
       const hasPatternMesh = (leaf.panelMeshCount ?? parsedPattern?.meshCount ?? 0) > 0;
       if (leaf.mesh === "Yes" && !hasPatternMesh) drawMeshTriangle(g, x + w - inset - 6, y + h - inset - 6, Math.min(w, h) * 0.5);
@@ -2320,7 +2309,7 @@ export function WindowDoorConfigurator({
         g.add(new Konva.Arrow({ points: [foldX - 18, y + h * 0.2, foldX + 18, y + h * 0.2], stroke: "#111827", fill: "#111827", strokeWidth: 0.6, pointerLength: 6, pointerWidth: 6, opacity: 0.65, listening: false }));
       }
       if (isExhaust) {
-        const fanGeometry = getExhaustFanGeometry(x + inset, y + inset, w - inset * 2, h - inset * 2, leaf.exhaustFanX, leaf.exhaustFanY, leaf.exhaustFanSize);
+        const fanGeometry = getExhaustFanGeometry(innerBounds.x, innerBounds.y, innerBounds.w, innerBounds.h, leaf.exhaustFanX, leaf.exhaustFanY, leaf.exhaustFanSize);
         const fanDiameterMm = Math.round(Math.min(leaf.w * widthMm, leaf.h * heightMm) * clampValue(leaf.exhaustFanSize ?? DEFAULT_EXHAUST_FAN_SIZE, 0.2, 0.9) * 1.18);
         const dimOffset = 22;
         if (!hideSelectionForExport) {

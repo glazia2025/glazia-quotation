@@ -98,6 +98,14 @@ function toBackendSubItem(subItem: QuotationSubItem) {
     horizontalCutAngle,
     verticalCutAngle,
     cuttingScheduleKey: makeCuttingScheduleKey(horizontalCutAngle, verticalCutAngle),
+    sash: subItem.sash,
+    panelSashes: subItem.panelSashes,
+    hasExhaustFan: Boolean(subItem.hasExhaustFan),
+    exhaustFanX: typeof subItem.exhaustFanX === "number" ? subItem.exhaustFanX : undefined,
+    exhaustFanY: typeof subItem.exhaustFanY === "number" ? subItem.exhaustFanY : undefined,
+    exhaustFanSize: typeof subItem.exhaustFanSize === "number" ? subItem.exhaustFanSize : undefined,
+    baseRate: Number(subItem.baseRate) || 0,
+    areaSlabIndex: Number(subItem.areaSlabIndex) || 0,
   };
 }
 
@@ -130,6 +138,14 @@ function toBackendItem(item: Quotation["items"][number]) {
     horizontalCutAngle,
     verticalCutAngle,
     cuttingScheduleKey: makeCuttingScheduleKey(horizontalCutAngle, verticalCutAngle),
+    sash: item.sash,
+    panelSashes: item.panelSashes,
+    hasExhaustFan: Boolean(item.hasExhaustFan),
+    exhaustFanX: typeof item.exhaustFanX === "number" ? item.exhaustFanX : undefined,
+    exhaustFanY: typeof item.exhaustFanY === "number" ? item.exhaustFanY : undefined,
+    exhaustFanSize: typeof item.exhaustFanSize === "number" ? item.exhaustFanSize : undefined,
+    baseRate: Number(item.baseRate) || 0,
+    areaSlabIndex: Number(item.areaSlabIndex) || 0,
     subItems: Array.isArray(item.subItems) ? item.subItems.map(toBackendSubItem) : [],
     configuratorLayout: item.configuratorLayout || undefined,
   };

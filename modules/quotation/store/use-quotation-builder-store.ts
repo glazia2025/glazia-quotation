@@ -22,18 +22,23 @@ const indexToAlphaLower = (index: number): string => {
   return result;
 };
 
+const cloneNested = <T>(value: T): T => {
+  if (typeof structuredClone === "function") return structuredClone(value);
+  return JSON.parse(JSON.stringify(value)) as T;
+};
+
 const duplicateQuotationItem = (item: QuotationItem, refCode: string): QuotationItem => {
   const { _id: _itemBackendId, ...itemWithoutBackendId } = item as QuotationItem & { _id?: string };
 
   return {
-    ...itemWithoutBackendId,
+    ...cloneNested(itemWithoutBackendId),
     id: crypto.randomUUID(),
     refCode,
     subItems: item.subItems?.map((subItem, index) => {
       const { _id: _subItemBackendId, ...subItemWithoutBackendId } = subItem as typeof subItem & { _id?: string };
 
       return {
-        ...subItemWithoutBackendId,
+        ...cloneNested(subItemWithoutBackendId),
         id: crypto.randomUUID(),
         refCode: `${refCode}-${indexToAlphaLower(index)}`,
       };
