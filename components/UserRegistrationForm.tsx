@@ -3,7 +3,7 @@
 import { useState } from "react";
 import axios from "axios";
 
-import { API_BASE_URL } from "@/services/api";
+import { MAIN_API_BASE_URL } from "@/services/api";
 
 type UserRegistrationFormProps = {
   phoneNumber: string;
@@ -25,9 +25,8 @@ type RegistrationPayload = {
 
 async function postRegister(payload: RegistrationPayload) {
   const candidates = [
-    `${API_BASE_URL}/api/auth/register`,
-    `${API_BASE_URL}/api/auth/register-user`,
-    `${API_BASE_URL}/register`,
+    `${MAIN_API_BASE_URL}/api/user/register`,
+    `${MAIN_API_BASE_URL}/register`,
   ];
 
   let lastError: unknown;

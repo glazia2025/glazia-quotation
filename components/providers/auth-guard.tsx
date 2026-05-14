@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-import { API_BASE_URL } from "@/services/api";
+import { MAIN_API_BASE_URL } from "@/services/api";
 import { useAuthStore } from "@/store/auth-store";
 import { getAuthToken } from "@/utils/auth-cookie";
 
@@ -34,7 +34,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     setBootstrapping(true);
 
-    fetch(`${API_BASE_URL}/api/user/getUser`, {
+    fetch(`${MAIN_API_BASE_URL}/api/user/getUser`, {
       credentials: "include",
       headers: {
         Authorization: `Bearer ${cookieToken}`,

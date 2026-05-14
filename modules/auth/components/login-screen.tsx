@@ -7,12 +7,12 @@ import axios from "axios";
 import Image from "next/image";
 
 import UserRegistrationForm from "@/components/UserRegistrationForm";
-import { API_BASE_URL } from "@/services/api";
+import { MAIN_API_BASE_URL } from "@/services/api";
 import { useAuthStore } from "@/store/auth-store";
 import { getAuthToken, setAuthToken } from "@/utils/auth-cookie";
 
 async function postAuthRoute<T>(route: "send-otp" | "verify-otp", payload: Record<string, unknown>) {
-  const candidates = [`${API_BASE_URL}/api/auth/${route}`, `${API_BASE_URL}/${route}`];
+  const candidates = [`${MAIN_API_BASE_URL}/api/auth/${route}`, `${MAIN_API_BASE_URL}/${route}`];
   let lastError: unknown;
 
   for (const url of candidates) {
@@ -90,10 +90,10 @@ export function LoginScreen() {
     }
     setIsLoading(true);
 
-    console.log(API_BASE_URL);
+    console.log(MAIN_API_BASE_URL);
 
     try {
-      await axios.post(`${API_BASE_URL}/api/auth/send-otp`, { phoneNumber }, { withCredentials: true });
+      await axios.post(`${MAIN_API_BASE_URL}/api/auth/send-otp`, { phoneNumber }, { withCredentials: true });
       setStep("otp");
       setCountdown(30);
       startCountdown();
@@ -133,7 +133,7 @@ export function LoginScreen() {
 
     try {
       const response = await axios.post(
-        `${API_BASE_URL}/api/auth/verify-otp`,
+        `${MAIN_API_BASE_URL}/api/auth/verify-otp`,
         { phoneNumber, otp: otpValue },
         { withCredentials: true }
       );
@@ -222,7 +222,7 @@ export function LoginScreen() {
     setIsLoading(true);
     setError("");
     try {
-      await axios.post(`${API_BASE_URL}/api/auth/send-otp`, { phoneNumber }, { withCredentials: true });
+      await axios.post(`${MAIN_API_BASE_URL}/api/auth/send-otp`, { phoneNumber }, { withCredentials: true });
       setCountdown(30);
       startCountdown();
     } catch {

@@ -1,6 +1,6 @@
 import axios from "axios";
 
-import { API_BASE_URL } from "@/services/api";
+import { QUOTATION_API_BASE_URL } from "@/services/api";
 import type { Description, HandleOption, OptionWithRate, OptionsResponse } from "@/lib/quotations/types";
 
 type UnknownRecord = Record<string, unknown>;
@@ -104,7 +104,7 @@ function unwrapData<T>(value: unknown, preferredKeys: string[]): T {
 }
 
 export async function fetchSystems() {
-  const response = await axios.get(`${API_BASE_URL}/api/quotations/systems`);
+  const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations/systems`);
   const rawSystems = unwrapData<unknown>(response.data, ["systems"]);
   const systems = asArray(rawSystems)
     .map((entry) => {
@@ -119,7 +119,7 @@ export async function fetchSystems() {
 }
 
 export async function fetchSeries(systemType: string) {
-  const response = await axios.get(`${API_BASE_URL}/api/quotations/systems/${encodeURIComponent(systemType)}/series`);
+  const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations/systems/${encodeURIComponent(systemType)}/series`);
   const rawSeries = unwrapData<unknown>(response.data, ["series"]);
   const series = asArray(rawSeries)
     .map((entry) => {
@@ -135,14 +135,14 @@ export async function fetchSeries(systemType: string) {
 
 export async function fetchDescriptions(systemType: string, series: string) {
   const response = await axios.get(
-    `${API_BASE_URL}/api/quotations/systems/${encodeURIComponent(systemType)}/series/${encodeURIComponent(series)}/descriptions`
+    `${QUOTATION_API_BASE_URL}/api/quotations/systems/${encodeURIComponent(systemType)}/series/${encodeURIComponent(series)}/descriptions`
   );
   const rawDescriptions = unwrapData<unknown>(response.data, ["descriptions"]);
   return { descriptions: toDescriptions(rawDescriptions) };
 }
 
 export async function fetchOptions(systemType: string) {
-  const response = await axios.get(`${API_BASE_URL}/api/quotations/options`, {
+  const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations/options`, {
     params: systemType ? { systemType } : undefined
   });
   const rawOptions = unwrapData<unknown>(response.data, ["options"]);

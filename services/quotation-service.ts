@@ -1,6 +1,6 @@
 import axios from "axios";
 
-import { API_BASE_URL } from "@/services/api";
+import { QUOTATION_API_BASE_URL } from "@/services/api";
 import { useAuthStore } from "@/store/auth-store";
 import type { Quotation, QuotationSubItem } from "@/types/quotation";
 import { getAuthToken } from "@/utils/auth-cookie";
@@ -221,7 +221,7 @@ function toQuotationsPage(payload: unknown): QuotationsPage {
 }
 
 export async function getQuotations(page = 1, limit = 20): Promise<QuotationsPage> {
-  const response = await axios.get(`${API_BASE_URL}/api/quotations`, {
+  const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations`, {
     headers: getAuthHeaders(),
     withCredentials: true,
     params: { page, limit }
@@ -232,7 +232,7 @@ export async function getQuotations(page = 1, limit = 20): Promise<QuotationsPag
 
 export async function getQuotation(quotationId: string): Promise<BackendQuotationRecord | null> {
   try {
-    const response = await axios.get(`${API_BASE_URL}/api/quotations/${quotationId}`, {
+    const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}`, {
       headers: getAuthHeaders(),
       withCredentials: true,
     });
@@ -253,7 +253,7 @@ export async function getQuotation(quotationId: string): Promise<BackendQuotatio
 }
 
 export async function getQuotationPdfBlob(quotationId: string): Promise<Blob> {
-  const response = await axios.get(`${API_BASE_URL}/api/quotations/${quotationId}/pdf`, {
+  const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/pdf`, {
     headers: getAuthHeaders(),
     withCredentials: true,
     responseType: "blob"
@@ -263,7 +263,7 @@ export async function getQuotationPdfBlob(quotationId: string): Promise<Blob> {
 }
 
 export async function getCuttingSchedulePdfBlob(quotationId: string): Promise<Blob> {
-  const response = await axios.get(`${API_BASE_URL}/api/quotations/${quotationId}/cutting-schedule`, {
+  const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/cutting-schedule`, {
     headers: getAuthHeaders(),
     withCredentials: true,
     responseType: "blob"
@@ -277,15 +277,15 @@ export async function saveQuotationDraft(quotation: Quotation): Promise<BackendQ
   const payload = toBackendQuotation(quotation);
 
   const response = quotation._id
-    ? await axios.post(`${API_BASE_URL}/api/quotations/${quotation._id}`, payload, { headers })
-    : await axios.post(`${API_BASE_URL}/api/quotations`, payload, { headers });
+    ? await axios.post(`${QUOTATION_API_BASE_URL}/api/quotations/${quotation._id}`, payload, { headers })
+    : await axios.post(`${QUOTATION_API_BASE_URL}/api/quotations`, payload, { headers });
 
   const envelope = findQuotationEnvelope(response.data);
   return envelope ? (envelope as unknown as BackendQuotationRecord) : null;
 }
 
 export async function deleteQuotation(quotationId: string) {
-  await axios.delete(`${API_BASE_URL}/api/quotations/${quotationId}`, {
+  await axios.delete(`${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}`, {
     headers: getAuthHeaders(),
     withCredentials: true,
   });
