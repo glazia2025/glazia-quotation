@@ -272,6 +272,16 @@ export async function getCuttingSchedulePdfBlob(quotationId: string): Promise<Bl
   return response.data;
 }
 
+export async function getBomPdfBlob(quotationId: string): Promise<Blob> {
+  const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/bom`, {
+    headers: getAuthHeaders(),
+    withCredentials: true,
+    responseType: "blob"
+  });
+
+  return response.data;
+}
+
 export async function saveQuotationDraft(quotation: Quotation): Promise<BackendQuotationRecord | null> {
   const headers = getAuthHeaders();
   const payload = toBackendQuotation(quotation);

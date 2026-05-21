@@ -21,7 +21,7 @@ import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-bui
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { getArea, getPerimeter } from "@/modules/quotation/utils/calculations";
 import { createEmptyQuotation } from "@/modules/quotation/utils/factory";
-import { getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationDraft } from "@/services/quotation-service";
+import { getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationDraft } from "@/services/quotation-service";
 import type { Quotation, QuotationItem } from "@/types/quotation";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { getQuotationPdfDownloadName } from "@/utils/quotationPdf";
@@ -1002,6 +1002,7 @@ export function QuotationBuilder({
   const [activeTab, setActiveTab] = useState<TabKey>(() => (isTabKey(requestedTab) ? requestedTab : "customer"));
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isGeneratingCuttingSchedule, setIsGeneratingCuttingSchedule] = useState(false);
+  const [isGeneratingBom, setIsGeneratingBom] = useState(false);
   const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState("Quotation PDF Preview");
@@ -1217,6 +1218,44 @@ const handleLogoUpload = (file: File | null) => {
       setIsGeneratingCuttingSchedule(false);
     }
   };
+  const exportBom = async () => {
+    try {
+      setIsGeneratingBom(true);
+      const savedQuotation = await saveQuotationDraft(quotationWithGlobalConfig);
+      const pdfQuotationId =
+        savedQuotation?._id ??
+        quotationWithGlobalConfig._id ??
+        savedQuotation?.quotationDetails.id ??
+        quotationWithGlobalConfig.quotationDetails.id;
+
+      if (!pdfQuotationId) {
+        throw new Error("Failed to resolve quotation id before BOM generation.");
+      }
+
+      const blob = await getBomPdfBlob(pdfQuotationId);
+      const nextPdfPreviewUrl = URL.createObjectURL(blob);
+      const quoteNo =
+        savedQuotation?.generatedId ||
+        savedQuotation?.quotationDetails.id ||
+        quotationWithGlobalConfig.generatedId ||
+        quotationWithGlobalConfig.quotationDetails.id ||
+        "quotation";
+      setPdfPreviewTitle("BOM PDF Preview");
+      setPdfDownloadName(`${quoteNo}-bom.pdf`);
+      setPdfPreviewUrl((currentUrl) => {
+        if (currentUrl) {
+          URL.revokeObjectURL(currentUrl);
+        }
+        return nextPdfPreviewUrl;
+      });
+      setIsPdfPreviewOpen(true);
+    } catch (error) {
+      console.error("Failed to export BOM PDF", error);
+      alert("Failed to generate BOM.");
+    } finally {
+      setIsGeneratingBom(false);
+    }
+  };
   const closePdfPreview = () => {
     setIsPdfPreviewOpen(false);
   };
@@ -1242,6 +1281,10 @@ const handleLogoUpload = (file: File | null) => {
           <Button variant="outline" onClick={exportCuttingSchedule} disabled={isGeneratingCuttingSchedule}>
             <Ruler className="h-4 w-4" />
             {isGeneratingCuttingSchedule ? "Generating..." : "Cutting"}
+          </Button>
+          <Button variant="outline" onClick={exportBom} disabled={isGeneratingBom}>
+            <Download className="h-4 w-4" />
+            {isGeneratingBom ? "Generating..." : "BOM"}
           </Button>
           <Button variant="outline" onClick={exportPdf} disabled={isGeneratingPdf}>
             <Download className="h-4 w-4" />
