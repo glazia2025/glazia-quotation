@@ -35,5 +35,7 @@ export function QuotationDetailPage({ quotationId }: { quotationId: string }) {
     );
   }
 
-  return <QuotationBuilder initialQuotation={quotation} quotationBasePath={`/quotations/${quotationId}`} />;
+  const builderKey = quotation._id || quotation.generatedId || quotation.quotationDetails?.id || quotationId;
+
+  return <QuotationBuilder key={builderKey} initialQuotation={quotation} quotationBasePath={`/quotations/${quotationId}`} />;
 }

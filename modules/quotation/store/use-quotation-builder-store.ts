@@ -54,6 +54,7 @@ interface QuotationBuilderState {
   lastSavedAt: string | null;
   resetQuotation: () => void;
   setQuotation: (quotation: Quotation) => void;
+  updateGlobalConfig: (globalConfig: Quotation["globalConfig"]) => void;
   updateCustomer: (key: keyof Quotation["customerDetails"], value: string) => void;
   updateQuotationField: (key: keyof Quotation["quotationDetails"], value: string) => void;
   updateItem: (itemId: string, patch: Partial<QuotationItem>) => void;
@@ -86,6 +87,13 @@ export const useQuotationBuilderStore = create<QuotationBuilderState>()((set, ge
       quotation,
       selectedItemId: quotation.items[0]?.id ?? null
     }),
+  updateGlobalConfig: (globalConfig) =>
+    set((state) => ({
+      quotation: {
+        ...state.quotation,
+        globalConfig,
+      },
+    })),
   updateCustomer: (key, value) =>
     set((state) => ({
       quotation: {

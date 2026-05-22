@@ -968,6 +968,7 @@ export function QuotationBuilder({
   const searchParams = useSearchParams();
   const isCreateMode = quotationBasePath === "/quotations/new";
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
+  const updateGlobalConfig = useQuotationBuilderStore((state) => state.updateGlobalConfig);
   const requestedTab = searchParams.get("tab");
   const isReturningFromConfigurator = isCreateMode && requestedTab === "item";
   const router = useRouter();
@@ -1107,11 +1108,8 @@ export function QuotationBuilder({
 
     if (isSameGlobalConfig) return;
 
-    setQuotation({
-      ...quotation,
-      globalConfig: nextGlobalConfig,
-    });
-  }, [globalConfig, quotation, setQuotation]);
+    updateGlobalConfig(nextGlobalConfig);
+  }, [globalConfig, quotation.globalConfig, updateGlobalConfig]);
 
   const handleSave = async () => {
     try {
