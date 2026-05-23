@@ -979,7 +979,7 @@ export function QuotationBuilder({
   const handleAddItem = () => {
   const newItem = {
     _id: crypto.randomUUID(),
-  };
+  }as QuotationItem ;
   setQuotation({
     ...quotation,
     items: [...quotation.items, newItem]
