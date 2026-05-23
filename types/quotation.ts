@@ -30,6 +30,7 @@ export interface ProductCatalogNode {
 
 export interface QuotationItem {
   id: string;
+  _id?: string;
   refCode?: string;
   location?: string;
   area?: number;
@@ -80,6 +81,7 @@ export interface QuotationItem {
 
 export interface QuotationSubItem {
   id: string;
+  _id?: string;
   refCode: string;
   location: string;
   width: number;

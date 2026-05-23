@@ -261,6 +261,18 @@ export async function getQuotationPdfBlob(quotationId: string): Promise<Blob> {
 
   return response.data;
 }
+export async function getElevationPdfBlob(quotationId: string): Promise<Blob> {
+  const response = await axios.get(
+    `${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/elevation-pdf`,
+    {
+      headers: getAuthHeaders(),
+      withCredentials: true,
+      responseType: "blob"
+    }
+  );
+
+  return response.data;
+}
 
 export async function getCuttingSchedulePdfBlob(quotationId: string): Promise<Blob> {
   const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/cutting-schedule`, {
