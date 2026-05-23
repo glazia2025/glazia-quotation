@@ -49,9 +49,14 @@ export function FullPageConfigurator({
   // };
   const handleSaveItem = (nextItem: QuotationItem) => {
   const exists = quotation.items.find((i) => getQuotationItemIdentity(i) === itemId);
-
+  
+  // if (exists) {
+  //   updateItem(exists.id, nextItem);
   if (exists) {
-    updateItem(exists.id, nextItem);
+    const realId = exists.id || exists._id;
+    if (!realId) return;
+    updateItem(realId, nextItem);
+
   } else {
     setQuotation({
       ...quotation,
@@ -59,8 +64,6 @@ export function FullPageConfigurator({
     });
   }
 };
-
-  
 
   return (
     <div className="fixed inset-0 z-[200] bg-[linear-gradient(180deg,#e2e8f0_0%,#f8fafc_100%)]">

@@ -21,7 +21,7 @@ import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-bui
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { getArea, getPerimeter } from "@/modules/quotation/utils/calculations";
 import { createEmptyQuotation } from "@/modules/quotation/utils/factory";
-import { getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationDraft } from "@/services/quotation-service";
+import { getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationDraft,getElevationPdfBlob } from "@/services/quotation-service";
 import type { Quotation, QuotationItem } from "@/types/quotation";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { getQuotationPdfDownloadName } from "@/utils/quotationPdf";
@@ -467,7 +467,7 @@ const handleDragEnd = (event:DragEndEvent) => {
         />
       ))}
 
-      <button
+      {/* <button
         type="button"
         onClick={handleAddItem}
         className="flex min-h-[260px] flex-col items-center justify-center self-start rounded-2xl border-2 border-dashed border-slate-300 bg-white p-6 text-center transition hover:border-[#124657] hover:bg-slate-50"
@@ -479,7 +479,7 @@ const handleDragEnd = (event:DragEndEvent) => {
         <div className="mt-2 max-w-[220px] text-sm text-slate-500">
           Open the window configurator and add the next quotation item.
         </div>
-      </button>
+      </button> */}
 
     </div>
   </SortableContext>
@@ -972,10 +972,20 @@ export function QuotationBuilder({
   const isReturningFromConfigurator = isCreateMode && requestedTab === "item";
   const router = useRouter();
   const configuratorBasePath = `${quotationBasePath}/configurator`;
+  // const handleAddItem = () => {
+  //   const newItemId = crypto.randomUUID();
+  //   router.push(`${configuratorBasePath}/${newItemId}`);
+  // };
   const handleAddItem = () => {
-    const newItemId = crypto.randomUUID();
-    router.push(`${configuratorBasePath}/${newItemId}`);
+  const newItem = {
+    _id: crypto.randomUUID(),
   };
+  setQuotation({
+    ...quotation,
+    items: [...quotation.items, newItem]
+  });
+  router.push(`${configuratorBasePath}/${newItem._id}`);
+};
 
   
 
@@ -997,12 +1007,16 @@ export function QuotationBuilder({
     }
 
     if (!initialQuotation) return;
+    // setQuotation(initialQuotation);
+     if (quotation.items.length === 0) {
     setQuotation(initialQuotation);
+  }
   }, [initialQuotation, isCreateMode, isReturningFromConfigurator, setQuotation]);
   const [activeTab, setActiveTab] = useState<TabKey>(() => (isTabKey(requestedTab) ? requestedTab : "customer"));
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isGeneratingCuttingSchedule, setIsGeneratingCuttingSchedule] = useState(false);
   const [isGeneratingBom, setIsGeneratingBom] = useState(false);
+  const [isGeneratingElevation, setIsGeneratingElevation] = useState(false);
   const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState("Quotation PDF Preview");
@@ -1180,6 +1194,39 @@ const handleLogoUpload = (file: File | null) => {
       setIsGeneratingPdf(false);
     }
   };
+const exportElevationPdf = async () => {
+  try {
+    setIsGeneratingElevation(true);
+
+    const savedQuotation = await saveQuotationDraft(quotationWithGlobalConfig);
+
+    const pdfQuotationId =
+      savedQuotation?._id ??
+      quotationWithGlobalConfig._id ??
+      savedQuotation?.quotationDetails.id ??
+      quotationWithGlobalConfig.quotationDetails.id;
+
+    const blob = await getElevationPdfBlob(pdfQuotationId);
+
+    const nextUrl = URL.createObjectURL(blob);
+
+    setPdfPreviewTitle("Elevation PDF Preview");
+    setPdfDownloadName("elevation.pdf");
+
+    setPdfPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return nextUrl;
+    });
+
+    setIsPdfPreviewOpen(true);
+
+  } catch (error) {
+    console.error("Elevation PDF error", error);
+    alert("Failed to generate elevation PDF");
+  } finally {
+    setIsGeneratingElevation(false);
+  }
+};
   const exportCuttingSchedule = async () => {
     try {
       setIsGeneratingCuttingSchedule(true);
@@ -1290,6 +1337,14 @@ const handleLogoUpload = (file: File | null) => {
             <Download className="h-4 w-4" />
             {isGeneratingPdf ? "Generating..." : "PDF"}
           </Button>
+          <Button
+  variant="outline"
+  onClick={exportElevationPdf}
+  disabled={isGeneratingElevation}
+>
+  <Download className="h-4 w-4" />
+  {isGeneratingElevation ? "Generating..." : "Elevation"}
+</Button>
           <Button variant="outline">
             <Share2 className="h-4 w-4" />
             Share

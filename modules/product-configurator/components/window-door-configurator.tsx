@@ -2040,6 +2040,16 @@ export function WindowDoorConfigurator({
         rate = areaSqft > 0 ? roundToTwo(weightedRateTotal / areaSqft) : 0;
         amount = roundToTwo(perFrameAmount * parentQuantity);
       }
+      setHideSelectionForExport(true);
+      stageRef.current?.batchDraw();
+
+await new Promise((res) => setTimeout(res, 500));
+gridGroupRef.current?.hide();
+const image = stageRef.current?.toDataURL({
+  pixelRatio: 2
+});
+gridGroupRef.current?.show();
+console.log("IMAGE CHECK:", image);
       const nextItem: QuotationItem = {
         id: persistedItem?.id ?? crypto.randomUUID(),
         refCode: trimmedRefCode,
@@ -2071,7 +2081,8 @@ export function WindowDoorConfigurator({
         amount,
         sash: isCombination ? undefined : singleLeaf?.sash,
         panelSashes: isCombination ? undefined : singleLeaf?.panelSashes,
-        refImage: dataUrl,
+        // refImage: dataUrl,
+        refImage: image,
         remarks: meta.remarks || "",
         horizontalCutAngle,
         verticalCutAngle,
@@ -2127,6 +2138,7 @@ export function WindowDoorConfigurator({
 
   const renderCanvas = useCallback(() => {
     const stage = stageRef.current;
+
     const layer = layerRef.current;
     if (!stage || !layer) return;
     layer.destroyChildren();
@@ -2341,9 +2353,10 @@ export function WindowDoorConfigurator({
     const horizontalGuideBase = splitBaseOffset;
     const mainHeightGuideX = fx - horizontalGuideBase - (maxHorizontalLevel >= 0 ? (maxHorizontalLevel + 1) * hierarchyOffset : 26);
     const mainWidthGuideY = fy + fh + verticalGuideBase + (maxVerticalLevel >= 0 ? (maxVerticalLevel + 1) * hierarchyOffset : 26);
-    if (!hideSelectionForExport) {
-      addDimensionLine(layer, mainHeightGuideX, fy, mainHeightGuideX, fy + fh, `${heightMm} `);
+    addDimensionLine(layer, mainHeightGuideX, fy, mainHeightGuideX, fy + fh, `${heightMm} `);
       addDimensionLine(layer, fx, mainWidthGuideY, fx + fw, mainWidthGuideY, `${widthMm} `);
+    if (!hideSelectionForExport) {
+      
       if (root.split === "vertical" && (root.children?.length ?? 0) >= 2) {
         const y2 = fy + fh + verticalGuideBase;
         root.children!.forEach((c) => addDimensionLine(layer, fx + c.x * fw, y2, fx + (c.x + c.w) * fw, y2, `${Math.round(c.w * widthMm)}`));
