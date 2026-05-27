@@ -84,6 +84,9 @@ const createBuilderGlobalConfig = () => ({
   },
 });
 
+const getQuotationIdentity = (quotation: Quotation | null | undefined) =>
+  quotation?._id || quotation?.generatedId || quotation?.quotationDetails?.id || "";
+
 function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configuratorBasePath: string }) {
   const [showSections, setShowSections] = useState(false);
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
@@ -1004,14 +1007,18 @@ export function QuotationBuilder({
     if (isCreateMode) {
       if (isReturningFromConfigurator) return;
       setQuotation(initialQuotation ?? createEmptyQuotation());
+      hydratedQuotationKeyRef.current = null;
       return;
     }
 
     if (!initialQuotation) return;
-    // setQuotation(initialQuotation);
-     if (quotation.items.length === 0) {
-    setQuotation(initialQuotation);
-  }
+
+    const nextQuotationKey = getQuotationIdentity(initialQuotation);
+    if (hydratedQuotationKeyRef.current !== nextQuotationKey) {
+      hydratedQuotationKeyRef.current = nextQuotationKey;
+      hydratedGlobalConfigKeyRef.current = null;
+      setQuotation(initialQuotation);
+    }
   }, [initialQuotation, isCreateMode, isReturningFromConfigurator, setQuotation]);
   const [activeTab, setActiveTab] = useState<TabKey>(() => (isTabKey(requestedTab) ? requestedTab : "customer"));
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -1023,6 +1030,7 @@ export function QuotationBuilder({
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState("Quotation PDF Preview");
   const [pdfDownloadName, setPdfDownloadName] = useState("");
   const [globalConfig, setGlobalConfig] = useState(createBuilderGlobalConfig);
+  const hydratedQuotationKeyRef = useRef<string | null>(null);
   const hydratedGlobalConfigKeyRef = useRef<string | null>(null);
   useEffect(() => {
     return () => {
