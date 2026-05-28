@@ -7,7 +7,6 @@ import { StatCard } from "@/components/shared/stat-card";
 import { useTenantQuery } from "@/hooks/use-tenant-query";
 import { getDashboardMetrics } from "@/services/dashboard-service";
 import { PageShell } from "@/components/shared/page-shell";
-import { getQuotations } from "@/services/quotation-service";
 import { QUOTATION_API_BASE_URL } from "@/services/api";
 
 import {
@@ -31,14 +30,7 @@ const tasks = [
 ];
 
 export function DashboardOverview() {
-  const page = 1;
-const pageSize = 20;
-  const { data: quotationData } = useTenantQuery({
-  queryKey: ["quotations", String(page)],
-  queryFn: () => getQuotations(page, pageSize)
-});
-
-  const userId = quotationData?.quotations?.[0]?.user?.toString() || "";
+  const userId = JSON.parse(localStorage.getItem("glazia-user") || "{}")?.id;
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear.toString());
 
@@ -132,15 +124,6 @@ datasets: [
   }
 ]
 };
- const quotations = quotationData?.quotations ?? [];
-const filteredQuotations=quotations.filter((q)=>{
-  if (!q.quotationDetails?.date) return false;
-
-  const date =new Date(q.quotationDetails?.date);
-  return date.getFullYear().toString()===year;
-});
-
-
 const total = stats?.total || 0;
 const confirmedOrders = stats?.confirmed || 0;
 const totalValue = stats?.revenue || 0;
