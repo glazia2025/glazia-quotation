@@ -69,6 +69,8 @@ export interface QuotationItem {
   exhaustFanX?: number;
   exhaustFanY?: number;
   exhaustFanSize?: number;
+  archType?: "none" | "circular" | "triangle";
+  archHeightRatio?: number;
   baseRate?: number;
   areaSlabIndex?: number;
   subItems?: QuotationSubItem[];
@@ -111,6 +113,8 @@ export interface QuotationSubItem {
   exhaustFanX?: number;
   exhaustFanY?: number;
   exhaustFanSize?: number;
+  archType?: "none" | "circular" | "triangle";
+  archHeightRatio?: number;
   baseRate?: number;
   areaSlabIndex?: number;
 }

@@ -104,6 +104,8 @@ function toBackendSubItem(subItem: QuotationSubItem) {
     exhaustFanX: typeof subItem.exhaustFanX === "number" ? subItem.exhaustFanX : undefined,
     exhaustFanY: typeof subItem.exhaustFanY === "number" ? subItem.exhaustFanY : undefined,
     exhaustFanSize: typeof subItem.exhaustFanSize === "number" ? subItem.exhaustFanSize : undefined,
+    archType: subItem.archType && subItem.archType !== "none" ? subItem.archType : "none",
+    archHeightRatio: typeof subItem.archHeightRatio === "number" ? subItem.archHeightRatio : undefined,
     baseRate: Number(subItem.baseRate) || 0,
     areaSlabIndex: Number(subItem.areaSlabIndex) || 0,
   };
@@ -144,6 +146,8 @@ function toBackendItem(item: Quotation["items"][number]) {
     exhaustFanX: typeof item.exhaustFanX === "number" ? item.exhaustFanX : undefined,
     exhaustFanY: typeof item.exhaustFanY === "number" ? item.exhaustFanY : undefined,
     exhaustFanSize: typeof item.exhaustFanSize === "number" ? item.exhaustFanSize : undefined,
+    archType: item.archType && item.archType !== "none" ? item.archType : "none",
+    archHeightRatio: typeof item.archHeightRatio === "number" ? item.archHeightRatio : undefined,
     baseRate: Number(item.baseRate) || 0,
     areaSlabIndex: Number(item.areaSlabIndex) || 0,
     subItems: Array.isArray(item.subItems) ? item.subItems.map(toBackendSubItem) : [],

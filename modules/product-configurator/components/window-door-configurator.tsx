@@ -20,12 +20,20 @@ import type { QuotationItem, QuotationSubItem } from "@/components/QuotationItem
 type KonvaGroup = InstanceType<typeof Konva.Group>;
 type KonvaLayer = InstanceType<typeof Konva.Layer>;
 type KonvaStage = InstanceType<typeof Konva.Stage>;
+type PathContext = {
+  beginPath: () => void;
+  moveTo: (x: number, y: number) => void;
+  lineTo: (x: number, y: number) => void;
+  quadraticCurveTo: (cpx: number, cpy: number, x: number, y: number) => void;
+  closePath: () => void;
+};
 
 type SplitDirection = "none" | "vertical" | "horizontal";
 type SystemType = "Casement" | "Sliding" | "Slide N Fold" | "Louvers" | "Exhaust Fan";
 type SashType = "fixed" | "left" | "right" | "double" | "top" | "bottom";
 type YesNo = "Yes" | "No";
 type CutAngle = "45" | "90";
+type ArchType = "none" | "circular" | "triangle";
 
 type SectionNode = {
   id: string;
@@ -46,6 +54,8 @@ type SectionNode = {
   panelFractions?: number[];
   panelMeshCount?: number;
   panelSashes?: SashType[];
+  archType?: ArchType;
+  archHeightRatio?: number;
   glass: YesNo;
   mesh: YesNo;
   children?: SectionNode[];
@@ -157,7 +167,12 @@ const getSectionLabel = (leaf: SectionNode, productType: ProductMeta["productTyp
 const DEFAULT_EXHAUST_FAN_X = 0.5;
 const DEFAULT_EXHAUST_FAN_Y = 0.5;
 const DEFAULT_EXHAUST_FAN_SIZE = 0.48;
+const DEFAULT_ARCH_HEIGHT_RATIO = 0.25;
 const clampValue = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+const normalizeArchType = (value: unknown): ArchType =>
+  value === "circular" || value === "triangle" ? value : "none";
+const normalizeArchHeightRatio = (value: unknown) =>
+  clampValue(Number(value) || DEFAULT_ARCH_HEIGHT_RATIO, 0.08, 0.45);
 const safeDrawSize = (value: number) => (Number.isFinite(value) ? Math.max(0, value) : 0);
 const getPanelBounds = (x: number, y: number, w: number, h: number, inset: number) => {
   const safeW = safeDrawSize(w);
@@ -189,6 +204,8 @@ const createRoot = (baseSystem: SystemType): SectionNode => ({
   exhaustFanX: DEFAULT_EXHAUST_FAN_X,
   exhaustFanY: DEFAULT_EXHAUST_FAN_Y,
   exhaustFanSize: DEFAULT_EXHAUST_FAN_SIZE,
+  archType: "none",
+  archHeightRatio: DEFAULT_ARCH_HEIGHT_RATIO,
   glass: "Yes",
   mesh: "No",
 });
@@ -387,6 +404,26 @@ const mmToSqft = (wMm: number, hMm: number) => {
   return Number((wFt * hFt).toFixed(2));
 };
 
+const getArchTopRatioAtX = (archType: ArchType | undefined, archHeightRatio: number | undefined, xRatio: number) => {
+  const normalizedArchType = normalizeArchType(archType);
+  if (normalizedArchType === "none") return 0;
+
+  const rise = normalizeArchHeightRatio(archHeightRatio);
+  const t = clampValue(xRatio, 0, 1);
+
+  if (normalizedArchType === "triangle") {
+    return rise * Math.abs(1 - 2 * t);
+  }
+
+  return rise * ((1 - t) ** 2 + t ** 2);
+};
+
+const getEffectiveLeafHeightRatio = (root: SectionNode, leaf: SectionNode) => {
+  const archTopRatio = getArchTopRatioAtX(root.archType, root.archHeightRatio, leaf.x + leaf.w / 2);
+  const leafTopRatio = Math.max(leaf.y, archTopRatio);
+  return Math.max(0, leaf.y + leaf.h - leafTopRatio);
+};
+
 const normalizeSystemType = (value?: string): SystemType => {
   if (
     value === "Sliding" ||
@@ -463,6 +500,8 @@ const normalizeStoredSectionNode = (value: unknown, fallbackSystemType: SystemTy
       : undefined,
     panelMeshCount: typeof source.panelMeshCount === "number" ? source.panelMeshCount : undefined,
     panelSashes,
+    archType: systemType === "Casement" ? normalizeArchType(source.archType) : "none",
+    archHeightRatio: normalizeArchHeightRatio(source.archHeightRatio),
     glass: yesNoFromValue(source.glass as string | boolean | undefined),
     mesh: yesNoFromValue(source.mesh as string | boolean | undefined),
     children: split === "none" ? undefined : children,
@@ -591,6 +630,8 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
         child.exhaustFanX = typeof sub.exhaustFanX === "number" ? sub.exhaustFanX : DEFAULT_EXHAUST_FAN_X;
         child.exhaustFanY = typeof sub.exhaustFanY === "number" ? sub.exhaustFanY : DEFAULT_EXHAUST_FAN_Y;
         child.exhaustFanSize = typeof sub.exhaustFanSize === "number" ? sub.exhaustFanSize : DEFAULT_EXHAUST_FAN_SIZE;
+        child.archType = normalizedSystemType === "Casement" ? normalizeArchType(sub.archType) : "none";
+        child.archHeightRatio = normalizeArchHeightRatio(sub.archHeightRatio);
         child.description = normalizeLeafDescription(normalizedSystemType, sub.description || "", childHasExhaustFan);
         child.panelSashes =
           sub.panelSashes?.filter((value): value is SashType =>
@@ -638,6 +679,8 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
         child.exhaustFanX = typeof sub.exhaustFanX === "number" ? sub.exhaustFanX : DEFAULT_EXHAUST_FAN_X;
         child.exhaustFanY = typeof sub.exhaustFanY === "number" ? sub.exhaustFanY : DEFAULT_EXHAUST_FAN_Y;
         child.exhaustFanSize = typeof sub.exhaustFanSize === "number" ? sub.exhaustFanSize : DEFAULT_EXHAUST_FAN_SIZE;
+        child.archType = normalizedSystemType === "Casement" ? normalizeArchType(sub.archType) : "none";
+        child.archHeightRatio = normalizeArchHeightRatio(sub.archHeightRatio);
         child.description = normalizeLeafDescription(normalizedSystemType, sub.description || "", childHasExhaustFan);
         child.panelSashes =
           sub.panelSashes?.filter((value): value is SashType =>
@@ -668,6 +711,8 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
     root.exhaustFanX = typeof item.exhaustFanX === "number" ? item.exhaustFanX : DEFAULT_EXHAUST_FAN_X;
     root.exhaustFanY = typeof item.exhaustFanY === "number" ? item.exhaustFanY : DEFAULT_EXHAUST_FAN_Y;
     root.exhaustFanSize = typeof item.exhaustFanSize === "number" ? item.exhaustFanSize : DEFAULT_EXHAUST_FAN_SIZE;
+    root.archType = sourceSystem === "Casement" ? normalizeArchType(item.archType) : "none";
+    root.archHeightRatio = normalizeArchHeightRatio(item.archHeightRatio);
     root.description = normalizeLeafDescription(sourceSystem, item.description || "", root.hasExhaustFan);
     root.glass = sourceSystem === "Exhaust Fan" ? "Yes" : yesNoFromValue(item.glassSpec);
     root.mesh = yesNoFromValue(item.meshPresent);
@@ -803,6 +848,74 @@ const drawCasementSwingGuide = (
       width: handleW,
       height: handleH,
       fill: "#111111",
+      listening: false,
+    })
+  );
+};
+
+const drawArchedPanel = (
+  group: KonvaGroup,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  archType: ArchType,
+  archHeightRatio: number,
+  fill: string,
+  stroke: string,
+  opacity: number
+) => {
+  const safeW = safeDrawSize(w);
+  const safeH = safeDrawSize(h);
+  const rise = clampValue(archHeightRatio, 0.08, 0.45) * safeH;
+
+  if (archType === "triangle") {
+    group.add(
+      new Konva.Line({
+        points: [x, y + rise, x + safeW / 2, y, x + safeW, y + rise, x + safeW, y + safeH, x, y + safeH],
+        closed: true,
+        fill,
+        stroke,
+        strokeWidth: 1,
+        opacity,
+        listening: false,
+      })
+    );
+    return;
+  }
+
+  if (archType === "circular") {
+    group.add(
+      new Konva.Shape({
+        sceneFunc: (ctx, shape) => {
+          ctx.beginPath();
+          ctx.moveTo(x, y + rise);
+          ctx.quadraticCurveTo(x + safeW / 2, y - rise * 0.7, x + safeW, y + rise);
+          ctx.lineTo(x + safeW, y + safeH);
+          ctx.lineTo(x, y + safeH);
+          ctx.closePath();
+          ctx.fillStrokeShape(shape);
+        },
+        fill,
+        stroke,
+        strokeWidth: 1,
+        opacity,
+        listening: false,
+      })
+    );
+    return;
+  }
+
+  group.add(
+    new Konva.Rect({
+      x,
+      y,
+      width: safeW,
+      height: safeH,
+      fill,
+      stroke,
+      strokeWidth: 1,
+      opacity,
       listening: false,
     })
   );
@@ -1544,12 +1657,77 @@ const COLORS = {
 
 const PROFILE = { outer: 10, inner: 4, mullion: 12, sash: 6, gap: 2 };
 
-function addProfileRect(layer: KonvaLayer | KonvaGroup, x: number, y: number, w: number, h: number, selected = false) {
+const applyArchPath = (
+  ctx: PathContext,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  archType: ArchType,
+  archHeightRatio: number
+) => {
   const safeW = safeDrawSize(w);
   const safeH = safeDrawSize(h);
-  layer.add(new Konva.Rect({ x, y, width: safeW, height: safeH, stroke: selected ? COLORS.selected : COLORS.frameDark, strokeWidth: PROFILE.outer, listening: false }));
-  layer.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + 2, y: y + PROFILE.outer / 2 + 2, width: safeDrawSize(safeW - (PROFILE.outer + 4)), height: safeDrawSize(safeH - (PROFILE.outer + 4)), stroke: COLORS.frameMid, strokeWidth: PROFILE.inner, listening: false }));
-  layer.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + 6, y: y + PROFILE.outer / 2 + 6, width: safeDrawSize(safeW - (PROFILE.outer + 12)), height: safeDrawSize(safeH - (PROFILE.outer + 12)), stroke: COLORS.frameLight, strokeWidth: 1, opacity: 0.6, listening: false }));
+  const rise = normalizeArchType(archType) === "none" ? 0 : normalizeArchHeightRatio(archHeightRatio) * safeH;
+
+  ctx.beginPath();
+  ctx.moveTo(x, y + safeH);
+  ctx.lineTo(x, y + rise);
+  if (archType === "triangle") {
+    ctx.lineTo(x + safeW / 2, y);
+    ctx.lineTo(x + safeW, y + rise);
+  } else if (archType === "circular") {
+    ctx.quadraticCurveTo(x + safeW / 2, y, x + safeW, y + rise);
+  } else {
+    ctx.lineTo(x, y);
+    ctx.lineTo(x + safeW, y);
+  }
+  ctx.lineTo(x + safeW, y + safeH);
+  ctx.closePath();
+};
+
+const addArchShape = (
+  layer: KonvaLayer | KonvaGroup,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  archType: ArchType,
+  archHeightRatio: number,
+  stroke: string,
+  strokeWidth: number,
+  opacity = 1
+) => {
+  layer.add(
+    new Konva.Shape({
+      sceneFunc: (ctx, shape) => {
+        applyArchPath(ctx, x, y, w, h, archType, archHeightRatio);
+        ctx.fillStrokeShape(shape);
+      },
+      stroke,
+      strokeWidth,
+      opacity,
+      listening: false,
+    })
+  );
+};
+
+function addProfileRect(layer: KonvaLayer | KonvaGroup, x: number, y: number, w: number, h: number, selected = false, archType: ArchType = "none", archHeightRatio = DEFAULT_ARCH_HEIGHT_RATIO) {
+  const safeW = safeDrawSize(w);
+  const safeH = safeDrawSize(h);
+  const normalizedArchType = normalizeArchType(archType);
+  if (normalizedArchType === "none") {
+    layer.add(new Konva.Rect({ x, y, width: safeW, height: safeH, stroke: selected ? COLORS.selected : COLORS.frameDark, strokeWidth: PROFILE.outer, listening: false }));
+    layer.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + 2, y: y + PROFILE.outer / 2 + 2, width: safeDrawSize(safeW - (PROFILE.outer + 4)), height: safeDrawSize(safeH - (PROFILE.outer + 4)), stroke: COLORS.frameMid, strokeWidth: PROFILE.inner, listening: false }));
+    layer.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + 6, y: y + PROFILE.outer / 2 + 6, width: safeDrawSize(safeW - (PROFILE.outer + 12)), height: safeDrawSize(safeH - (PROFILE.outer + 12)), stroke: COLORS.frameLight, strokeWidth: 1, opacity: 0.6, listening: false }));
+    return;
+  }
+
+  addArchShape(layer, x, y, safeW, safeH, normalizedArchType, archHeightRatio, selected ? COLORS.selected : COLORS.frameDark, PROFILE.outer);
+  const innerOffset = PROFILE.outer / 2 + 2;
+  addArchShape(layer, x + innerOffset, y + innerOffset, safeDrawSize(safeW - innerOffset * 2), safeDrawSize(safeH - innerOffset * 2), normalizedArchType, archHeightRatio, COLORS.frameMid, PROFILE.inner);
+  const highlightOffset = PROFILE.outer / 2 + 6;
+  addArchShape(layer, x + highlightOffset, y + highlightOffset, safeDrawSize(safeW - highlightOffset * 2), safeDrawSize(safeH - highlightOffset * 2), normalizedArchType, archHeightRatio, COLORS.frameLight, 1, 0.6);
 }
 
 function addMemberRect(layer: KonvaLayer | KonvaGroup, x: number, y: number, w: number, h: number) {
@@ -1780,7 +1958,7 @@ export function WindowDoorConfigurator({
   }, [push, root, widthMm]);
 
   const dimensionLabels = useMemo(() => {
-    const labels: Array<{ id: string; x: number; y: number; value: number; selectId: string | null; panelIndex?: number; onChange: (next: number) => void }> = [];
+    const labels: Array<{ id: string; x: number; y: number; value: number; selectId: string | null; panelIndex?: number; staticValue?: number; onChange: (next: number) => void }> = [];
     const fx = view.offsetX;
     const fy = view.offsetY;
     const fw = view.drawW;
@@ -1807,9 +1985,12 @@ export function WindowDoorConfigurator({
     const panelRowBand = hasLeafPanelLabels ? 40 : 0;
     const verticalGuideBase = splitBaseOffset + panelRowBand;
     const horizontalGuideBase = splitBaseOffset;
+    const isRootArched = normalizeArchType(root.archType) !== "none";
+    const sideTopRatio = isRootArched ? getArchTopRatioAtX(root.archType, root.archHeightRatio, 0) : 0;
     const mainHeightGuideX = fx - horizontalGuideBase - (maxHorizontalLevel >= 0 ? (maxHorizontalLevel + 1) * hierarchyOffset : 26);
-    const hMidY = (fy + fy + fh) / 2;
-    labels.push({ id: "height", x: clampX(mainHeightGuideX - 44), y: clampY(hMidY - 14), value: heightMm, selectId: "root", onChange: (next) => setHeightMm(clampMm(next, 0, 100000)) });
+    const hMidY = (fy + sideTopRatio * fh + fy + fh) / 2;
+    const effectiveSideHeight = Math.round(heightMm * (1 - sideTopRatio));
+    labels.push({ id: "height", x: clampX(mainHeightGuideX - 44), y: clampY(hMidY - 14), value: heightMm, staticValue: isRootArched ? effectiveSideHeight : undefined, selectId: "root", onChange: (next) => setHeightMm(clampMm(next, 0, 100000)) });
     const wMidX = (fx + fx + fw) / 2;
     const mainWidthGuideY = fy + fh + verticalGuideBase + (maxVerticalLevel >= 0 ? (maxVerticalLevel + 1) * hierarchyOffset : 26);
     labels.push({ id: "width", x: clampX(wMidX - 44), y: clampY(mainWidthGuideY - 14), value: widthMm, selectId: "root", onChange: (next) => setWidthMm(clampMm(next, 0, 100000)) });
@@ -1859,6 +2040,7 @@ export function WindowDoorConfigurator({
   const selectedIsWholeFrame = selectedId === null || selectedNode.id === "root";
   const isCombinationParentSelection = isCombinationDraft && selectedIsWholeFrame;
   const isCombinationChildSelection = isCombinationDraft && !selectedIsWholeFrame;
+  const canConfigureArch = selectedIsWholeFrame && leafNodesForMode.length > 0 && leafNodesForMode.every((leaf) => leaf.systemType === "Casement");
   const selectedLeafIndex = leafNodesForMode.findIndex((leaf) => leaf.id === selectedNode.id);
   const selectedSectionMeta: SectionOptionMeta = isCombinationChildSelection && selectedId ? (childSectionMeta[selectedId] ?? DEFAULT_SECTION_OPTION_META) : { colorFinish: meta.colorFinish, glassSpec: meta.glassSpec, handleType: meta.handleType, handleColor: meta.handleColor, meshType: meta.meshType };
   const metaHandleOption = metaOptionsQuery.data?.handleOptions.find((option) => option.name === selectedSectionMeta.handleType) ?? null;
@@ -1871,16 +2053,19 @@ export function WindowDoorConfigurator({
   }, [isCombinationChildSelection, selectedId]);
   const getLeafSectionMeta = useCallback((leafId: string): SectionOptionMeta => childSectionMeta[leafId] ?? DEFAULT_SECTION_OPTION_META, [childSectionMeta]);
   const childAutoRef = isCombinationChildSelection && meta.refCode && selectedLeafIndex >= 0 ? `${meta.refCode}-${indexToAlphaLower(selectedLeafIndex)}` : "";
-  const selectedLeafAreaSqft = isCombinationChildSelection && selectedLeafIndex >= 0 ? mmToSqft(leafNodesForMode[selectedLeafIndex].w * widthMm, leafNodesForMode[selectedLeafIndex].h * heightMm) : 0;
+  const selectedLeafAreaSqft = isCombinationChildSelection && selectedLeafIndex >= 0
+    ? mmToSqft(leafNodesForMode[selectedLeafIndex].w * widthMm, getEffectiveLeafHeightRatio(root, leafNodesForMode[selectedLeafIndex]) * heightMm)
+    : 0;
   const selectedChildRate = isCombinationChildSelection && selectedId ? (manualChildRates[selectedId] ?? autoChildRates[selectedId] ?? 0) : 0;
   const parentCombinationRate = useMemo(() => {
     const weightedRateTotal = leafNodesForMode.reduce((sum, leaf) => {
-      const leafArea = mmToSqft(leaf.w * widthMm, leaf.h * heightMm);
+      const leafArea = mmToSqft(leaf.w * widthMm, getEffectiveLeafHeightRatio(root, leaf) * heightMm);
       const leafRate = manualChildRates[leaf.id] ?? autoChildRates[leaf.id] ?? 0;
       return sum + leafRate * leafArea;
     }, 0);
-    return areaSqft > 0 ? roundToTwo(weightedRateTotal / areaSqft) : 0;
-  }, [areaSqft, autoChildRates, leafNodesForMode, manualChildRates, widthMm, heightMm]);
+    const effectiveTotalArea = leafNodesForMode.reduce((sum, leaf) => sum + mmToSqft(leaf.w * widthMm, getEffectiveLeafHeightRatio(root, leaf) * heightMm), 0);
+    return effectiveTotalArea > 0 ? roundToTwo(weightedRateTotal / effectiveTotalArea) : 0;
+  }, [autoChildRates, leafNodesForMode, manualChildRates, root, widthMm, heightMm]);
 
   useEffect(() => {
     if (!isCombinationDraft) {
@@ -1904,7 +2089,7 @@ export function WindowDoorConfigurator({
             isCatalogSystem(systemType) ? fetchDescriptions(systemType, series) : Promise.resolve({ descriptions: [] }),
             fetchOptions(systemType),
           ]);
-          const area = mmToSqft(leaf.w * widthMm, leaf.h * heightMm);
+          const area = mmToSqft(leaf.w * widthMm, getEffectiveLeafHeightRatio(root, leaf) * heightMm);
           const calc = calculateRateForItem({ area, description, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "" }, descriptionsResp.descriptions, optionsResp);
           next[leaf.id] = calc.rate;
         } catch {
@@ -1916,7 +2101,7 @@ export function WindowDoorConfigurator({
     };
     void run();
     return () => { isActive = false; };
-  }, [getLeafSectionMeta, heightMm, isCombinationDraft, leafNodesForMode, meta.productType, widthMm]);
+  }, [getLeafSectionMeta, heightMm, isCombinationDraft, leafNodesForMode, meta.productType, root, widthMm]);
 
   const handleSaveItem = async () => {
     if (isSaving) return;
@@ -1970,7 +2155,8 @@ export function WindowDoorConfigurator({
         const systemType = leaf.systemType;
         const series = leaf.series || "";
         const description = leaf.description || getDefaultLeafDescription(systemType, meta.productType, leaf.hasExhaustFan);
-        const itemArea = mmToSqft(leaf.w * widthMm, leaf.h * heightMm);
+        const effectiveHeightMm = getEffectiveLeafHeightRatio(root, leaf) * heightMm;
+        const itemArea = mmToSqft(leaf.w * widthMm, effectiveHeightMm);
         const descriptions = await getDescriptions(systemType, series);
         const options = await getOptions(systemType);
         const calc = calculateRateForItem({ area: itemArea, description, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "" }, descriptions, options);
@@ -1982,7 +2168,7 @@ export function WindowDoorConfigurator({
           refCode: meta.refCode ? `${meta.refCode}-${alpha(idx)}` : "",
           location: meta.location || "",
           width: Math.round(leaf.w * widthMm),
-          height: Math.round(leaf.h * heightMm),
+          height: Math.round(effectiveHeightMm),
           area: itemArea,
           systemType,
           series,
@@ -2008,6 +2194,8 @@ export function WindowDoorConfigurator({
           exhaustFanX: leaf.exhaustFanX ?? DEFAULT_EXHAUST_FAN_X,
           exhaustFanY: leaf.exhaustFanY ?? DEFAULT_EXHAUST_FAN_Y,
           exhaustFanSize: leaf.exhaustFanSize ?? DEFAULT_EXHAUST_FAN_SIZE,
+          archType: "none",
+          archHeightRatio: undefined,
           baseRate: calc.baseRate,
           areaSlabIndex: calc.areaSlabIndex,
         };
@@ -2037,7 +2225,8 @@ export function WindowDoorConfigurator({
         const parentQuantity = Math.max(1, meta.quantity || 1);
         const perFrameAmount = roundToTwo(subItems.reduce((sum, sub) => sum + sub.amount, 0));
         const weightedRateTotal = subItems.reduce((sum, sub) => sum + sub.rate * sub.area, 0);
-        rate = areaSqft > 0 ? roundToTwo(weightedRateTotal / areaSqft) : 0;
+        const effectiveTotalArea = subItems.reduce((sum, sub) => sum + sub.area, 0);
+        rate = effectiveTotalArea > 0 ? roundToTwo(weightedRateTotal / effectiveTotalArea) : 0;
         amount = roundToTwo(perFrameAmount * parentQuantity);
       }
       setHideSelectionForExport(true);
@@ -2091,6 +2280,8 @@ console.log("IMAGE CHECK:", image);
         exhaustFanX: isCombination ? undefined : singleLeaf?.exhaustFanX ?? DEFAULT_EXHAUST_FAN_X,
         exhaustFanY: isCombination ? undefined : singleLeaf?.exhaustFanY ?? DEFAULT_EXHAUST_FAN_Y,
         exhaustFanSize: isCombination ? undefined : singleLeaf?.exhaustFanSize ?? DEFAULT_EXHAUST_FAN_SIZE,
+        archType: leafNodes.every((leaf) => leaf.systemType === "Casement") ? normalizeArchType(root.archType) : "none",
+        archHeightRatio: leafNodes.every((leaf) => leaf.systemType === "Casement") ? normalizeArchHeightRatio(root.archHeightRatio) : undefined,
         baseRate,
         areaSlabIndex,
         subItems: isCombination ? subItems : [],
@@ -2169,10 +2360,27 @@ console.log("IMAGE CHECK:", image);
     const fw = view.drawW;
     const fh = view.drawH;
     const selectedForRender = hideSelectionForExport ? null : selectedId;
-    addProfileRect(layer, fx, fy, fw, fh, selectedForRender === "root");
+    const rootArchType = normalizeArchType(root.archType);
+    const rootArchHeightRatio = normalizeArchHeightRatio(root.archHeightRatio);
+    addProfileRect(layer, fx, fy, fw, fh, selectedForRender === "root", rootArchType, rootArchHeightRatio);
     const rootHit = new Konva.Rect({ x: fx, y: fy, width: fw, height: fh, fill: "transparent" });
-    rootHit.on("mousedown touchstart", () => { setSelectedId(null); setSelectedSlidingPanelIndex(null); });
+    rootHit.on("mousedown touchstart", () => { setSelectedId("root"); setSelectedSlidingPanelIndex(null); });
     layer.add(rootHit);
+    const contentGroup = new Konva.Group({
+      clipFunc: (ctx) => {
+        const inset = PROFILE.outer;
+        applyArchPath(
+          ctx,
+          fx + inset,
+          fy + inset,
+          safeDrawSize(fw - inset * 2),
+          safeDrawSize(fh - inset * 2),
+          rootArchType,
+          rootArchHeightRatio
+        );
+      },
+    });
+    layer.add(contentGroup);
     const drawParentDividers = (parent: SectionNode) => {
       if (!parent.children || parent.children.length < 2) return;
       const dir = parent.split;
@@ -2182,10 +2390,10 @@ console.log("IMAGE CHECK:", image);
         const boundary = dir === "vertical" ? a.x + a.w : a.y + a.h;
         if (dir === "vertical") {
           const x = fx + boundary * fw;
-          addMemberRect(layer, x - PROFILE.mullion / 2, fy + PROFILE.outer, PROFILE.mullion, fh - PROFILE.outer * 2);
+          addMemberRect(contentGroup, x - PROFILE.mullion / 2, fy + PROFILE.outer, PROFILE.mullion, fh - PROFILE.outer * 2);
         } else {
           const y = fy + boundary * fh;
-          addMemberRect(layer, fx + PROFILE.outer, y - PROFILE.mullion / 2, fw - PROFILE.outer * 2, PROFILE.mullion);
+          addMemberRect(contentGroup, fx + PROFILE.outer, y - PROFILE.mullion / 2, fw - PROFILE.outer * 2, PROFILE.mullion);
         }
       }
       parent.children.forEach(drawParentDividers);
@@ -2215,7 +2423,19 @@ console.log("IMAGE CHECK:", image);
         const desc = leaf.description;
         if (!desc) return false;
         const { x: innerX, y: innerY, w: innerW, h: innerH } = innerBounds;
-        const fixedPanel = (px: number, py: number, pw: number, ph: number) => g.add(new Konva.Rect({ x: px, y: py, width: safeDrawSize(pw), height: safeDrawSize(ph), fill: leaf.glass === "Yes" ? COLORS.glass : "#FFFFFF", stroke: COLORS.glassStroke, strokeWidth: 1, opacity: leaf.glass === "Yes" ? 1 : 0.6, listening: false }));
+        const fixedPanel = (px: number, py: number, pw: number, ph: number) =>
+          drawArchedPanel(
+            g,
+            px,
+            py,
+            pw,
+            ph,
+            "none",
+            DEFAULT_ARCH_HEIGHT_RATIO,
+            leaf.glass === "Yes" ? COLORS.glass : "#FFFFFF",
+            COLORS.glassStroke,
+            leaf.glass === "Yes" ? 1 : 0.6
+          );
         const drawPanels = (fractions: number[], sashTypes?: SashType[], meshCount = 0) => {
           const isPanelizedSliding = leaf.systemType === "Sliding" && fractions.length > 1;
           const panelSashes = isPanelizedSliding ? (leaf.panelSashes && leaf.panelSashes.length === fractions.length ? leaf.panelSashes : buildDefaultSlidingPanelSashes(fractions.length)) : [];
@@ -2277,7 +2497,20 @@ console.log("IMAGE CHECK:", image);
         }
         return false;
       })();
-      if (!handledByDescription) g.add(new Konva.Rect({ x: innerBounds.x, y: innerBounds.y, width: innerBounds.w, height: innerBounds.h, fill: leaf.glass === "Yes" ? COLORS.glass : "#FFFFFF", stroke: COLORS.glassStroke, strokeWidth: 0.6, opacity: leaf.glass === "Yes" ? 1 : 0.6, listening: false }));
+      if (!handledByDescription) {
+        drawArchedPanel(
+          g,
+          innerBounds.x,
+          innerBounds.y,
+          innerBounds.w,
+          innerBounds.h,
+          "none",
+          DEFAULT_ARCH_HEIGHT_RATIO,
+          leaf.glass === "Yes" ? COLORS.glass : "#FFFFFF",
+          COLORS.glassStroke,
+          leaf.glass === "Yes" ? 1 : 0.6
+        );
+      }
       const parsedPattern = parsePanelPattern(leaf.description || "");
       const hasPatternMesh = (leaf.panelMeshCount ?? parsedPattern?.meshCount ?? 0) > 0;
       if (leaf.mesh === "Yes" && !hasPatternMesh) drawMeshTriangle(g, x + w - inset - 6, y + h - inset - 6, Math.min(w, h) * 0.5);
@@ -2334,7 +2567,7 @@ console.log("IMAGE CHECK:", image);
       g.add(new Konva.Text({ x: x + w / 2 - 14, y: y + h / 2 - 18, width: 28, align: "center", text: String(idx + 1), fontSize: 12, fontStyle: "bold", fill: COLORS.text, listening: false }));
       g.add(new Konva.Line({ points: [x + w / 2 - 10, y + h / 2 + 8, x + w / 2 + 10, y + h / 2 + 8], stroke: COLORS.frameDark, strokeWidth: 0.6, opacity: 0.85, listening: false }));
       g.add(new Konva.Line({ points: [x + w / 2, y + h / 2 - 2, x + w / 2, y + h / 2 + 18], stroke: COLORS.frameDark, strokeWidth: 0.6, opacity: 0.85, listening: false }));
-      layer.add(g);
+      contentGroup.add(g);
     });
     const splitDepths: Array<{ split: SplitDirection; depth: number }> = [];
     const collectSplitDepths = (node: SectionNode, depth = 0) => {
@@ -2351,9 +2584,12 @@ console.log("IMAGE CHECK:", image);
     const panelRowBand = hasLeafPanelLabels ? 40 : 0;
     const verticalGuideBase = splitBaseOffset + panelRowBand;
     const horizontalGuideBase = splitBaseOffset;
+    const sideTopRatio = rootArchType !== "none" ? getArchTopRatioAtX(root.archType, root.archHeightRatio, 0) : 0;
+    const sideTopY = fy + sideTopRatio * fh;
+    const effectiveSideHeight = Math.round(heightMm * (1 - sideTopRatio));
     const mainHeightGuideX = fx - horizontalGuideBase - (maxHorizontalLevel >= 0 ? (maxHorizontalLevel + 1) * hierarchyOffset : 26);
     const mainWidthGuideY = fy + fh + verticalGuideBase + (maxVerticalLevel >= 0 ? (maxVerticalLevel + 1) * hierarchyOffset : 26);
-    addDimensionLine(layer, mainHeightGuideX, fy, mainHeightGuideX, fy + fh, `${heightMm} `);
+    addDimensionLine(layer, mainHeightGuideX, sideTopY, mainHeightGuideX, fy + fh, `${rootArchType !== "none" ? effectiveSideHeight : heightMm} `);
       addDimensionLine(layer, fx, mainWidthGuideY, fx + fw, mainWidthGuideY, `${widthMm} `);
     if (!hideSelectionForExport) {
       
@@ -2369,7 +2605,7 @@ console.log("IMAGE CHECK:", image);
     const leaves2: SectionNode[] = [];
     mapLeafNodes(root, (leaf) => leaves2.push(leaf));
     const rightMost = [...leaves2].sort((a, b) => (b.x + b.w) - (a.x + a.w) || (b.y + b.h) - (a.y + a.h))[0];
-    if (rightMost) addTag(layer, fx + rightMost.x * fw + rightMost.w * fw - 54, fy + rightMost.y * fh + rightMost.h * fh - 54, "F1");
+    if (rightMost) addTag(contentGroup, fx + rightMost.x * fw + rightMost.w * fw - 54, fy + rightMost.y * fh + rightMost.h * fh - 54, "F1");
     layer.draw();
   }, [heightMm, hideSelectionForExport, panOffset, root, selectedId, selectedSlidingPanelIndex, stageSize.h, stageSize.w, view, widthMm]);
 
@@ -2478,6 +2714,15 @@ console.log("IMAGE CHECK:", image);
     setIsManualRate(false);
   }, [selectedNode.systemType, selectedNode.series, selectedNode.description, selectedNode.glass, selectedNode.mesh, meta.colorFinish, meta.glassSpec, meta.handleType, meta.handleColor, meta.meshType, widthMm, heightMm, profitPercentage]);
 
+  const archControls = canConfigureArch ? (
+    <>
+      <label className="text-xs text-gray-600">Arch Type<select value={normalizeArchType(root.archType)} onChange={(e) => { const archType = e.target.value as ArchType; updateSelectedNode((target) => { target.archType = archType; target.archHeightRatio = archType === "none" ? DEFAULT_ARCH_HEIGHT_RATIO : normalizeArchHeightRatio(target.archHeightRatio); }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="none">None</option><option value="circular">Circular</option><option value="triangle">Triangle</option></select></label>
+      {normalizeArchType(root.archType) !== "none" ? (
+        <label className="text-xs text-gray-600">Arch Rise<input type="range" min={8} max={45} step={1} value={Math.round(normalizeArchHeightRatio(root.archHeightRatio) * 100)} onChange={(e) => { const value = Number(e.target.value) / 100; updateSelectedNode((target) => { target.archHeightRatio = normalizeArchHeightRatio(value); }); }} className="mt-2 w-full" /><div className="mt-1 text-[11px] text-gray-500">{Math.round(normalizeArchHeightRatio(root.archHeightRatio) * 100)}% of frame height</div></label>
+      ) : null}
+    </>
+  ) : null;
+
   return (
     <div className="relative h-full w-full overflow-hidden border border-slate-300 bg-white shadow-2xl">
       <button
@@ -2494,21 +2739,26 @@ console.log("IMAGE CHECK:", image);
             <div ref={containerRef} className="rounded-xl border border-gray-200 bg-[#F9FBFD] w-full overflow-hidden" style={{ width: "100%", height: stageSize.h }} />
             <div className="pointer-events-none absolute inset-0">
               {dimensionLabels.map((label) => (
-                <input
-                  key={label.id}
-                  type="number"
-                  value={label.value}
-                  onChange={(e) => label.onChange(Number(e.target.value))}
-                  onFocus={(e) => {
-                    setSelectedId(label.selectId);
-                    setSelectedSlidingPanelIndex(label.panelIndex ?? null);
-                    e.currentTarget.select();
-                  }}
-                  onClick={(e) => e.currentTarget.select()}
-                  data-dim-input="true"
-                  className="pointer-events-auto absolute h-7 w-[88px] rounded-sm border border-gray-400 bg-white text-center text-sm text-gray-900 shadow-sm focus:border-[#124657] focus:outline-none focus:ring-2 focus:ring-[#124657]"
-                  style={{ left: label.x, top: label.y }}
-                />
+                <div key={label.id} className="pointer-events-auto absolute w-[88px]" style={{ left: label.x, top: label.y }}>
+                  <input
+                    type="number"
+                    value={label.value}
+                    onChange={(e) => label.onChange(Number(e.target.value))}
+                    onFocus={(e) => {
+                      setSelectedId(label.selectId);
+                      setSelectedSlidingPanelIndex(label.panelIndex ?? null);
+                      e.currentTarget.select();
+                    }}
+                    onClick={(e) => e.currentTarget.select()}
+                    data-dim-input="true"
+                    className="h-7 w-[88px] rounded-sm border border-gray-400 bg-white text-center text-sm text-gray-900 shadow-sm focus:border-[#124657] focus:outline-none focus:ring-2 focus:ring-[#124657]"
+                  />
+                  {typeof label.staticValue === "number" ? (
+                    <div className="mt-1 rounded-sm border border-slate-200 bg-white/95 px-1 py-0.5 text-center text-[11px] font-medium text-slate-600 shadow-sm">
+                      Effective {label.staticValue}
+                    </div>
+                  ) : null}
+                </div>
               ))}
             </div>
             <div className="pointer-events-none absolute right-4 top-4 z-10 text-xs text-gray-500">Use the dimension boxes to edit sizes</div>
@@ -2538,6 +2788,7 @@ console.log("IMAGE CHECK:", image);
                     <label className="text-xs text-gray-600">Ref Code<input value={meta.refCode} onChange={(e) => setMeta((prev) => ({ ...prev, refCode: e.target.value }))} required className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                     <label className="text-xs text-gray-600">Location<input value={meta.location} placeholder="Living Room" onChange={(e) => setMeta((prev) => ({ ...prev, location: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                     <label className="text-xs text-gray-600">System<input value={COMBINATION_SYSTEM} readOnly className="mt-1 w-full rounded-md border border-gray-400 bg-gray-50 px-2 py-2 text-sm text-gray-600" /></label>
+                    {archControls}
                     <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                     <label className="text-xs text-gray-600">Horizontal Cut Angle<select value={meta.horizontalCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, horizontalCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
                     <label className="text-xs text-gray-600">Vertical Cut Angle<select value={meta.verticalCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, verticalCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
@@ -2558,13 +2809,14 @@ console.log("IMAGE CHECK:", image);
                       <label className="text-xs text-gray-600">Sliding Movement<select value={selectedNode.panelSashes && selectedNode.panelSashes.length === (selectedNode.panelFractions?.length ?? 0) && selectedSlidingPanelIndex !== null ? (selectedNode.panelSashes[selectedSlidingPanelIndex] ?? "fixed") : "fixed"} onChange={(e) => { const sash = e.target.value as SashType; if (selectedSlidingPanelIndex === null) return; updateSelectedNode((target) => { const panelCount = target.panelFractions?.length ?? 0; if (panelCount < 2) return; const nextSashes = target.panelSashes && target.panelSashes.length === panelCount ? [...target.panelSashes] : buildDefaultSlidingPanelSashes(panelCount); nextSashes[selectedSlidingPanelIndex] = sash; target.panelSashes = nextSashes; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="left">Left Sliding</option><option value="right">Right Sliding</option><option value="double">Both Ways</option><option value="fixed">Fixed</option></select></label>
                     ) : (
                       <>
-                        <label className="text-xs text-gray-600">Section System<select value={selectedNode.systemType} onChange={(e) => { const nextSystem = e.target.value as SystemType; updateSelectedLeaves((target) => { target.systemType = nextSystem; target.series = ""; target.description = isLouverSystem(nextSystem) ? "Louvers" : isExhaustSystem(nextSystem) ? "Exhaust Fan" : ""; target.hasExhaustFan = isExhaustSystem(nextSystem); target.panelSashes = undefined; target.panelFractions = undefined; target.panelMeshCount = undefined; target.mesh = isLouverSystem(nextSystem) || isExhaustSystem(nextSystem) ? "No" : target.mesh; target.glass = isExhaustSystem(nextSystem) || isLouverSystem(nextSystem) ? "Yes" : target.glass; target.exhaustFanX = DEFAULT_EXHAUST_FAN_X; target.exhaustFanY = DEFAULT_EXHAUST_FAN_Y; target.exhaustFanSize = DEFAULT_EXHAUST_FAN_SIZE; if (nextSystem !== "Sliding" && (target.sash === "left" || target.sash === "right" || target.sash === "double")) target.sash = "fixed"; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]">{selectableSystemOptions.map((sys) => <option key={sys} value={sys}>{sys}</option>)}</select></label>
+                        <label className="text-xs text-gray-600">Section System<select value={selectedNode.systemType} onChange={(e) => { const nextSystem = e.target.value as SystemType; updateSelectedLeaves((target) => { target.systemType = nextSystem; target.series = ""; target.description = isLouverSystem(nextSystem) ? "Louvers" : isExhaustSystem(nextSystem) ? "Exhaust Fan" : ""; target.hasExhaustFan = isExhaustSystem(nextSystem); target.panelSashes = undefined; target.panelFractions = undefined; target.panelMeshCount = undefined; target.archType = nextSystem === "Casement" ? normalizeArchType(target.archType) : "none"; target.archHeightRatio = DEFAULT_ARCH_HEIGHT_RATIO; target.mesh = isLouverSystem(nextSystem) || isExhaustSystem(nextSystem) ? "No" : target.mesh; target.glass = isExhaustSystem(nextSystem) || isLouverSystem(nextSystem) ? "Yes" : target.glass; target.exhaustFanX = DEFAULT_EXHAUST_FAN_X; target.exhaustFanY = DEFAULT_EXHAUST_FAN_Y; target.exhaustFanSize = DEFAULT_EXHAUST_FAN_SIZE; if (nextSystem !== "Sliding" && (target.sash === "left" || target.sash === "right" || target.sash === "double")) target.sash = "fixed"; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]">{selectableSystemOptions.map((sys) => <option key={sys} value={sys}>{sys}</option>)}</select></label>
                         {selectedSystemSupportsCatalog && (
                           <>
                             <label className="text-xs text-gray-600">Section Series<select value={selectedNode.series} onChange={(e) => { const nextSeries = e.target.value; updateSelectedLeaves((target) => { target.series = nextSeries; target.description = ""; target.hasExhaustFan = false; target.panelFractions = undefined; target.panelMeshCount = undefined; target.panelSashes = undefined; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{seriesOptions.map((series) => <option key={series} value={series}>{series}</option>)}</select></label>
                             <label className="text-xs text-gray-600">Section Description<select value={selectedNode.description} onChange={(e) => { const nextDescription = e.target.value; updateSelectedSectionMeta({ meshType: "" }); if (selectedNode.systemType === "Sliding") { updateSelectedNode((target) => { target.description = nextDescription; target.hasExhaustFan = false; target.split = "none"; target.children = undefined; const pattern = parsePanelPattern(nextDescription); if (pattern) { target.panelFractions = pattern.fractions; target.panelMeshCount = pattern.meshCount; target.mesh = (pattern.meshCount ?? 0) > 0 ? "Yes" : "No"; target.panelSashes = target.panelSashes && target.panelSashes.length === pattern.fractions.length ? target.panelSashes : buildDefaultSlidingPanelSashes(pattern.fractions.length); } else { target.panelFractions = undefined; target.panelMeshCount = undefined; target.mesh = "No"; target.panelSashes = undefined; } }); return; } updateSelectedLeaves((target) => { target.description = nextDescription; target.hasExhaustFan = false; const pattern = parsePanelPattern(nextDescription); if (pattern) { target.panelFractions = pattern.fractions; target.panelMeshCount = pattern.meshCount; target.panelSashes = undefined; } else { target.panelFractions = undefined; target.panelMeshCount = undefined; target.panelSashes = undefined; } }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{descriptionOptions.map((desc: Description) => <option key={desc.name} value={desc.name}>{desc.name}</option>)}</select></label>
                             <label className="text-xs text-gray-600">Section Glass<select value={selectedNode.glass} onChange={(e) => { const value = e.target.value as YesNo; updateSelectedLeaves((target) => { target.glass = value; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="Yes">Yes</option><option value="No">No</option></select></label>
                             <label className="text-xs text-gray-600">Section Mesh<select value={selectedNode.mesh} onChange={(e) => { if (selectedNode.systemType === "Sliding") return; const value = e.target.value as YesNo; updateSelectedLeaves((target) => { target.mesh = value; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" disabled={selectedNode.systemType === "Sliding"}><option value="No">No</option><option value="Yes">Yes</option></select></label>
+                            {archControls}
                           </>
                         )}
                         {canInsertExhaustFan && <label className="text-xs text-gray-600">Exhaust Fan Insert<select value={selectedNode.hasExhaustFan ? "Yes" : "No"} onChange={(e) => { const shouldInsert = e.target.value === "Yes"; updateSelectedLeaves((target) => { target.hasExhaustFan = shouldInsert; target.glass = "Yes"; target.mesh = "No"; target.exhaustFanX = DEFAULT_EXHAUST_FAN_X; target.exhaustFanY = DEFAULT_EXHAUST_FAN_Y; target.exhaustFanSize = DEFAULT_EXHAUST_FAN_SIZE; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="No">No</option><option value="Yes">Yes</option></select><div className="mt-1 text-[11px] text-gray-500">Fixed glass section will include the exhaust fan cut-out.</div></label>}

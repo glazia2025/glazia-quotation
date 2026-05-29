@@ -38,6 +38,8 @@ const toPanelSashes = (value: unknown) =>
         .map(toSashValue)
         .filter((entry): entry is NonNullable<ReturnType<typeof toSashValue>> => Boolean(entry))
     : undefined;
+const toArchType = (value: unknown): "none" | "circular" | "triangle" =>
+  value === "circular" || value === "triangle" ? value : "none";
 
 const normalizeSubItem = (value: unknown): QuotationSubItem => {
   const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
@@ -75,6 +77,8 @@ const normalizeSubItem = (value: unknown): QuotationSubItem => {
     exhaustFanX: typeof source.exhaustFanX !== "undefined" ? toNumberValue(source.exhaustFanX) : undefined,
     exhaustFanY: typeof source.exhaustFanY !== "undefined" ? toNumberValue(source.exhaustFanY) : undefined,
     exhaustFanSize: typeof source.exhaustFanSize !== "undefined" ? toNumberValue(source.exhaustFanSize) : undefined,
+    archType: toArchType(source.archType),
+    archHeightRatio: typeof source.archHeightRatio !== "undefined" ? toNumberValue(source.archHeightRatio, 0.25) : undefined,
     baseRate: toNumberValue(source.baseRate),
     areaSlabIndex: toNumberValue(source.areaSlabIndex),
   };
@@ -129,6 +133,8 @@ const normalizeItem = (value: unknown): QuotationItem => {
     exhaustFanX: typeof source.exhaustFanX !== "undefined" ? toNumberValue(source.exhaustFanX) : undefined,
     exhaustFanY: typeof source.exhaustFanY !== "undefined" ? toNumberValue(source.exhaustFanY) : undefined,
     exhaustFanSize: typeof source.exhaustFanSize !== "undefined" ? toNumberValue(source.exhaustFanSize) : undefined,
+    archType: toArchType(source.archType),
+    archHeightRatio: typeof source.archHeightRatio !== "undefined" ? toNumberValue(source.archHeightRatio, 0.25) : undefined,
     baseRate: toNumberValue(source.baseRate),
     areaSlabIndex: toNumberValue(source.areaSlabIndex),
     subItems: Array.isArray(source.subItems) ? source.subItems.map(normalizeSubItem) : [],
