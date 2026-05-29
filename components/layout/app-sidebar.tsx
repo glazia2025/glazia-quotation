@@ -11,12 +11,14 @@ import {
   SendToBack,
 } from "lucide-react";
 import { Settings } from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
 
 import { defaultSettingsSection, settingsSections } from "@/modules/settings/constants";
 import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/utils/cn";
 
 const navItems = [
+  {href: "/dashboard", label:"Dashboard",icon:LayoutDashboard},
   { href: "/quotations", label: "Quotations", icon: ClipboardPenLine },
   { href: `/settings?section=${defaultSettingsSection}`, label: "Global settings", icon: Settings, matchHref: "/settings" },
  
