@@ -472,6 +472,7 @@ const normalizeStoredSectionNode = (value: unknown, fallbackSystemType: SystemTy
 const calculateRateForItem = (
   next: {
     area: number;
+     systemType: string;
     description: string;
     colorFinish: string;
     glassSpec: string;
@@ -483,8 +484,23 @@ const calculateRateForItem = (
   descriptions: Description[] | undefined,
   options: OptionsResponse | undefined
 ) => {
-  const desc = descriptions?.find((d) => d.name === next.description);
-  const baseRates = desc?.baseRates ?? [];
+  // const desc = descriptions?.find((d) => d.name === next.description);
+  // const baseRates = desc?.baseRates ?? [];
+  let baseRates: number[] = [];
+  let desc: any = null;
+
+if (isLouverSystem(next.systemType)) {
+  
+  const data = descriptions?.find(
+    (d:any) => d.systemType === "Louvers"
+  );
+  baseRates = data?.baseRates ?? [];
+} else {
+  const desc = descriptions?.find(
+    (d) => d.name === next.description
+  );
+  baseRates = desc?.baseRates ?? [];
+}
   const slab = AREA_SLABS.find((s) => next.area <= s.max);
   const baseRate = baseRates[slab?.index ?? 0] ?? 0;
   const colorRate = options?.colorFinishes.find((c) => c.name === next.colorFinish)?.rate ?? 0;
@@ -1905,7 +1921,7 @@ export function WindowDoorConfigurator({
             fetchOptions(systemType),
           ]);
           const area = mmToSqft(leaf.w * widthMm, leaf.h * heightMm);
-          const calc = calculateRateForItem({ area, description, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "" }, descriptionsResp.descriptions, optionsResp);
+          const calc = calculateRateForItem({ area,systemType: leaf.systemType, description, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "" }, descriptionsResp.descriptions, optionsResp);
           next[leaf.id] = calc.rate;
         } catch {
           next[leaf.id] = 0;
@@ -1973,7 +1989,7 @@ export function WindowDoorConfigurator({
         const itemArea = mmToSqft(leaf.w * widthMm, leaf.h * heightMm);
         const descriptions = await getDescriptions(systemType, series);
         const options = await getOptions(systemType);
-        const calc = calculateRateForItem({ area: itemArea, description, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "" }, descriptions, options);
+        const calc = calculateRateForItem({ area: itemArea, description,systemType: leaf.systemType, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "" }, descriptions, options);
         const computedRate = calc.rate;
         const resolvedRate = manualChildRates[leaf.id] ?? autoChildRates[leaf.id] ?? computedRate;
         const quantity = 1;
@@ -2027,7 +2043,7 @@ export function WindowDoorConfigurator({
         const description = singleLeaf.description || getDefaultLeafDescription(systemType, meta.productType, singleLeaf.hasExhaustFan);
         const descriptions = await getDescriptions(systemType, series);
         const options = await getOptions(systemType);
-        const calc = calculateRateForItem({ area: areaSqft, description, colorFinish: meta.colorFinish, glassSpec: singleLeaf.glass === "Yes" ? (meta.glassSpec || "Yes") : "", handleType: meta.handleType, handleColor: meta.handleColor, meshPresent: singleLeaf.mesh, meshType: singleLeaf.mesh === "Yes" ? meta.meshType : "" }, descriptions, options);
+        const calc = calculateRateForItem({ area: areaSqft, description,systemType: meta.systemType, colorFinish: meta.colorFinish, glassSpec: singleLeaf.glass === "Yes" ? (meta.glassSpec || "Yes") : "", handleType: meta.handleType, handleColor: meta.handleColor, meshPresent: singleLeaf.mesh, meshType: singleLeaf.mesh === "Yes" ? meta.meshType : "" }, descriptions, options);
         baseRate = calc.baseRate;
         areaSlabIndex = calc.areaSlabIndex;
         handleCount = calc.handleCount;

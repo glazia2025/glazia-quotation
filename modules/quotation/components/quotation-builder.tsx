@@ -391,10 +391,10 @@ function ItemTab({ quotationBasePath }: { quotationBasePath: string }) {
     });
   };
 
-  const handleAddItem = () => {
-    const newItemId = crypto.randomUUID();
-    router.push(`${configuratorBasePath}/${newItemId}`);
-  };
+  // const handleAddItem = () => {
+  //   const newItemId = crypto.randomUUID();
+  //   router.push(`${configuratorBasePath}/${newItemId}`);
+  // };
    // for reorder item 
    const reorderItems = useQuotationBuilderStore((s) => s.reorderItems);
    const sensors = useSensors(
@@ -1014,7 +1014,8 @@ export function QuotationBuilder({
     if (!initialQuotation) return;
 
     const nextQuotationKey = getQuotationIdentity(initialQuotation);
-    if (hydratedQuotationKeyRef.current !== nextQuotationKey) {
+     if (hydratedQuotationKeyRef.current !== nextQuotationKey  &&
+  quotation.items.length === 0) {
       hydratedQuotationKeyRef.current = nextQuotationKey;
       hydratedGlobalConfigKeyRef.current = null;
       setQuotation(initialQuotation);
