@@ -61,13 +61,23 @@ function toHandleOptions(value: unknown): HandleOption[] {
 }
 
 function toDescriptions(value: unknown): Description[] {
+   if (!Array.isArray(value) && typeof value === "object" && value !== null) {
+    value = [value];
+  }
   return asArray(value)
     .map((entry) => {
       const record = asRecord(entry);
       if (!record) return null;
 
-      const name = record.name ?? record.label ?? record.description;
-      if (typeof name !== "string" || !name.trim()) return null;
+      // const name = record.name ?? record.label ?? record.description;
+      // if (typeof name !== "string" || !name.trim()) return null;
+      const name =
+  record.name ??
+  record.label ??
+  record.description ??
+  record.systemType; 
+
+if (typeof name !== "string") return null;
 
       const baseRates = asArray(record.baseRates ?? record.rates ?? record.areaRates).map((rate) => Number(rate)).filter((rate) => Number.isFinite(rate));
       const defaultHandleCountRaw = record.defaultHandleCount ?? record.handleCount ?? 0;
@@ -83,7 +93,6 @@ function toDescriptions(value: unknown): Description[] {
     })
     .filter((entry): entry is Description => entry !== null);
 }
-
 function unwrapData<T>(value: unknown, preferredKeys: string[]): T {
   const record = asRecord(value);
   if (!record) {
@@ -140,6 +149,32 @@ export async function fetchDescriptions(systemType: string, series: string) {
   const rawDescriptions = unwrapData<unknown>(response.data, ["descriptions"]);
   return { descriptions: toDescriptions(rawDescriptions) };
 }
+
+// export async function fetchDescriptions(systemType: string, series: string) {
+//   let url = "";
+
+//   // if (systemType === "Louvers") {
+//   //   url = `${QUOTATION_API_BASE_URL}/api/quotations/systems/${systemType}/descriptions`;
+//   // if (systemType === "Louvers") {
+//   // url = `${QUOTATION_API_BASE_URL}/api/quotations/systems/${systemType}/series/dummy/descriptions`;
+//   if (systemType === "Louvers") {
+//   url = `${QUOTATION_API_BASE_URL}/api/quotations/systems/${systemType}/descriptions`;
+
+
+//   } else {
+//     if (!series) {
+//       return { descriptions: [] }; 
+//     }
+//     url = `${QUOTATION_API_BASE_URL}/api/quotations/systems/${systemType}/series/${series}/descriptions`;
+//   }
+
+//   const response = await axios.get(url);
+//   const rawDescriptions = unwrapData(response.data, ["descriptions"]);
+  
+
+//   return { descriptions: toDescriptions(rawDescriptions) };
+// }
+
 
 export async function fetchOptions(systemType: string) {
   const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations/options`, {
