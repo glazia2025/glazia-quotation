@@ -976,10 +976,6 @@ export function QuotationBuilder({
   const isReturningFromConfigurator = isCreateMode && requestedTab === "item";
   const router = useRouter();
   const configuratorBasePath = `${quotationBasePath}/configurator`;
-  // const handleAddItem = () => {
-  //   const newItemId = crypto.randomUUID();
-  //   router.push(`${configuratorBasePath}/${newItemId}`);
-  // };
   const handleAddItem = () => {
   const newItem = {
     _id: crypto.randomUUID(),
@@ -1014,12 +1010,6 @@ export function QuotationBuilder({
     if (!initialQuotation) return;
 
     const nextQuotationKey = getQuotationIdentity(initialQuotation);
-  //    if (hydratedQuotationKeyRef.current !== nextQuotationKey  &&
-  // quotation.items.length === 0) {
-  //     hydratedQuotationKeyRef.current = nextQuotationKey;
-  //     hydratedGlobalConfigKeyRef.current = null;
-  //     setQuotation(initialQuotation);
-  //   }
   if (
   hydratedQuotationKeyRef.current !== nextQuotationKey &&
   quotation._id !== initialQuotation._id

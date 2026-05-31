@@ -69,8 +69,6 @@ function toDescriptions(value: unknown): Description[] {
       const record = asRecord(entry);
       if (!record) return null;
 
-      // const name = record.name ?? record.label ?? record.description;
-      // if (typeof name !== "string" || !name.trim()) return null;
       const name =
   record.name ??
   record.label ??
@@ -155,33 +153,6 @@ export async function fetchLouversRates() {
   );
   return res.data.rates;
 }
-
-// export async function fetchDescriptions(systemType: string, series: string) {
-//   let url = "";
-
-//   // if (systemType === "Louvers") {
-//   //   url = `${QUOTATION_API_BASE_URL}/api/quotations/systems/${systemType}/descriptions`;
-//   // if (systemType === "Louvers") {
-//   // url = `${QUOTATION_API_BASE_URL}/api/quotations/systems/${systemType}/series/dummy/descriptions`;
-//   if (systemType === "Louvers") {
-//   url = `${QUOTATION_API_BASE_URL}/api/quotations/systems/${systemType}/descriptions`;
-
-
-//   } else {
-//     if (!series) {
-//       return { descriptions: [] }; 
-//     }
-//     url = `${QUOTATION_API_BASE_URL}/api/quotations/systems/${systemType}/series/${series}/descriptions`;
-//   }
-
-//   const response = await axios.get(url);
-//   const rawDescriptions = unwrapData(response.data, ["descriptions"]);
-  
-
-//   return { descriptions: toDescriptions(rawDescriptions) };
-// }
-
-
 export async function fetchOptions(systemType: string) {
   const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations/options`, {
     params: systemType ? { systemType } : undefined
