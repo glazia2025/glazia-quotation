@@ -1014,12 +1014,20 @@ export function QuotationBuilder({
     if (!initialQuotation) return;
 
     const nextQuotationKey = getQuotationIdentity(initialQuotation);
-     if (hydratedQuotationKeyRef.current !== nextQuotationKey  &&
-  quotation.items.length === 0) {
-      hydratedQuotationKeyRef.current = nextQuotationKey;
-      hydratedGlobalConfigKeyRef.current = null;
-      setQuotation(initialQuotation);
-    }
+  //    if (hydratedQuotationKeyRef.current !== nextQuotationKey  &&
+  // quotation.items.length === 0) {
+  //     hydratedQuotationKeyRef.current = nextQuotationKey;
+  //     hydratedGlobalConfigKeyRef.current = null;
+  //     setQuotation(initialQuotation);
+  //   }
+  if (
+  hydratedQuotationKeyRef.current !== nextQuotationKey &&
+  quotation._id !== initialQuotation._id
+) {
+  hydratedQuotationKeyRef.current = nextQuotationKey;
+  hydratedGlobalConfigKeyRef.current = null;
+  setQuotation(initialQuotation);
+}
   }, [initialQuotation, isCreateMode, isReturningFromConfigurator, setQuotation]);
   const [activeTab, setActiveTab] = useState<TabKey>(() => (isTabKey(requestedTab) ? requestedTab : "customer"));
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
