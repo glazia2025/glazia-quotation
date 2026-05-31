@@ -15,6 +15,8 @@ import { useDescriptionsQuery, useOptionsQuery, useSeriesQuery, useSystemsQuery 
 import { fetchDescriptions, fetchOptions } from "@/lib/quotations/api";
 import type { Description, HandleOption, OptionWithRate, OptionsResponse } from "@/lib/quotations/types";
 import type { QuotationItem, QuotationSubItem } from "@/components/QuotationItemRow";
+import { useQuery } from "@tanstack/react-query";
+import { fetchLouversRates } from "@/lib/quotations/api";
 
 
 type KonvaGroup = InstanceType<typeof Konva.Group>;
@@ -483,7 +485,8 @@ const calculateRateForItem = (
   },
   descriptions: Description[] | undefined,
   options: OptionsResponse | undefined,
-  systems: any[] | undefined
+  systems: any[] | undefined,
+  louversRates: number[] | undefined
 ) => {
   // const desc = descriptions?.find((d) => d.name === next.description);
   // const baseRates = desc?.baseRates ?? [];
@@ -497,6 +500,19 @@ const calculateRateForItem = (
 //   );
 //   baseRates = desc?.baseRates ?? [];
 // }
+let baseRates: number[] = [];
+let desc: any = null;
+
+// if (next.systemType === "Louvers") {
+//   desc = descriptions?.[0]; 
+//   baseRates = desc?.baseRates ?? [];
+// } else {
+//   desc = descriptions?.find(
+//     (d) => d.name === next.description
+//   );
+//   baseRates = desc?.baseRates ?? [];
+// }
+//   console.log("NEXT DATA ", next);
 // let baseRates: number[] = [];
 // let desc: any = null;
 
@@ -509,16 +525,32 @@ const calculateRateForItem = (
 //   );
 //   baseRates = desc?.baseRates ?? [];
 // }
-//   console.log("NEXT DATA ", next);
-let baseRates: number[] = [];
-let desc: any = null;
+// if (next.systemType === "Louvers") {
+//   baseRates = (louversRates as number[]) || [];
+// } else {
+//   desc = descriptions?.find(
+//     (d: any) => d.name === next.description
+//   );
+//   baseRates = desc?.baseRates ?? [];
+// }
+// if (next.systemType === "Louvers") {
+//   baseRates = louversRates || [];
+// } else {
+  
+//   if (next.description === "Louvers") {
+//     return 0; 
+//   }
 
-if (next.systemType === "Louvers") {
-  desc = descriptions?.[0]; 
-  baseRates = desc?.baseRates ?? [];
+//   desc = descriptions?.find(
+//     (d: any) => d.name === next.description
+//   );
+//   baseRates = desc?.baseRates ?? [];
+// }
+if (next.systemType === "Louvers" || next.description === "Louvers") {
+  baseRates = louversRates || [];
 } else {
   desc = descriptions?.find(
-    (d) => d.name === next.description
+    (d: any) => d.name === next.description
   );
   baseRates = desc?.baseRates ?? [];
 }
@@ -1778,6 +1810,11 @@ export function WindowDoorConfigurator({
   const selectableSystemOptions = systemOptions.filter((sys): sys is SystemType => sys === "Casement" || sys === "Sliding" || sys === "Slide N Fold" || sys === "Louvers" || sys === "Exhaust Fan");
   const seriesOptions = selectedSeriesQuery.data?.series ?? [];
   const descriptionOptions = selectedDescriptionsQuery.data?.descriptions ?? [];
+  const { data: louversRates } = useQuery({
+  queryKey: ["louvers-rates"],
+  queryFn: fetchLouversRates,
+  enabled: true, // ya condition laga sakta hai
+});
 
   useEffect(() => {
     if (
@@ -2020,7 +2057,7 @@ export function WindowDoorConfigurator({
             fetchOptions(systemType),
           ]);
           const area = mmToSqft(leaf.w * widthMm, leaf.h * heightMm);
-          const calc = calculateRateForItem({ area,systemType: leaf.systemType, description, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "" }, descriptionsResp.descriptions, optionsResp,systemsQuery.data?.systems);
+          const calc = calculateRateForItem({ area,systemType: leaf.systemType, description, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "" }, descriptionsResp.descriptions, optionsResp,systemsQuery.data?.systems, louversRates);
           next[leaf.id] = calc.rate;
         } catch {
           next[leaf.id] = 0;
@@ -2089,7 +2126,7 @@ export function WindowDoorConfigurator({
         const descriptions = await getDescriptions(systemType, series);
         console.log("DESCRIPTIONS", descriptions);
         const options = await getOptions(systemType);
-        const calc = calculateRateForItem({ area: itemArea, description,systemType: leaf.systemType, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "" }, descriptions, options,systemsQuery.data?.systems);
+        const calc = calculateRateForItem({ area: itemArea, description,systemType: leaf.systemType, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "" }, descriptions, options,systemsQuery.data?.systems, louversRates);
         const computedRate = calc.rate;
         const resolvedRate = manualChildRates[leaf.id] ?? autoChildRates[leaf.id] ?? computedRate;
         const quantity = 1;
@@ -2143,7 +2180,7 @@ export function WindowDoorConfigurator({
         const description = singleLeaf.description || getDefaultLeafDescription(systemType, meta.productType, singleLeaf.hasExhaustFan);
         const descriptions = await getDescriptions(systemType, series);
         const options = await getOptions(systemType);
-        const calc = calculateRateForItem({ area: areaSqft, description,systemType: meta.systemType, colorFinish: meta.colorFinish, glassSpec: singleLeaf.glass === "Yes" ? (meta.glassSpec || "Yes") : "", handleType: meta.handleType, handleColor: meta.handleColor, meshPresent: singleLeaf.mesh, meshType: singleLeaf.mesh === "Yes" ? meta.meshType : "" }, descriptions, options,systemsQuery.data?.systems);
+        const calc = calculateRateForItem({ area: areaSqft, description,systemType: meta.systemType, colorFinish: meta.colorFinish, glassSpec: singleLeaf.glass === "Yes" ? (meta.glassSpec || "Yes") : "", handleType: meta.handleType, handleColor: meta.handleColor, meshPresent: singleLeaf.mesh, meshType: singleLeaf.mesh === "Yes" ? meta.meshType : "" }, descriptions, options,systemsQuery.data?.systems, louversRates);
         baseRate = calc.baseRate;
         areaSlabIndex = calc.areaSlabIndex;
         handleCount = calc.handleCount;
@@ -2674,7 +2711,15 @@ console.log("IMAGE CHECK:", image);
                       <label className="text-xs text-gray-600">Sliding Movement<select value={selectedNode.panelSashes && selectedNode.panelSashes.length === (selectedNode.panelFractions?.length ?? 0) && selectedSlidingPanelIndex !== null ? (selectedNode.panelSashes[selectedSlidingPanelIndex] ?? "fixed") : "fixed"} onChange={(e) => { const sash = e.target.value as SashType; if (selectedSlidingPanelIndex === null) return; updateSelectedNode((target) => { const panelCount = target.panelFractions?.length ?? 0; if (panelCount < 2) return; const nextSashes = target.panelSashes && target.panelSashes.length === panelCount ? [...target.panelSashes] : buildDefaultSlidingPanelSashes(panelCount); nextSashes[selectedSlidingPanelIndex] = sash; target.panelSashes = nextSashes; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="left">Left Sliding</option><option value="right">Right Sliding</option><option value="double">Both Ways</option><option value="fixed">Fixed</option></select></label>
                     ) : (
                       <>
-                        <label className="text-xs text-gray-600">Section System<select value={selectedNode.systemType} onChange={(e) => { const nextSystem = e.target.value as SystemType; updateSelectedLeaves((target) => { target.systemType = nextSystem; target.series = ""; target.description = isLouverSystem(nextSystem) ? "Louvers" : isExhaustSystem(nextSystem) ? "Exhaust Fan" : ""; target.hasExhaustFan = isExhaustSystem(nextSystem); target.panelSashes = undefined; target.panelFractions = undefined; target.panelMeshCount = undefined; target.mesh = isLouverSystem(nextSystem) || isExhaustSystem(nextSystem) ? "No" : target.mesh; target.glass = isExhaustSystem(nextSystem) || isLouverSystem(nextSystem) ? "Yes" : target.glass; target.exhaustFanX = DEFAULT_EXHAUST_FAN_X; target.exhaustFanY = DEFAULT_EXHAUST_FAN_Y; target.exhaustFanSize = DEFAULT_EXHAUST_FAN_SIZE; if (nextSystem !== "Sliding" && (target.sash === "left" || target.sash === "right" || target.sash === "double")) target.sash = "fixed"; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]">
+                        <label className="text-xs text-gray-600">Section System<select value={selectedNode.systemType} onChange={(e) => { const nextSystem = e.target.value as SystemType; updateSelectedLeaves((target) => { target.systemType = nextSystem 
+                          if (nextSystem === "Louvers") {
+  target.description = "Louvers";
+} else if (nextSystem === "Exhaust Fan") {
+  target.description = "Exhaust Fan";
+} else {
+  target.description = "";
+
+} ; target.series = ""; target.hasExhaustFan = isExhaustSystem(nextSystem); target.panelSashes = undefined; target.panelFractions = undefined; target.panelMeshCount = undefined; target.mesh = isLouverSystem(nextSystem) || isExhaustSystem(nextSystem) ? "No" : target.mesh; target.glass = isExhaustSystem(nextSystem) || isLouverSystem(nextSystem) ? "Yes" : target.glass; target.exhaustFanX = DEFAULT_EXHAUST_FAN_X; target.exhaustFanY = DEFAULT_EXHAUST_FAN_Y; target.exhaustFanSize = DEFAULT_EXHAUST_FAN_SIZE; if (nextSystem !== "Sliding" && (target.sash === "left" || target.sash === "right" || target.sash === "double")) target.sash = "fixed"; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]">
                           {/* {selectableSystemOptions.map((sys) => <option key={sys} value={sys}>{sys}</option>)} */}
                           {[
   ...(systems?.systems || []), 

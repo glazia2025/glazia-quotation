@@ -149,6 +149,12 @@ export async function fetchDescriptions(systemType: string, series: string) {
   const rawDescriptions = unwrapData<unknown>(response.data, ["descriptions"]);
   return { descriptions: toDescriptions(rawDescriptions) };
 }
+export async function fetchLouversRates() {
+  const res = await axios.get(
+    `${QUOTATION_API_BASE_URL}/api/quotations/louvers/rates`
+  );
+  return res.data.rates;
+}
 
 // export async function fetchDescriptions(systemType: string, series: string) {
 //   let url = "";
