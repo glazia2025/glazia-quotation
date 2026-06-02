@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { fetchDescriptions, fetchOptions, fetchSeries, fetchSystems } from "@/lib/quotations/api";
 
+
 export function useSystemsQuery() {
   return useQuery({
     queryKey: ["quotation-systems"],
@@ -23,7 +24,7 @@ export function useDescriptionsQuery(systemType: string, series: string) {
   return useQuery({
     queryKey: ["quotation-descriptions", systemType, series],
     queryFn: () => fetchDescriptions(systemType, series),
-    enabled: Boolean(systemType && series)
+    enabled: Boolean(systemType)
   });
 }
 

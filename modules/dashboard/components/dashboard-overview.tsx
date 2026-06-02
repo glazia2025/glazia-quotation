@@ -30,7 +30,17 @@ const tasks = [
 ];
 
 export function DashboardOverview() {
-  const userId = JSON.parse(localStorage.getItem("glazia-user") || "{}")?.id;
+  let userId = null;
+try {
+  const user = JSON.parse(localStorage.getItem("glazia-user") || "{}");
+  userId = user?.id;
+  if (!userId) {
+    const auth = JSON.parse(localStorage.getItem("glazia-auth") || "{}");
+    userId = auth?.state?.user?.id;
+  }
+} catch (e) {
+  console.log("Error reading userId");
+}
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear.toString());
 
