@@ -21,7 +21,7 @@ import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-bui
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { getArea, getPerimeter } from "@/modules/quotation/utils/calculations";
 import { createEmptyQuotation } from "@/modules/quotation/utils/factory";
-import { getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationDraft,getElevationPdfBlob } from "@/services/quotation-service";
+import { getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationDraft, getElevationPdfBlob } from "@/services/quotation-service";
 import type { Quotation, QuotationItem } from "@/types/quotation";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { getQuotationPdfDownloadName } from "@/utils/quotationPdf";
@@ -30,7 +30,7 @@ import { loadGlobalConfig } from "../../../utils/globalConfig";
 import {
   DndContext,
   closestCenter,
-   PointerSensor,
+  PointerSensor,
   useSensor,
   useSensors
 } from "@dnd-kit/core";
@@ -45,15 +45,15 @@ import type { DragEndEvent } from "@dnd-kit/core";
 import { rectSortingStrategy } from "@dnd-kit/sortable";
 
 
-type TabKey = "customer" | "quotation" | "global"|"item";
+type TabKey = "customer" | "quotation" | "global" | "item";
 
 const tabs: { key: TabKey; label: string }[] = [
   { key: "customer", label: "Customer Details" },
   { key: "quotation", label: "Quotation Details" },
   { key: "global", label: "Global Config" },
   { key: "item", label: "Item List" },
-  
-  
+
+
 ];
 const isTabKey = (value: string | null): value is TabKey =>
   value === "customer" || value === "quotation" || value === "global" || value === "item";
@@ -131,156 +131,164 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
 
   return (
     <>
-    <div className="self-start space-y-2 rounded-2xl border bg-white p-3 shadow-sm transition hover:shadow-md">
-      <div className="flex h-60 items-center justify-center overflow-hidden rounded-xl border bg-white p-1">
-        {item.refImage ? (
-          <img src={item.refImage} alt={item.refCode || item.productType || "Quotation item"} className="h-full w-full object-contain" />
-        ) : (
-          <div className="w-full max-w-[150px] rounded-md border-[8px] border-slate-800 bg-white shadow-sm">
-            <div className="grid h-16" style={{ gridTemplateColumns: `repeat(${Math.max(1, item.previewPanels || 1)}, minmax(0, 1fr))` }}>
-              {Array.from({ length: Math.max(1, item.previewPanels || 1) }).map((_, index) => (
-                <div key={index} className="border-l border-slate-300 first:border-l-0">
-                  <div className="h-full bg-[linear-gradient(135deg,rgba(125,211,252,0.35),rgba(191,219,254,0.75))]" />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="flex justify-between text-sm">
-        <span className="text-gray-500">Ref Code</span>
-        <span className="font-semibold">{refCodeLabel}</span>
-      </div>
-
-      <div className="flex justify-between text-sm">
-        <span className="text-gray-500">Location</span>
-        <span className="text-right font-medium">{locationLabel}</span>
-      </div>
-
-      <div className="flex justify-between text-sm">
-        <span className="text-gray-500">System</span>
-        <span className="font-medium">{systemLabel}</span>
-      </div>
-
-      <div className="flex justify-between text-sm">
-        <span className="text-gray-500">Area</span>
-        <span className="font-medium">{formatNumber(item.area ?? getArea(item))} sq.ft</span>
-      </div>
-
-      <div className="flex justify-between text-sm">
-        <span className="text-gray-500">Rate</span>
-        <span className="font-medium">{formatCurrency(item.rate ?? 0)}</span>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 border-t pt-2" onPointerDown={(event) => event.stopPropagation()}>
-        <Button size="sm" asChild className="bg-[#124657] hover:bg-[#0b3642]">
-          <Link href={`${configuratorBasePath}/${itemIdentity}`}>Edit</Link>
-        </Button>
-        <Button size="sm" variant="outline" onClick={handleDuplicate} title="Duplicate item">
-          <Copy className="h-4 w-4" />
-          Duplicate
-        </Button>
-        {hasSections ? (
-          <Button size="sm" variant="outline" onClick={() => setShowSections(true)}>
-            Show Sections
-          </Button>
-        ) : null}
-        <Button size="sm" variant="outline" onClick={handleDelete} className="text-red-600 hover:text-red-700">
-          Delete
-        </Button>
-      </div>
-    </div>
-    {showSections ? (
-      <div className="fixed inset-0 z-[220] flex items-center justify-center bg-slate-950/60 p-4" onPointerDown={(event) => event.stopPropagation()}>
-        <div className="w-full max-w-5xl rounded-2xl bg-white shadow-2xl">
-          <div className="flex items-center justify-between border-b px-6 py-4">
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900">Sections</h3>
-              <p className="text-sm text-slate-500">{refCodeLabel} | {locationLabel}</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setShowSections(false)}>
-              Close
-            </Button>
-          </div>
-          <div className="max-h-[70vh] overflow-auto p-6">
-            <table className="w-full min-w-[760px] border-collapse text-sm">
-              <thead>
-                <tr className="border-b text-left text-slate-500">
-                  <th className="px-3 py-2 font-medium">Ref Code</th>
-                  <th className="px-3 py-2 font-medium">Location</th>
-                  <th className="px-3 py-2 font-medium">System</th>
-                  <th className="px-3 py-2 font-medium">Size</th>
-                  <th className="px-3 py-2 font-medium">Area</th>
-                  <th className="px-3 py-2 font-medium">Qty</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(item.subItems ?? []).map((section) => (
-                  <tr key={section.id} className="border-b last:border-b-0">
-                    <td className="px-3 py-3 font-medium text-slate-900">{section.refCode}</td>
-                    <td className="px-3 py-3 text-slate-600">{section.location}</td>
-                    <td className="px-3 py-3 text-slate-600">{section.systemType}</td>
-                    <td className="px-3 py-3 text-slate-600">{formatSizeMm(section.width, section.height)}</td>
-                    <td className="px-3 py-3 text-slate-600">{formatNumber(section.area)}</td>
-                    <td className="px-3 py-3 text-slate-600">{section.quantity}</td>
-                  </tr>
+      <div className="self-start space-y-2 rounded-2xl border bg-white p-3 shadow-sm transition hover:shadow-md">
+        <div className="flex h-60 items-center justify-center overflow-hidden rounded-xl border bg-white p-1">
+          {item.refImage ? (
+            <img src={item.refImage} alt={item.refCode || item.productType || "Quotation item"} className="h-full w-full object-contain" />
+          ) : (
+            <div className="w-full max-w-[150px] rounded-md border-[8px] border-slate-800 bg-white shadow-sm">
+              <div className="grid h-16" style={{ gridTemplateColumns: `repeat(${Math.max(1, item.previewPanels || 1)}, minmax(0, 1fr))` }}>
+                {Array.from({ length: Math.max(1, item.previewPanels || 1) }).map((_, index) => (
+                  <div key={index} className="border-l border-slate-300 first:border-l-0">
+                    <div className="h-full bg-[linear-gradient(135deg,rgba(125,211,252,0.35),rgba(191,219,254,0.75))]" />
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-500">Ref Code</span>
+          <span className="font-semibold">{refCodeLabel}</span>
+        </div>
+
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-500">Location</span>
+          <span className="text-right font-medium">{locationLabel}</span>
+        </div>
+
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-500">System</span>
+          <span className="font-medium">{systemLabel}</span>
+        </div>
+
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-500">Area</span>
+          <span className="font-medium">{formatNumber(item.area ?? getArea(item))} sq.ft</span>
+        </div>
+
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-500">Rate</span>
+          <span className="font-medium">{formatCurrency(item.rate ?? 0)}</span>
+        </div>
+        {/*  Arch Note */}
+        {item?.systemType?.toLowerCase() === "casement" &&
+          item?.archType &&
+          item.archType !== "none" && (
+            <div className="text-xs text-black-600 mt-1 px-1">
+              + ₹5000 added in amount for arching the product
+            </div>
+          )}
+
+        <div className="flex flex-wrap items-center gap-2 border-t pt-2" onPointerDown={(event) => event.stopPropagation()}>
+          <Button size="sm" asChild className="bg-[#124657] hover:bg-[#0b3642]">
+            <Link href={`${configuratorBasePath}/${itemIdentity}`}>Edit</Link>
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleDuplicate} title="Duplicate item">
+            <Copy className="h-4 w-4" />
+            Duplicate
+          </Button>
+          {hasSections ? (
+            <Button size="sm" variant="outline" onClick={() => setShowSections(true)}>
+              Show Sections
+            </Button>
+          ) : null}
+          <Button size="sm" variant="outline" onClick={handleDelete} className="text-red-600 hover:text-red-700">
+            Delete
+          </Button>
         </div>
       </div>
-    ) : null}
-    {isDeleteModalOpen ? (
-      <div className="fixed inset-0 z-[230] flex items-center justify-center bg-slate-950/60 p-4" onPointerDown={(event) => event.stopPropagation()}>
-        <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-          <h3 className="text-lg font-semibold text-slate-900">Delete Item</h3>
-          <p className="mt-2 text-sm text-slate-600">Delete item {refCodeLabel}? This action cannot be undone.</p>
-          <div className="mt-6 flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIsDeleteModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button size="sm" onClick={confirmDelete} className="bg-red-600 text-white hover:bg-red-700">
-              Delete
-            </Button>
+      {showSections ? (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-slate-950/60 p-4" onPointerDown={(event) => event.stopPropagation()}>
+          <div className="w-full max-w-5xl rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b px-6 py-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">Sections</h3>
+                <p className="text-sm text-slate-500">{refCodeLabel} | {locationLabel}</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setShowSections(false)}>
+                Close
+              </Button>
+            </div>
+            <div className="max-h-[70vh] overflow-auto p-6">
+              <table className="w-full min-w-[760px] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b text-left text-slate-500">
+                    <th className="px-3 py-2 font-medium">Ref Code</th>
+                    <th className="px-3 py-2 font-medium">Location</th>
+                    <th className="px-3 py-2 font-medium">System</th>
+                    <th className="px-3 py-2 font-medium">Size</th>
+                    <th className="px-3 py-2 font-medium">Area</th>
+                    <th className="px-3 py-2 font-medium">Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(item.subItems ?? []).map((section) => (
+                    <tr key={section.id} className="border-b last:border-b-0">
+                      <td className="px-3 py-3 font-medium text-slate-900">{section.refCode}</td>
+                      <td className="px-3 py-3 text-slate-600">{section.location}</td>
+                      <td className="px-3 py-3 text-slate-600">{section.systemType}</td>
+                      <td className="px-3 py-3 text-slate-600">{formatSizeMm(section.width, section.height)}</td>
+                      <td className="px-3 py-3 text-slate-600">{formatNumber(section.area)}</td>
+                      <td className="px-3 py-3 text-slate-600">{section.quantity}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-      </div>
-    ) : null}
-    {isDuplicateModalOpen ? (
-      <div className="fixed inset-0 z-[230] flex items-center justify-center bg-slate-950/60 p-4" onPointerDown={(event) => event.stopPropagation()}>
-        <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-          <h3 className="text-lg font-semibold text-slate-900">Duplicate Item</h3>
-          <p className="mt-1 text-sm text-slate-500">Enter a new ref code for {refCodeLabel}.</p>
-          <label className="mt-5 block text-sm font-medium text-slate-700">
-            Ref Code
-            <input
-              value={duplicateRefCode}
-              onChange={(event) => {
-                setDuplicateRefCode(event.target.value);
-                setDuplicateError("");
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") confirmDuplicate();
-                if (event.key === "Escape") setIsDuplicateModalOpen(false);
-              }}
-              autoFocus
-              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
-            />
-          </label>
-          {duplicateError ? <p className="mt-2 text-sm text-red-600">{duplicateError}</p> : null}
-          <div className="mt-6 flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => { setIsDuplicateModalOpen(false); setDuplicateError(""); }}>
-              Cancel
-            </Button>
-            <Button size="sm" onClick={confirmDuplicate} className="bg-[#124657] hover:bg-[#0b3642]">
-              Duplicate
-            </Button>
+      ) : null}
+      {isDeleteModalOpen ? (
+        <div className="fixed inset-0 z-[230] flex items-center justify-center bg-slate-950/60 p-4" onPointerDown={(event) => event.stopPropagation()}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-slate-900">Delete Item</h3>
+            <p className="mt-2 text-sm text-slate-600">Delete item {refCodeLabel}? This action cannot be undone.</p>
+            <div className="mt-6 flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setIsDeleteModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={confirmDelete} className="bg-red-600 text-white hover:bg-red-700">
+                Delete
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
-    ) : null}
+      ) : null}
+      {isDuplicateModalOpen ? (
+        <div className="fixed inset-0 z-[230] flex items-center justify-center bg-slate-950/60 p-4" onPointerDown={(event) => event.stopPropagation()}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-slate-900">Duplicate Item</h3>
+            <p className="mt-1 text-sm text-slate-500">Enter a new ref code for {refCodeLabel}.</p>
+            <label className="mt-5 block text-sm font-medium text-slate-700">
+              Ref Code
+              <input
+                value={duplicateRefCode}
+                onChange={(event) => {
+                  setDuplicateRefCode(event.target.value);
+                  setDuplicateError("");
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") confirmDuplicate();
+                  if (event.key === "Escape") setIsDuplicateModalOpen(false);
+                }}
+                autoFocus
+                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+              />
+            </label>
+            {duplicateError ? <p className="mt-2 text-sm text-red-600">{duplicateError}</p> : null}
+            <div className="mt-6 flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => { setIsDuplicateModalOpen(false); setDuplicateError(""); }}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={confirmDuplicate} className="bg-[#124657] hover:bg-[#0b3642]">
+                Duplicate
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
@@ -373,7 +381,22 @@ function ItemTab({ quotationBasePath }: { quotationBasePath: string }) {
 
   const totalQuantity = items.reduce((sum, item) => sum + Math.max(1, item.quantity || 1), 0);
   const totalArea = items.reduce((sum, item) => sum + getArea(item) * Math.max(1, item.quantity || 1), 0);
-  const totalAmount = items.reduce((sum, item) => sum + (item.amount || 0), 0);
+  // const totalAmount = items.reduce((sum, item) => sum + (item.amount || 0), 0);
+  const totalAmount = items.reduce((sum, item) => {
+    const area = getArea(item);
+    const rate = item.rate || 0;
+    const qty = item.quantity || 1;
+    let amount = area * rate * qty;
+    //  Arch charge
+    if (
+      item?.systemType?.toLowerCase() === "casement" &&
+      item?.archType &&
+      item.archType !== "none"
+    ) {
+      amount += 5000;
+    }
+    return sum + amount;
+  }, 0);
   const finalAmount = totalAmount + (totalAmount * profit) / 100;
   const finalWithGST = finalAmount + (finalAmount * 18) / 100;
   const updateProfit = (nextProfit: number) => {
@@ -395,22 +418,22 @@ function ItemTab({ quotationBasePath }: { quotationBasePath: string }) {
   //   const newItemId = crypto.randomUUID();
   //   router.push(`${configuratorBasePath}/${newItemId}`);
   // };
-   // for reorder item 
-   const reorderItems = useQuotationBuilderStore((s) => s.reorderItems);
-   const sensors = useSensors(
-  useSensor(PointerSensor)
-);
+  // for reorder item 
+  const reorderItems = useQuotationBuilderStore((s) => s.reorderItems);
+  const sensors = useSensors(
+    useSensor(PointerSensor)
+  );
 
-const handleDragEnd = (event:DragEndEvent) => {
-  const { active, over } = event;
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
 
-  if (!over || active.id === over.id) return;
+    if (!over || active.id === over.id) return;
 
-  const oldIndex = items.findIndex((item) => item.id === active.id);
-  const newIndex = items.findIndex((item) => item.id === over.id);
+    const oldIndex = items.findIndex((item) => item.id === active.id);
+    const newIndex = items.findIndex((item) => item.id === over.id);
 
-  reorderItems(oldIndex, newIndex);
-};
+    reorderItems(oldIndex, newIndex);
+  };
 
   return (
     <div className="space-y-4">
@@ -454,23 +477,23 @@ const handleDragEnd = (event:DragEndEvent) => {
         </div>
       </div>
 
-      <DndContext   sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-  <SortableContext
-    items={items.map((item) => item.id)}
-    strategy={rectSortingStrategy}   
-  >
-    <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext
+          items={items.map((item) => item.id)}
+          strategy={rectSortingStrategy}
+        >
+          <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
 
-    
-      {items.map((item) => (
-        <SortableItem
-          key={item.id}
-          item={item}
-          configuratorBasePath={configuratorBasePath}
-        />
-      ))}
 
-      {/* <button
+            {items.map((item) => (
+              <SortableItem
+                key={item.id}
+                item={item}
+                configuratorBasePath={configuratorBasePath}
+              />
+            ))}
+
+            {/* <button
         type="button"
         onClick={handleAddItem}
         className="flex min-h-[260px] flex-col items-center justify-center self-start rounded-2xl border-2 border-dashed border-slate-300 bg-white p-6 text-center transition hover:border-[#124657] hover:bg-slate-50"
@@ -484,9 +507,9 @@ const handleDragEnd = (event:DragEndEvent) => {
         </div>
       </button> */}
 
-    </div>
-  </SortableContext>
-</DndContext>
+          </div>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }
@@ -632,7 +655,7 @@ function CustomerTab() {
     </div>
   );
 }
-function GlobalConfigTab({  globalConfig,
+function GlobalConfigTab({ globalConfig,
   setGlobalConfig,
   logoPreview,
   handleLogoUpload
@@ -670,7 +693,7 @@ function GlobalConfigTab({  globalConfig,
                   <img src={logoPreview} className="h-16 border p-2" />
                   <button
                     onClick={() =>
-                      setGlobalConfig((p:any) => ({ ...p, logo: "", logoUrl: "" }))
+                      setGlobalConfig((p: any) => ({ ...p, logo: "", logoUrl: "" }))
                     }
                     className="text-red-600 text-sm"
                   >
@@ -692,13 +715,13 @@ function GlobalConfigTab({  globalConfig,
               <textarea
                 value={globalConfig.prerequisites}
                 onChange={(e) =>
-                  setGlobalConfig((p:any) => ({
+                  setGlobalConfig((p: any) => ({
                     ...p,
                     prerequisites: e.target.value,
                   }))
                 }
-                 rows={3}
-  className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-transparent"
+                rows={3}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-transparent"
               />
             </div>
 
@@ -707,13 +730,13 @@ function GlobalConfigTab({  globalConfig,
               <input
                 value={globalConfig.website}
                 onChange={(e) =>
-                  setGlobalConfig((p:any) => ({
+                  setGlobalConfig((p: any) => ({
                     ...p,
                     website: e.target.value,
                   }))
                 }
-                 
-  className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-transparent"
+
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-transparent"
               />
             </div>
           </div>
@@ -725,174 +748,174 @@ function GlobalConfigTab({  globalConfig,
             <textarea
               value={globalConfig.terms}
               onChange={(e) =>
-                setGlobalConfig((p:any) => ({
+                setGlobalConfig((p: any) => ({
                   ...p,
                   terms: e.target.value,
                 }))
               }
-               rows={3}
-  className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-transparent"
+              rows={3}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-transparent"
             />
           </div>
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
 
-  {/* INSTALLATION */}
-  <div>
-    <label className="block text-sm font-medium text-gray-700 mb-2">
-      Installation (₹/sqft)
-    </label>
+            {/* INSTALLATION */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Installation (₹/sqft)
+              </label>
 
-    <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
-      <input
-        type="checkbox"
-        checked={globalConfig.additionalCosts.showInstallation ?? true}
-        onChange={(e) =>
-          setGlobalConfig((p: any) => ({
-            ...p,
-            additionalCosts: {
-              ...p.additionalCosts,
-              showInstallation: e.target.checked,
-            },
-          }))
-        }
-      />
-      <span>Show in PDF</span>
-    </label>
+              <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
+                <input
+                  type="checkbox"
+                  checked={globalConfig.additionalCosts.showInstallation ?? true}
+                  onChange={(e) =>
+                    setGlobalConfig((p: any) => ({
+                      ...p,
+                      additionalCosts: {
+                        ...p.additionalCosts,
+                        showInstallation: e.target.checked,
+                      },
+                    }))
+                  }
+                />
+                <span>Show in PDF</span>
+              </label>
 
-    <input
-      type="number"
-      value={globalConfig.additionalCosts.installation}
-      onChange={(e) =>
-        setGlobalConfig((p: any) => ({
-          ...p,
-          additionalCosts: {
-            ...p.additionalCosts,
-            installation: Number(e.target.value) || 0,
-          },
-        }))
-      }
-      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-    />
-  </div>
+              <input
+                type="number"
+                value={globalConfig.additionalCosts.installation}
+                onChange={(e) =>
+                  setGlobalConfig((p: any) => ({
+                    ...p,
+                    additionalCosts: {
+                      ...p.additionalCosts,
+                      installation: Number(e.target.value) || 0,
+                    },
+                  }))
+                }
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              />
+            </div>
 
-  {/* TRANSPORT */}
-  <div>
-    <label className="block text-sm font-medium text-gray-700 mb-2">
-      Transport (₹)
-    </label>
+            {/* TRANSPORT */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Transport (₹)
+              </label>
 
-    <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
-      <input
-        type="checkbox"
-        checked={globalConfig.additionalCosts.showTransport ?? true}
-        onChange={(e) =>
-          setGlobalConfig((p: any) => ({
-            ...p,
-            additionalCosts: {
-              ...p.additionalCosts,
-              showTransport: e.target.checked,
-            },
-          }))
-        }
-      />
-      <span>Show in PDF</span>
-    </label>
+              <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
+                <input
+                  type="checkbox"
+                  checked={globalConfig.additionalCosts.showTransport ?? true}
+                  onChange={(e) =>
+                    setGlobalConfig((p: any) => ({
+                      ...p,
+                      additionalCosts: {
+                        ...p.additionalCosts,
+                        showTransport: e.target.checked,
+                      },
+                    }))
+                  }
+                />
+                <span>Show in PDF</span>
+              </label>
 
-    <input
-      type="number"
-      value={globalConfig.additionalCosts.transport}
-      onChange={(e) =>
-        setGlobalConfig((p: any) => ({
-          ...p,
-          additionalCosts: {
-            ...p.additionalCosts,
-            transport: Number(e.target.value) || 0,
-          },
-        }))
-      }
-      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-    />
-  </div>
+              <input
+                type="number"
+                value={globalConfig.additionalCosts.transport}
+                onChange={(e) =>
+                  setGlobalConfig((p: any) => ({
+                    ...p,
+                    additionalCosts: {
+                      ...p.additionalCosts,
+                      transport: Number(e.target.value) || 0,
+                    },
+                  }))
+                }
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              />
+            </div>
 
-  {/* LOADING */}
-  <div>
-    <label className="block text-sm font-medium text-gray-700 mb-2">
-      Loading & Unloading (₹)
-    </label>
+            {/* LOADING */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Loading & Unloading (₹)
+              </label>
 
-    <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
-      <input
-        type="checkbox"
-        checked={globalConfig.additionalCosts.showLoadingUnloading ?? true}
-        onChange={(e) =>
-          setGlobalConfig((p: any) => ({
-            ...p,
-            additionalCosts: {
-              ...p.additionalCosts,
-              showLoadingUnloading: e.target.checked,
-            },
-          }))
-        }
-      />
-      <span>Show in PDF</span>
-    </label>
+              <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
+                <input
+                  type="checkbox"
+                  checked={globalConfig.additionalCosts.showLoadingUnloading ?? true}
+                  onChange={(e) =>
+                    setGlobalConfig((p: any) => ({
+                      ...p,
+                      additionalCosts: {
+                        ...p.additionalCosts,
+                        showLoadingUnloading: e.target.checked,
+                      },
+                    }))
+                  }
+                />
+                <span>Show in PDF</span>
+              </label>
 
-    <input
-      type="number"
-      value={globalConfig.additionalCosts.loadingUnloading}
-      onChange={(e) =>
-        setGlobalConfig((p: any) => ({
-          ...p,
-          additionalCosts: {
-            ...p.additionalCosts,
-            loadingUnloading: Number(e.target.value) || 0,
-          },
-        }))
-      }
-      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-    />
-  </div>
+              <input
+                type="number"
+                value={globalConfig.additionalCosts.loadingUnloading}
+                onChange={(e) =>
+                  setGlobalConfig((p: any) => ({
+                    ...p,
+                    additionalCosts: {
+                      ...p.additionalCosts,
+                      loadingUnloading: Number(e.target.value) || 0,
+                    },
+                  }))
+                }
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              />
+            </div>
 
-  {/* DISCOUNT */}
-  <div>
-    <label className="block text-sm font-medium text-gray-700 mb-2">
-      Discount (%)
-    </label>
+            {/* DISCOUNT */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Discount (%)
+              </label>
 
-    <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
-      <input
-        type="checkbox"
-        checked={globalConfig.additionalCosts.showDiscount ?? true}
-        onChange={(e) =>
-          setGlobalConfig((p: any) => ({
-            ...p,
-            additionalCosts: {
-              ...p.additionalCosts,
-              showDiscount: e.target.checked,
-            },
-          }))
-        }
-      />
-      <span>Show in PDF</span>
-    </label>
+              <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
+                <input
+                  type="checkbox"
+                  checked={globalConfig.additionalCosts.showDiscount ?? true}
+                  onChange={(e) =>
+                    setGlobalConfig((p: any) => ({
+                      ...p,
+                      additionalCosts: {
+                        ...p.additionalCosts,
+                        showDiscount: e.target.checked,
+                      },
+                    }))
+                  }
+                />
+                <span>Show in PDF</span>
+              </label>
 
-    <input
-      type="number"
-      value={globalConfig.additionalCosts.discountPercent}
-      onChange={(e) =>
-        setGlobalConfig((p: any) => ({
-          ...p,
-          additionalCosts: {
-            ...p.additionalCosts,
-            discountPercent: Number(e.target.value) || 0,
-          },
-        }))
-      }
-      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-    />
-  </div>
+              <input
+                type="number"
+                value={globalConfig.additionalCosts.discountPercent}
+                onChange={(e) =>
+                  setGlobalConfig((p: any) => ({
+                    ...p,
+                    additionalCosts: {
+                      ...p.additionalCosts,
+                      discountPercent: Number(e.target.value) || 0,
+                    },
+                  }))
+                }
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              />
+            </div>
 
-</div>
+          </div>
 
         </>
       )}
@@ -977,28 +1000,28 @@ export function QuotationBuilder({
   const router = useRouter();
   const configuratorBasePath = `${quotationBasePath}/configurator`;
   const handleAddItem = () => {
-  const newItem = {
-    _id: crypto.randomUUID(),
-  }as QuotationItem ;
-  setQuotation({
-    ...quotation,
-    items: [...quotation.items, newItem]
-  });
-  router.push(`${configuratorBasePath}/${newItem._id}`);
-};
-
-  
-
- useEffect(() => {
-  const fetchData = async () => {
-    const data = await loadGlobalConfig();
-    if (data) {
-      setGlobalConfig(data);
-    }
+    const newItem = {
+      _id: crypto.randomUUID(),
+    } as QuotationItem;
+    setQuotation({
+      ...quotation,
+      items: [...quotation.items, newItem]
+    });
+    router.push(`${configuratorBasePath}/${newItem._id}`);
   };
 
-  fetchData();
-}, []);
+
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const data = await loadGlobalConfig();
+      if (data) {
+        setGlobalConfig(data);
+      }
+    };
+
+    fetchData();
+  }, []);
   useEffect(() => {
     if (isCreateMode) {
       if (isReturningFromConfigurator) return;
@@ -1010,14 +1033,14 @@ export function QuotationBuilder({
     if (!initialQuotation) return;
 
     const nextQuotationKey = getQuotationIdentity(initialQuotation);
-  if (
-  hydratedQuotationKeyRef.current !== nextQuotationKey &&
-  quotation._id !== initialQuotation._id
-) {
-  hydratedQuotationKeyRef.current = nextQuotationKey;
-  hydratedGlobalConfigKeyRef.current = null;
-  setQuotation(initialQuotation);
-}
+    if (
+      hydratedQuotationKeyRef.current !== nextQuotationKey &&
+      quotation._id !== initialQuotation._id
+    ) {
+      hydratedQuotationKeyRef.current = nextQuotationKey;
+      hydratedGlobalConfigKeyRef.current = null;
+      setQuotation(initialQuotation);
+    }
   }, [initialQuotation, isCreateMode, isReturningFromConfigurator, setQuotation]);
   const [activeTab, setActiveTab] = useState<TabKey>(() => (isTabKey(requestedTab) ? requestedTab : "customer"));
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -1145,19 +1168,19 @@ export function QuotationBuilder({
     }
   };
 
-const handleLogoUpload = (file: File | null) => {
-  if (!file) return;
+  const handleLogoUpload = (file: File | null) => {
+    if (!file) return;
 
-  const reader = new FileReader();
-  reader.onloadend = () => {
-    setGlobalConfig((prev) => ({
-      ...prev,
-      logo: reader.result as string,
-      logoUrl: reader.result as string,
-    }));
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setGlobalConfig((prev) => ({
+        ...prev,
+        logo: reader.result as string,
+        logoUrl: reader.result as string,
+      }));
+    };
+    reader.readAsDataURL(file);
   };
-  reader.readAsDataURL(file);
-};
   const exportPdf = async () => {
     try {
       setIsGeneratingPdf(true);
@@ -1199,39 +1222,39 @@ const handleLogoUpload = (file: File | null) => {
       setIsGeneratingPdf(false);
     }
   };
-const exportElevationPdf = async () => {
-  try {
-    setIsGeneratingElevation(true);
+  const exportElevationPdf = async () => {
+    try {
+      setIsGeneratingElevation(true);
 
-    const savedQuotation = await saveQuotationDraft(quotationWithGlobalConfig);
+      const savedQuotation = await saveQuotationDraft(quotationWithGlobalConfig);
 
-    const pdfQuotationId =
-      savedQuotation?._id ??
-      quotationWithGlobalConfig._id ??
-      savedQuotation?.quotationDetails.id ??
-      quotationWithGlobalConfig.quotationDetails.id;
+      const pdfQuotationId =
+        savedQuotation?._id ??
+        quotationWithGlobalConfig._id ??
+        savedQuotation?.quotationDetails.id ??
+        quotationWithGlobalConfig.quotationDetails.id;
 
-    const blob = await getElevationPdfBlob(pdfQuotationId);
+      const blob = await getElevationPdfBlob(pdfQuotationId);
 
-    const nextUrl = URL.createObjectURL(blob);
+      const nextUrl = URL.createObjectURL(blob);
 
-    setPdfPreviewTitle("Elevation PDF Preview");
-    setPdfDownloadName("elevation.pdf");
+      setPdfPreviewTitle("Elevation PDF Preview");
+      setPdfDownloadName("elevation.pdf");
 
-    setPdfPreviewUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return nextUrl;
-    });
+      setPdfPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return nextUrl;
+      });
 
-    setIsPdfPreviewOpen(true);
+      setIsPdfPreviewOpen(true);
 
-  } catch (error) {
-    console.error("Elevation PDF error", error);
-    alert("Failed to generate elevation PDF");
-  } finally {
-    setIsGeneratingElevation(false);
-  }
-};
+    } catch (error) {
+      console.error("Elevation PDF error", error);
+      alert("Failed to generate elevation PDF");
+    } finally {
+      setIsGeneratingElevation(false);
+    }
+  };
   const exportCuttingSchedule = async () => {
     try {
       setIsGeneratingCuttingSchedule(true);
@@ -1343,104 +1366,103 @@ const exportElevationPdf = async () => {
             {isGeneratingPdf ? "Generating..." : "PDF"}
           </Button>
           <Button
-  variant="outline"
-  onClick={exportElevationPdf}
-  disabled={isGeneratingElevation}
->
-  <Download className="h-4 w-4" />
-  {isGeneratingElevation ? "Generating..." : "Elevation"}
-</Button>
+            variant="outline"
+            onClick={exportElevationPdf}
+            disabled={isGeneratingElevation}
+          >
+            <Download className="h-4 w-4" />
+            {isGeneratingElevation ? "Generating..." : "Elevation"}
+          </Button>
           <Button variant="outline">
             <Share2 className="h-4 w-4" />
             Share
           </Button>
           <Button onClick={handleSave}>
-  Save
-</Button>
+            Save
+          </Button>
         </>
       }
     >
       <div id="quotation-pdf-root" className="space-y-6">
-          <Card className="border-0 bg-white/90">
-            <CardContent className="flex items-center justify-between p-4">
-  
-  {/* LEFT SIDE (TABS) */}
-  <div className="flex flex-wrap gap-3">
-    {tabs.map((tab) => (
-      <button
-        key={tab.key}
-        onClick={() => setActiveTab(tab.key)}
-        className={`rounded-2xl px-4 py-2 text-sm transition ${
-          activeTab === tab.key
-            ? "bg-slate-950 text-white"
-            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-        }`}
-      >
-        {tab.label}
-      </button>
-    ))}
-  </div>
+        <Card className="border-0 bg-white/90">
+          <CardContent className="flex items-center justify-between p-4">
 
-  {/* RIGHT SIDE (BUTTON) */}
-  <button
-    onClick={handleAddItem} 
-    className="rounded-xl bg-[#124657] px-4 py-2 text-sm text-white hover:bg-[#0b3642]"
-  >
-     Add Item
-  </button>
+            {/* LEFT SIDE (TABS) */}
+            <div className="flex flex-wrap gap-3">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`rounded-2xl px-4 py-2 text-sm transition ${activeTab === tab.key
+                      ? "bg-slate-950 text-white"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
-</CardContent>
-          </Card>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.18 }}
+            {/* RIGHT SIDE (BUTTON) */}
+            <button
+              onClick={handleAddItem}
+              className="rounded-xl bg-[#124657] px-4 py-2 text-sm text-white hover:bg-[#0b3642]"
             >
-              {activeTab === "customer" && <CustomerTab />}
-              {activeTab === "quotation" && <QuotationDetailsTab />}
-              {activeTab === "global" && (
-  <GlobalConfigTab
-    globalConfig={globalConfig}
-    setGlobalConfig={setGlobalConfig}
-    logoPreview={logoPreview}
-    handleLogoUpload={handleLogoUpload}
-  />
-)}
-              {activeTab === "item" && <ItemTab quotationBasePath={quotationBasePath} />}
+              Add Item
+            </button>
 
-            </motion.div>
-          </AnimatePresence>
-          {isPdfPreviewOpen && pdfPreviewUrl ? (
-            <div className="fixed inset-0 z-[260] flex items-center justify-center bg-slate-950/70 p-4">
-              <div className="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-                <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-                  <div>
-                    <div className="text-lg font-semibold text-slate-900">{pdfPreviewTitle}</div>
-                    <div className="text-sm text-slate-500">{pdfDownloadName || getQuotationPdfDownloadName({ ...quotation, globalConfig })}</div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Button variant="outline" onClick={downloadPreviewedPdf}>
-                      <Download className="h-4 w-4" />
-                      Download
-                    </Button>
-                    <Button variant="outline" onClick={closePdfPreview}>
-                      Close
-                    </Button>
-                  </div>
+          </CardContent>
+        </Card>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.18 }}
+          >
+            {activeTab === "customer" && <CustomerTab />}
+            {activeTab === "quotation" && <QuotationDetailsTab />}
+            {activeTab === "global" && (
+              <GlobalConfigTab
+                globalConfig={globalConfig}
+                setGlobalConfig={setGlobalConfig}
+                logoPreview={logoPreview}
+                handleLogoUpload={handleLogoUpload}
+              />
+            )}
+            {activeTab === "item" && <ItemTab quotationBasePath={quotationBasePath} />}
+
+          </motion.div>
+        </AnimatePresence>
+        {isPdfPreviewOpen && pdfPreviewUrl ? (
+          <div className="fixed inset-0 z-[260] flex items-center justify-center bg-slate-950/70 p-4">
+            <div className="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+                <div>
+                  <div className="text-lg font-semibold text-slate-900">{pdfPreviewTitle}</div>
+                  <div className="text-sm text-slate-500">{pdfDownloadName || getQuotationPdfDownloadName({ ...quotation, globalConfig })}</div>
                 </div>
-                <div className="min-h-0 flex-1 bg-slate-100 p-4">
-                  <iframe
-                    title="Quotation PDF Preview"
-                    src={`${pdfPreviewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
-                    className="h-full w-full rounded-2xl border border-slate-200 bg-white"
-                  />
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" onClick={downloadPreviewedPdf}>
+                    <Download className="h-4 w-4" />
+                    Download
+                  </Button>
+                  <Button variant="outline" onClick={closePdfPreview}>
+                    Close
+                  </Button>
                 </div>
               </div>
+              <div className="min-h-0 flex-1 bg-slate-100 p-4">
+                <iframe
+                  title="Quotation PDF Preview"
+                  src={`${pdfPreviewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                  className="h-full w-full rounded-2xl border border-slate-200 bg-white"
+                />
+              </div>
             </div>
-          ) : null}
+          </div>
+        ) : null}
       </div>
     </PageShell>
   );

@@ -79,8 +79,8 @@ type ProductMeta = {
   refCode: string;
   remarks: string;
   rate: number;
-  horizontalCutAngle: CutAngle;
-  verticalCutAngle: CutAngle;
+  frameCutAngle: CutAngle;
+  shutterCutAngle: CutAngle;
 };
 
 type SectionOptionMeta = Pick<
@@ -107,8 +107,8 @@ const DEFAULT_META: ProductMeta = {
   refCode: "",
   remarks: "",
   rate: 0,
-  horizontalCutAngle: "90",
-  verticalCutAngle: "90",
+  frameCutAngle: "90",
+  shutterCutAngle: "90",
 };
 
 const DEFAULT_SECTION_OPTION_META: SectionOptionMeta = {
@@ -768,8 +768,8 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
     refCode: item.refCode || "",
     remarks: item.remarks || item.specialNotes || "",
     rate: item.rate || 0,
-    horizontalCutAngle: normalizeCutAngle(item.horizontalCutAngle),
-    verticalCutAngle: normalizeCutAngle(item.verticalCutAngle),
+    frameCutAngle: normalizeCutAngle(item.frameCutAngle),
+    shutterCutAngle: normalizeCutAngle(item.shutterCutAngle),
   };
 
   return {
@@ -2136,9 +2136,9 @@ export function WindowDoorConfigurator({
     if (!areAllDescriptionsFilled(root)) { alert("Please fill description for all windows"); return; }
     const trimmedRefCode = meta.refCode.trim();
     if (!trimmedRefCode) { alert("Ref Code is required."); return; }
-    const horizontalCutAngle = normalizeCutAngle(meta.horizontalCutAngle);
-    const verticalCutAngle = normalizeCutAngle(meta.verticalCutAngle);
-    const cuttingScheduleKey = getCuttingScheduleKey(horizontalCutAngle, verticalCutAngle);
+    const frameCutAngle = normalizeCutAngle(meta.frameCutAngle);
+    const shutterCutAngle = normalizeCutAngle(meta.shutterCutAngle);
+    const cuttingScheduleKey = getCuttingScheduleKey(frameCutAngle, shutterCutAngle);
     setIsSaving(true);
     try {
       setHideSelectionForExport(true);
@@ -2216,8 +2216,8 @@ export function WindowDoorConfigurator({
           panelSashes: leaf.panelSashes,
           refImage: "",
           remarks: meta.remarks || "",
-          horizontalCutAngle,
-          verticalCutAngle,
+          frameCutAngle,
+          shutterCutAngle,
           cuttingScheduleKey,
           hasExhaustFan: Boolean(leaf.hasExhaustFan),
           exhaustFanX: leaf.exhaustFanX ?? DEFAULT_EXHAUST_FAN_X,
@@ -2302,8 +2302,8 @@ export function WindowDoorConfigurator({
         // refImage: dataUrl,
         refImage: image,
         remarks: meta.remarks || "",
-        horizontalCutAngle,
-        verticalCutAngle,
+        frameCutAngle,
+        shutterCutAngle,
         cuttingScheduleKey,
         hasExhaustFan: isCombination ? false : Boolean(singleLeaf?.hasExhaustFan),
         exhaustFanX: isCombination ? undefined : singleLeaf?.exhaustFanX ?? DEFAULT_EXHAUST_FAN_X,
@@ -2820,8 +2820,8 @@ export function WindowDoorConfigurator({
                     <label className="text-xs text-gray-600">System<input value={COMBINATION_SYSTEM} readOnly className="mt-1 w-full rounded-md border border-gray-400 bg-gray-50 px-2 py-2 text-sm text-gray-600" /></label>
                     {archControls}
                     <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
-                    <label className="text-xs text-gray-600">Horizontal Cut Angle<select value={meta.horizontalCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, horizontalCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
-                    <label className="text-xs text-gray-600">Vertical Cut Angle<select value={meta.verticalCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, verticalCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
+                    <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
+                    <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
                     <label className="text-xs text-gray-600">Rate (Auto)<input value={parentCombinationRate} readOnly className="mt-1 w-full rounded-md border border-gray-400 bg-gray-50 px-2 py-2 text-sm text-gray-600" /></label>
                     <label className="text-xs text-gray-600">Remarks<textarea value={meta.remarks} onChange={(e) => setMeta((prev) => ({ ...prev, remarks: e.target.value }))} rows={2} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657] resize-none" /></label>
                   </>
@@ -2936,8 +2936,8 @@ export function WindowDoorConfigurator({
                         ) : (
                           <>
                             <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
-                            <label className="text-xs text-gray-600">Horizontal Cut Angle<select value={meta.horizontalCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, horizontalCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
-                            <label className="text-xs text-gray-600">Vertical Cut Angle<select value={meta.verticalCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, verticalCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
+                            <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
+                            <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
                             <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={meta.rate} onChange={(e) => { setIsManualRate(true); setMeta((prev) => ({ ...prev, rate: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                             <label className="text-xs text-gray-600">Remarks<textarea value={meta.remarks} onChange={(e) => setMeta((prev) => ({ ...prev, remarks: e.target.value }))} rows={2} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657] resize-none" /></label>
                           </>

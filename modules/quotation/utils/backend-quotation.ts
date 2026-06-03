@@ -43,8 +43,8 @@ const toArchType = (value: unknown): "none" | "circular" | "triangle" =>
 
 const normalizeSubItem = (value: unknown): QuotationSubItem => {
   const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
-  const horizontalCutAngle = toCutAngleValue(source.horizontalCutAngle);
-  const verticalCutAngle = toCutAngleValue(source.verticalCutAngle);
+  const frameCutAngle = toCutAngleValue(source.frameCutAngle);
+  const shutterCutAngle = toCutAngleValue(source.shutterCutAngle);
 
   return {
     id: toStringValue(source.id) || toStringValue(source._id) || toStringValue(source.refCode) || createClientId(),
@@ -68,9 +68,9 @@ const normalizeSubItem = (value: unknown): QuotationSubItem => {
     amount: toNumberValue(source.amount),
     refImage: toStringValue(source.refImage),
     remarks: toStringValue(source.remarks),
-    horizontalCutAngle,
-    verticalCutAngle,
-    cuttingScheduleKey: toCuttingScheduleKey(horizontalCutAngle, verticalCutAngle),
+    frameCutAngle,
+    shutterCutAngle,
+    cuttingScheduleKey: toCuttingScheduleKey(frameCutAngle, shutterCutAngle),
     sash: toSashValue(source.sash),
     panelSashes: toPanelSashes(source.panelSashes),
     hasExhaustFan: toBooleanValue(source.hasExhaustFan),
@@ -91,8 +91,8 @@ const normalizeItem = (value: unknown): QuotationItem => {
   const height = toNumberValue(source.height);
   const glassSpec = toStringValue(source.glassSpec);
   const remarks = toStringValue(source.remarks);
-  const horizontalCutAngle = toCutAngleValue(source.horizontalCutAngle);
-  const verticalCutAngle = toCutAngleValue(source.verticalCutAngle);
+  const frameCutAngle = toCutAngleValue(source.frameCutAngle);
+  const shutterCutAngle = toCutAngleValue(source.shutterCutAngle);
 
   return {
     id: toStringValue(source.id) || toStringValue(source._id) || toStringValue(source.refCode) || createClientId(),
@@ -124,9 +124,9 @@ const normalizeItem = (value: unknown): QuotationItem => {
     rate: toNumberValue(source.rate),
     refImage: toStringValue(source.refImage),
     remarks,
-    horizontalCutAngle,
-    verticalCutAngle,
-    cuttingScheduleKey: toCuttingScheduleKey(horizontalCutAngle, verticalCutAngle),
+    frameCutAngle,
+    shutterCutAngle,
+    cuttingScheduleKey: toCuttingScheduleKey(frameCutAngle, shutterCutAngle),
     sash: toSashValue(source.sash),
     panelSashes: toPanelSashes(source.panelSashes),
     hasExhaustFan: toBooleanValue(source.hasExhaustFan),
