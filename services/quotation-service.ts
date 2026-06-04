@@ -71,8 +71,8 @@ function findQuotationEnvelope(payload: unknown): Record<string, unknown> | null
 
 function toBackendSubItem(subItem: QuotationSubItem) {
   const handleType = subItem.handleType || "";
-  const horizontalCutAngle = normalizeCutAngle(subItem.horizontalCutAngle);
-  const verticalCutAngle = normalizeCutAngle(subItem.verticalCutAngle);
+  const frameCutAngle = normalizeCutAngle(subItem.frameCutAngle);
+  const shutterCutAngle = normalizeCutAngle(subItem.shutterCutAngle);
 
   return {
     refCode: subItem.refCode || "",
@@ -95,9 +95,9 @@ function toBackendSubItem(subItem: QuotationSubItem) {
     amount: Number(subItem.amount) || 0,
     refImage: subItem.refImage || "",
     remarks: subItem.remarks || "",
-    horizontalCutAngle,
-    verticalCutAngle,
-    cuttingScheduleKey: makeCuttingScheduleKey(horizontalCutAngle, verticalCutAngle),
+    frameCutAngle,
+    shutterCutAngle,
+    cuttingScheduleKey: makeCuttingScheduleKey(frameCutAngle, shutterCutAngle),
     sash: subItem.sash,
     panelSashes: subItem.panelSashes,
     hasExhaustFan: Boolean(subItem.hasExhaustFan),
@@ -113,8 +113,8 @@ function toBackendSubItem(subItem: QuotationSubItem) {
 
 function toBackendItem(item: Quotation["items"][number]) {
   const handleType = item.handleType || "";
-  const horizontalCutAngle = normalizeCutAngle(item.horizontalCutAngle);
-  const verticalCutAngle = normalizeCutAngle(item.verticalCutAngle);
+  const frameCutAngle = normalizeCutAngle(item.frameCutAngle);
+  const shutterCutAngle = normalizeCutAngle(item.shutterCutAngle);
 
   return {
     refCode: item.refCode || "",
@@ -137,9 +137,9 @@ function toBackendItem(item: Quotation["items"][number]) {
     amount: Number(item.amount) || 0,
     refImage: item.refImage || "",
     remarks: item.remarks || item.specialNotes || "",
-    horizontalCutAngle,
-    verticalCutAngle,
-    cuttingScheduleKey: makeCuttingScheduleKey(horizontalCutAngle, verticalCutAngle),
+    frameCutAngle,
+    shutterCutAngle,
+    cuttingScheduleKey: makeCuttingScheduleKey(frameCutAngle, shutterCutAngle),
     sash: item.sash,
     panelSashes: item.panelSashes,
     hasExhaustFan: Boolean(item.hasExhaustFan),
