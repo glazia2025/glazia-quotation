@@ -1353,14 +1353,14 @@ export function QuotationBuilder({
       actions={
         <>
           <Badge variant="success">{saveState}</Badge>
-          <Button variant="outline" onClick={exportCuttingSchedule} disabled={isGeneratingCuttingSchedule}>
+          {/* <Button variant="outline" onClick={exportCuttingSchedule} disabled={isGeneratingCuttingSchedule}>
             <Ruler className="h-4 w-4" />
             {isGeneratingCuttingSchedule ? "Generating..." : "Cutting"}
           </Button>
           <Button variant="outline" onClick={exportBom} disabled={isGeneratingBom}>
             <Download className="h-4 w-4" />
             {isGeneratingBom ? "Generating..." : "BOM"}
-          </Button>
+          </Button> */}
           <Button variant="outline" onClick={exportPdf} disabled={isGeneratingPdf}>
             <Download className="h-4 w-4" />
             {isGeneratingPdf ? "Generating..." : "PDF"}
