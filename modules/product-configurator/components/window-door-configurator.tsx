@@ -203,7 +203,7 @@ const createRoot = (baseSystem: SystemType): SectionNode => ({
   sash: "fixed",
   systemType: baseSystem,
   series: "",
-  description: isLouverSystem(baseSystem) ? "Louvers" : isExhaustSystem(baseSystem) ? "Exhaust Fan"  : isBlankSystem(baseSystem) ? "Blank Area": "",
+  description: isLouverSystem(baseSystem) ? "Louvers" : isExhaustSystem(baseSystem) ? "Exhaust Fan" : isBlankSystem(baseSystem) ? "Blank Area" : "",
   hasExhaustFan: isExhaustSystem(baseSystem),
   exhaustFanX: DEFAULT_EXHAUST_FAN_X,
   exhaustFanY: DEFAULT_EXHAUST_FAN_Y,
@@ -239,12 +239,12 @@ const createLeaf = (
   exhaustFanX: DEFAULT_EXHAUST_FAN_X,
   exhaustFanY: DEFAULT_EXHAUST_FAN_Y,
   exhaustFanSize: DEFAULT_EXHAUST_FAN_SIZE,
-  glass: isExhaustSystem(systemType) ? "Yes" : glass,
+  glass: "Yes",
   mesh,
 });
 
 const buildPreset = (systemType: SystemType, glass: YesNo, mesh: YesNo): SectionNode => {
-  const root: SectionNode = { ...createRoot(systemType), glass, mesh };
+  const root: SectionNode = { ...createRoot(systemType), glass: "Yes", mesh };
 
   if (systemType === "Sliding") {
     root.split = "vertical";
@@ -287,7 +287,7 @@ const buildPreset = (systemType: SystemType, glass: YesNo, mesh: YesNo): Section
     root.glass = "No";
     root.mesh = "No";
     root.sash = "fixed";
-    root.hasExhaustFan= false;
+    root.hasExhaustFan = false;
     return root;
   }
   root.sash = "double";
@@ -442,7 +442,7 @@ const normalizeSystemType = (value?: string): SystemType => {
     value === "Slide N Fold" ||
     value === "Casement" ||
     value === "Louvers" ||
-    value === "Exhaust Fan"||
+    value === "Exhaust Fan" ||
     value === "Blank Area"
   ) {
     return value;
@@ -745,7 +745,7 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
     root.archType = sourceSystem === "Casement" ? normalizeArchType(item.archType) : "none";
     root.archHeightRatio = normalizeArchHeightRatio(item.archHeightRatio);
     root.description = normalizeLeafDescription(sourceSystem, item.description || "", root.hasExhaustFan);
-    root.glass = sourceSystem === "Exhaust Fan" ? "Yes" : yesNoFromValue(item.glassSpec);
+    root.glass = "Yes";
     root.mesh = yesNoFromValue(item.meshPresent);
     root.sash =
       item.sash === "fixed" ||
@@ -1598,14 +1598,11 @@ const drawBlankArea = (
   w: number,
   h: number
 ) => {
-  
-
   const clipGroup = new Konva.Group({
     clipX: x,
     clipY: y,
     clipWidth: w,
     clipHeight: h,
-    
   });
 
   group.add(clipGroup);
@@ -2143,17 +2140,17 @@ export function WindowDoorConfigurator({
 
   // const areaSqft = useMemo(() => mmToSqft(widthMm, heightMm), [widthMm, heightMm]);
   const effectiveAreaSqft = useMemo(() => {
-  let total = 0;
+    let total = 0;
 
-  mapLeafNodes(root, (leaf) => {
-    if (leaf.systemType === "Blank Area") return;
+    mapLeafNodes(root, (leaf) => {
+      if (leaf.systemType === "Blank Area") return;
 
-    const leafArea = mmToSqft(leaf.w * widthMm, leaf.h * heightMm);
-    total += leafArea;
-  });
+      const leafArea = mmToSqft(leaf.w * widthMm, leaf.h * heightMm);
+      total += leafArea;
+    });
 
-  return Number(total.toFixed(2));
-}, [root, widthMm, heightMm]);
+    return Number(total.toFixed(2));
+  }, [root, widthMm, heightMm]);
 
   const leafNodesForMode = useMemo(() => {
     const leaves: SectionNode[] = [];
@@ -2178,51 +2175,51 @@ export function WindowDoorConfigurator({
   const getLeafSectionMeta = useCallback((leafId: string): SectionOptionMeta => childSectionMeta[leafId] ?? DEFAULT_SECTION_OPTION_META, [childSectionMeta]);
   const childAutoRef = isCombinationChildSelection && meta.refCode && selectedLeafIndex >= 0 ? `${meta.refCode}-${indexToAlphaLower(selectedLeafIndex)}` : "";
   const selectedLeafAreaSqft =
-  isCombinationChildSelection && selectedLeafIndex >= 0
-    ? (
+    isCombinationChildSelection && selectedLeafIndex >= 0
+      ? (
         leafNodesForMode[selectedLeafIndex].systemType === "Blank Area" ||
         leafNodesForMode[selectedLeafIndex].description === "Blank Area"
       )
         ? 0
         : mmToSqft(
-            leafNodesForMode[selectedLeafIndex].w * widthMm,
-            getEffectiveLeafHeightRatio(root, leafNodesForMode[selectedLeafIndex]) * heightMm
-          )
-    : 0;
+          leafNodesForMode[selectedLeafIndex].w * widthMm,
+          getEffectiveLeafHeightRatio(root, leafNodesForMode[selectedLeafIndex]) * heightMm
+        )
+      : 0;
   const selectedChildRate = isCombinationChildSelection && selectedId ? (manualChildRates[selectedId] ?? autoChildRates[selectedId] ?? 0) : 0;
   const parentCombinationRate = useMemo(() => {
     const weightedRateTotal = leafNodesForMode.reduce((sum, leaf) => {
       const isBlank =
-  leaf.systemType === "Blank Area" ||
-  leaf.description === "Blank Area";
+        leaf.systemType === "Blank Area" ||
+        leaf.description === "Blank Area";
 
-const leafArea = isBlank
-  ? 0
-  : mmToSqft(
-      leaf.w * widthMm,
-      getEffectiveLeafHeightRatio(root, leaf) * heightMm
-    );
+      const leafArea = isBlank
+        ? 0
+        : mmToSqft(
+          leaf.w * widthMm,
+          getEffectiveLeafHeightRatio(root, leaf) * heightMm
+        );
       const leafRate = manualChildRates[leaf.id] ?? autoChildRates[leaf.id] ?? 0;
       return sum + leafRate * leafArea;
     }, 0);
     const effectiveTotalArea = leafNodesForMode.reduce((sum, leaf) => {
-  const isBlank =
-    leaf.systemType === "Blank Area" ||
-    leaf.description === "Blank Area";
+      const isBlank =
+        leaf.systemType === "Blank Area" ||
+        leaf.description === "Blank Area";
 
-  const area = isBlank
-    ? 0
-    : mmToSqft(
-        leaf.w * widthMm,
-        getEffectiveLeafHeightRatio(root, leaf) * heightMm
-      );
+      const area = isBlank
+        ? 0
+        : mmToSqft(
+          leaf.w * widthMm,
+          getEffectiveLeafHeightRatio(root, leaf) * heightMm
+        );
 
-  return sum + area;
-}, 0);
+      return sum + area;
+    }, 0);
 
-return effectiveTotalArea > 0
-  ? roundToTwo(weightedRateTotal / effectiveTotalArea)
-  : 0;
+    return effectiveTotalArea > 0
+      ? roundToTwo(weightedRateTotal / effectiveTotalArea)
+      : 0;
   }, [autoChildRates, leafNodesForMode, manualChildRates, root, widthMm, heightMm]);
 
   useEffect(() => {
@@ -2249,15 +2246,15 @@ return effectiveTotalArea > 0
           ]);
 
           const isBlank =
-  leaf.systemType === "Blank Area" ||
-  leaf.description === "Blank Area";
+            leaf.systemType === "Blank Area" ||
+            leaf.description === "Blank Area";
 
-const area = isBlank
-  ? 0
-  : mmToSqft(
-      leaf.w * widthMm,
-      getEffectiveLeafHeightRatio(root, leaf) * heightMm
-    );
+          const area = isBlank
+            ? 0
+            : mmToSqft(
+              leaf.w * widthMm,
+              getEffectiveLeafHeightRatio(root, leaf) * heightMm
+            );
           const calc = calculateRateForItem({ area, systemType: leaf.systemType, description, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "" }, descriptionsResp.descriptions, optionsResp, systemsQuery.data?.systems, louversRates);
           next[leaf.id] = calc.rate;
         } catch {
@@ -2324,10 +2321,10 @@ const area = isBlank
         const series = leaf.series || "";
         const description = leaf.description || getDefaultLeafDescription(systemType, meta.productType, leaf.hasExhaustFan);
         const effectiveHeightMm = getEffectiveLeafHeightRatio(root, leaf) * heightMm;
-   const itemArea =
-  leaf.systemType === "Blank Area" || leaf.description === "Blank Area"
-    ? 0
-    : mmToSqft(leaf.w * widthMm, effectiveHeightMm);
+        const itemArea =
+          leaf.systemType === "Blank Area" || leaf.description === "Blank Area"
+            ? 0
+            : mmToSqft(leaf.w * widthMm, effectiveHeightMm);
         const descriptions = await getDescriptions(systemType, series);
         console.log("DESCRIPTIONS", descriptions);
         const options = await getOptions(systemType);
@@ -2398,12 +2395,12 @@ const area = isBlank
         const perFrameAmount = roundToTwo(subItems.reduce((sum, sub) => sum + sub.amount, 0));
         const weightedRateTotal = subItems.reduce((sum, sub) => sum + sub.rate * sub.area, 0);
         const effectiveTotalArea = subItems.reduce((sum, sub) => {
-  const isBlank =
-    sub.systemType === "Blank Area" ||
-    sub.description === "Blank Area";
+          const isBlank =
+            sub.systemType === "Blank Area" ||
+            sub.description === "Blank Area";
 
-  return sum + (isBlank ? 0 : sub.area);
-}, 0);
+          return sum + (isBlank ? 0 : sub.area);
+        }, 0);
         rate = effectiveTotalArea > 0 ? roundToTwo(weightedRateTotal / effectiveTotalArea) : 0;
         amount = roundToTwo(perFrameAmount * parentQuantity);
       }
@@ -2569,15 +2566,17 @@ const area = isBlank
         const boundary = dir === "vertical" ? a.x + a.w : a.y + a.h;
         if (dir === "vertical") {
           const x = fx + boundary * fw;
-          if (a.systemType !== "Blank Area"  &&
-  b.systemType !== "Blank Area") {
-          addMemberRect(contentGroup, x - PROFILE.mullion / 2, fy + PROFILE.outer, PROFILE.mullion, fh - PROFILE.outer * 2);}
+          if (a.systemType !== "Blank Area" &&
+            b.systemType !== "Blank Area") {
+            addMemberRect(contentGroup, x - PROFILE.mullion / 2, fy + PROFILE.outer, PROFILE.mullion, fh - PROFILE.outer * 2);
+          }
         } else {
-           if (a.systemType !== "Blank Area"  &&
-  b.systemType !== "Blank Area") {
-          const y = fy + boundary * fh;
-          addMemberRect(contentGroup, fx + PROFILE.outer, y - PROFILE.mullion / 2, fw - PROFILE.outer * 2, PROFILE.mullion);
-        }}
+          if (a.systemType !== "Blank Area" &&
+            b.systemType !== "Blank Area") {
+            const y = fy + boundary * fh;
+            addMemberRect(contentGroup, fx + PROFILE.outer, y - PROFILE.mullion / 2, fw - PROFILE.outer * 2, PROFILE.mullion);
+          }
+        }
       }
       parent.children.forEach(drawParentDividers);
     };
@@ -2600,7 +2599,8 @@ const area = isBlank
       });
       g.add(leafHit);
       if (leaf.systemType !== "Blank Area") {
-        g.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + PROFILE.gap, y: y + PROFILE.outer / 2 + PROFILE.gap, width: safeDrawSize(w - (PROFILE.outer + PROFILE.gap * 2)), height: safeDrawSize(h - (PROFILE.outer + PROFILE.gap * 2)), stroke: isSelected ? COLORS.selected : COLORS.frameDark, strokeWidth: PROFILE.sash, listening: false }))};
+        g.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + PROFILE.gap, y: y + PROFILE.outer / 2 + PROFILE.gap, width: safeDrawSize(w - (PROFILE.outer + PROFILE.gap * 2)), height: safeDrawSize(h - (PROFILE.outer + PROFILE.gap * 2)), stroke: isSelected ? COLORS.selected : COLORS.frameDark, strokeWidth: PROFILE.sash, listening: false }))
+      };
       const inset = PROFILE.outer / 2 + PROFILE.sash + 6;
       const innerBounds = getPanelBounds(x, y, w, h, inset);
       const handledByDescription = (() => {
@@ -2650,11 +2650,11 @@ const area = isBlank
         const isOneOf = (...variants: string[]) => variants.includes(desc);
         if (leaf.systemType === "Louvers" || desc === "Louvers") { fixedPanel(innerX, innerY, innerW, innerH); drawLouversGuide(g, innerX, innerY, innerW, innerH); return true; }
         if (leaf.systemType === "Exhaust Fan" || leaf.hasExhaustFan || desc === "Exhaust Fan" || desc === "Fix + Exhaust Fan") { fixedPanel(innerX, innerY, innerW, innerH); drawExhaustFanGuide(g, innerX, innerY, innerW, innerH, leaf.exhaustFanX, leaf.exhaustFanY, leaf.exhaustFanSize); return true; }
-       if (isBlankSystem(leaf.systemType  ||
-  desc === "Blank Area")) {
-  drawBlankArea(g, innerX, innerY, innerW, innerH);
-  return true;
-}
+        if (isBlankSystem(leaf.systemType ||
+          desc === "Blank Area")) {
+          drawBlankArea(g, x, y, w, h);
+          return true;
+        }
         if (desc === "Fix") { fixedPanel(innerX, innerY, innerW, innerH); return true; }
         if (isOneOf("Left Openable", "Left Openable Door-Window", "Left Openable Window", "Left Openable Door")) { fixedPanel(innerX, innerY, innerW, innerH); drawCasementSwingGuide(g, innerX, innerY, innerW, innerH, "left"); return true; }
         if (isOneOf("Right Openable", "Right Openable Door-Window", "Right Openable Window", "Right Openable Door")) { fixedPanel(innerX, innerY, innerW, innerH); drawCasementSwingGuide(g, innerX, innerY, innerW, innerH, "right"); return true; }
@@ -3016,7 +3016,7 @@ const area = isBlank
                                 else if (nextSystem === "Blank Area") {
                                   target.description = "Blank Area";
                                 }
-                                 else {
+                                else {
                                   target.description = "";
                                 }
 
@@ -3062,8 +3062,8 @@ const area = isBlank
                             {[
                               ...(systems?.systems || []),
                               "Exhaust Fan",
-                               ...(isCombinationChildSelection ? ["Blank Area"] : []),
-                             
+                              ...(isCombinationChildSelection ? ["Blank Area"] : []),
+
                             ].map((sys) => (
                               <option key={sys} value={sys}>
                                 {sys}
@@ -3099,20 +3099,20 @@ const area = isBlank
                         {selectedSystemSupportsCatalog && (!isCombinationChildSelection || selectedNode.systemType === "Sliding") && <label className="text-xs text-gray-600">Mesh Type<select value={selectedSectionMeta.meshType} onChange={(e) => updateSelectedSectionMeta({ meshType: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" disabled={selectedNode.mesh !== "Yes"}><option value="">Select</option>{metaOptionsQuery.data?.meshTypes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>}
                         {isCombinationChildSelection ? (
                           <>
-                           {selectedNode.systemType !== "Blank Area" && (
-                          <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={selectedChildRate} onChange={(e) => { if (!selectedId) return; setManualChildRates((prev) => ({ ...prev, [selectedId]: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" />
-                           </label>
-    )}
-                          <div className="mt-1 text-[11px] text-gray-500">Section area: {selectedLeafAreaSqft.toFixed(2)} sqft</div>
+                            {selectedNode.systemType !== "Blank Area" && (
+                              <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={selectedChildRate} onChange={(e) => { if (!selectedId) return; setManualChildRates((prev) => ({ ...prev, [selectedId]: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" />
+                              </label>
+                            )}
+                            <div className="mt-1 text-[11px] text-gray-500">Section area: {selectedLeafAreaSqft.toFixed(2)} sqft</div>
                           </>
-                           
+
                         ) : (
                           <>
                             <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                             <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
                             <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
                             {selectedNode.systemType !== "Blank Area" && (
-                            <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={meta.rate} onChange={(e) => { setIsManualRate(true); setMeta((prev) => ({ ...prev, rate: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>)}
+                              <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={meta.rate} onChange={(e) => { setIsManualRate(true); setMeta((prev) => ({ ...prev, rate: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>)}
                             <label className="text-xs text-gray-600">Remarks<textarea value={meta.remarks} onChange={(e) => setMeta((prev) => ({ ...prev, remarks: e.target.value }))} rows={2} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657] resize-none" /></label>
                           </>
                         )}

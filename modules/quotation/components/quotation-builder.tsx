@@ -380,12 +380,9 @@ function ItemTab({ quotationBasePath }: { quotationBasePath: string }) {
   const configuratorBasePath = `${quotationBasePath}/configurator`;
 
   const totalQuantity = items.reduce((sum, item) => sum + Math.max(1, item.quantity || 1), 0);
-  // const totalArea = items.reduce((sum, item) => sum + getArea(item) * Math.max(1, item.quantity || 1), 0);
   const totalArea = items.reduce((sum, item) => 
   sum + (item.area || 0) * Math.max(1, item.quantity || 1), 0);
-  // const totalAmount = items.reduce((sum, item) => sum + (item.amount || 0), 0);
   const totalAmount = items.reduce((sum, item) => {
-    // const area = getArea(item);
      const area = item.area || 0;
     const rate = item.rate || 0;
     const qty = item.quantity || 1;
