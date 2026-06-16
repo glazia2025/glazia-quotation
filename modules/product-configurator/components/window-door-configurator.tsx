@@ -1598,12 +1598,14 @@ const drawBlankArea = (
   w: number,
   h: number
 ) => {
+  
 
   const clipGroup = new Konva.Group({
     clipX: x,
     clipY: y,
     clipWidth: w,
     clipHeight: h,
+    
   });
 
   group.add(clipGroup);
@@ -2563,14 +2565,19 @@ const area = isBlank
       if (dir !== "vertical" && dir !== "horizontal") return;
       for (let i = 0; i < parent.children.length - 1; i++) {
         const a = parent.children[i];
+        const b = parent.children[i + 1];
         const boundary = dir === "vertical" ? a.x + a.w : a.y + a.h;
         if (dir === "vertical") {
           const x = fx + boundary * fw;
-          addMemberRect(contentGroup, x - PROFILE.mullion / 2, fy + PROFILE.outer, PROFILE.mullion, fh - PROFILE.outer * 2);
+          if (a.systemType !== "Blank Area"  &&
+  b.systemType !== "Blank Area") {
+          addMemberRect(contentGroup, x - PROFILE.mullion / 2, fy + PROFILE.outer, PROFILE.mullion, fh - PROFILE.outer * 2);}
         } else {
+           if (a.systemType !== "Blank Area"  &&
+  b.systemType !== "Blank Area") {
           const y = fy + boundary * fh;
           addMemberRect(contentGroup, fx + PROFILE.outer, y - PROFILE.mullion / 2, fw - PROFILE.outer * 2, PROFILE.mullion);
-        }
+        }}
       }
       parent.children.forEach(drawParentDividers);
     };
@@ -2592,7 +2599,8 @@ const area = isBlank
         setSelectedSlidingPanelIndex(null);
       });
       g.add(leafHit);
-      g.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + PROFILE.gap, y: y + PROFILE.outer / 2 + PROFILE.gap, width: safeDrawSize(w - (PROFILE.outer + PROFILE.gap * 2)), height: safeDrawSize(h - (PROFILE.outer + PROFILE.gap * 2)), stroke: isSelected ? COLORS.selected : COLORS.frameDark, strokeWidth: PROFILE.sash, listening: false }));
+      if (leaf.systemType !== "Blank Area") {
+        g.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + PROFILE.gap, y: y + PROFILE.outer / 2 + PROFILE.gap, width: safeDrawSize(w - (PROFILE.outer + PROFILE.gap * 2)), height: safeDrawSize(h - (PROFILE.outer + PROFILE.gap * 2)), stroke: isSelected ? COLORS.selected : COLORS.frameDark, strokeWidth: PROFILE.sash, listening: false }))};
       const inset = PROFILE.outer / 2 + PROFILE.sash + 6;
       const innerBounds = getPanelBounds(x, y, w, h, inset);
       const handledByDescription = (() => {
@@ -3090,13 +3098,21 @@ const area = isBlank
                         )}
                         {selectedSystemSupportsCatalog && (!isCombinationChildSelection || selectedNode.systemType === "Sliding") && <label className="text-xs text-gray-600">Mesh Type<select value={selectedSectionMeta.meshType} onChange={(e) => updateSelectedSectionMeta({ meshType: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" disabled={selectedNode.mesh !== "Yes"}><option value="">Select</option>{metaOptionsQuery.data?.meshTypes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>}
                         {isCombinationChildSelection ? (
-                          <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={selectedChildRate} onChange={(e) => { if (!selectedId) return; setManualChildRates((prev) => ({ ...prev, [selectedId]: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /><div className="mt-1 text-[11px] text-gray-500">Section area: {selectedLeafAreaSqft.toFixed(2)} sqft</div></label>
+                          <>
+                           {selectedNode.systemType !== "Blank Area" && (
+                          <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={selectedChildRate} onChange={(e) => { if (!selectedId) return; setManualChildRates((prev) => ({ ...prev, [selectedId]: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" />
+                           </label>
+    )}
+                          <div className="mt-1 text-[11px] text-gray-500">Section area: {selectedLeafAreaSqft.toFixed(2)} sqft</div>
+                          </>
+                           
                         ) : (
                           <>
                             <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                             <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
                             <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
-                            <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={meta.rate} onChange={(e) => { setIsManualRate(true); setMeta((prev) => ({ ...prev, rate: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                            {selectedNode.systemType !== "Blank Area" && (
+                            <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={meta.rate} onChange={(e) => { setIsManualRate(true); setMeta((prev) => ({ ...prev, rate: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>)}
                             <label className="text-xs text-gray-600">Remarks<textarea value={meta.remarks} onChange={(e) => setMeta((prev) => ({ ...prev, remarks: e.target.value }))} rows={2} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657] resize-none" /></label>
                           </>
                         )}
