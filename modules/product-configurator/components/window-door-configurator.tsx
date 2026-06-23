@@ -88,7 +88,7 @@ type SectionOptionMeta = Pick<
   "colorFinish" | "glassSpec" | "handleType" | "handleColor" | "meshType"
 >;
 
-const DEFAULT_GLASS_SPEC = "6mm Clear Toughned";
+const DEFAULT_GLASS_SPEC = "6mm Clear Toughened";
 const DEFAULT_HANDLE_COLOR = "Black";
 
 const DEFAULT_META: ProductMeta = {
