@@ -154,12 +154,20 @@ export async function fetchLouversRates() {
   return res.data.rates;
 }
 export async function fetchOptions(systemType: string) {
+  const authData = localStorage.getItem("glazia-auth");
+  let token = "";
+  if (authData) {
+    const parsed = JSON.parse(authData);
+    token = parsed?.state?.token;
+  }
   const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations/options`, {
-    params: systemType ? { systemType } : undefined
+    params: systemType ? { systemType } : undefined,
+     headers: {
+        Authorization: `Bearer ${token}`,
+      },
   });
   const rawOptions = unwrapData<unknown>(response.data, ["options"]);
   const record = asRecord(rawOptions);
-
   if (!record) {
     return emptyOptions;
   }
