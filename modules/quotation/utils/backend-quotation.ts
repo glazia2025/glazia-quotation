@@ -184,6 +184,9 @@ export function extractBackendQuotation(payload: unknown): BackendQuotationRecor
       return {
         _id: toStringValue(source._id) || undefined,
         user: toStringValue(source.user) || undefined,
+        quotationItems: Array.isArray(source.quotationItems)
+          ? source.quotationItems.map((id) => toStringValue(id)).filter(Boolean)
+          : undefined,
         items: Array.isArray(source.items) ? source.items.map(normalizeItem) : [],
         customerDetails:
           typeof source.customerDetails === "object" && source.customerDetails !== null
@@ -247,6 +250,10 @@ export function extractBackendQuotation(payload: unknown): BackendQuotationRecor
                         transport: toNumberValue(((source.globalConfig as Record<string, unknown>).additionalCosts as Record<string, unknown>).transport),
                         loadingUnloading: toNumberValue(((source.globalConfig as Record<string, unknown>).additionalCosts as Record<string, unknown>).loadingUnloading),
                         discountPercent: toNumberValue(((source.globalConfig as Record<string, unknown>).additionalCosts as Record<string, unknown>).discountPercent),
+                        showInstallation: toBooleanValue(((source.globalConfig as Record<string, unknown>).additionalCosts as Record<string, unknown>).showInstallation, true),
+                        showTransport: toBooleanValue(((source.globalConfig as Record<string, unknown>).additionalCosts as Record<string, unknown>).showTransport, true),
+                        showLoadingUnloading: toBooleanValue(((source.globalConfig as Record<string, unknown>).additionalCosts as Record<string, unknown>).showLoadingUnloading, true),
+                        showDiscount: toBooleanValue(((source.globalConfig as Record<string, unknown>).additionalCosts as Record<string, unknown>).showDiscount, true),
                       }
                     : undefined,
               }

@@ -223,13 +223,13 @@ async function imageToBase64(url: string): Promise<string> {
         resolve(canvas.toDataURL("image/jpeg", 0.88));
       } catch {
         console.warn("[quotation-pdf] image conversion failed", { url });
-        resolve("");
+        resolve(url);
       }
     };
 
     img.onerror = () => {
       console.warn("[quotation-pdf] image load failed", { url });
-      resolve("");
+      resolve(url);
     };
     img.src = url.startsWith("/") ? `${window.location.origin}${url}` : url;
   });

@@ -133,6 +133,8 @@ export interface QuotationTotals {
 export interface Quotation {
   _id?: string;
   user?: string;
+  /** Ordered references stored by the backend; detail responses also include hydrated items. */
+  quotationItems?: string[];
   items: QuotationItem[];
   customerDetails: QuotationCustomerDetails;
   quotationDetails: QuotationDetails;

@@ -4,6 +4,7 @@ import { QUOTATION_API_BASE_URL } from "@/services/api";
 import { useAuthStore } from "@/store/auth-store";
 import type { Quotation, QuotationSubItem } from "@/types/quotation";
 import { getAuthToken } from "@/utils/auth-cookie";
+import { extractBackendQuotation } from "@/modules/quotation/utils/backend-quotation";
 
 export type BackendQuotationRecord = Quotation;
 
@@ -241,12 +242,7 @@ export async function getQuotation(quotationId: string): Promise<BackendQuotatio
       withCredentials: true,
     });
 
-    const source = response.data;
-    if (source && typeof source === "object" && "quotation" in source) {
-      return (source as { quotation?: BackendQuotationRecord }).quotation ?? null;
-    }
-
-    return source as BackendQuotationRecord;
+    return extractBackendQuotation(response.data);
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 404) {
       return null;
@@ -307,7 +303,7 @@ export async function saveQuotationDraft(quotation: Quotation): Promise<BackendQ
     : await axios.post(`${QUOTATION_API_BASE_URL}/api/quotations`, payload, { headers });
 
   const envelope = findQuotationEnvelope(response.data);
-  return envelope ? (envelope as unknown as BackendQuotationRecord) : null;
+  return envelope ? extractBackendQuotation(envelope) : null;
 }
 
 export async function deleteQuotation(quotationId: string) {
