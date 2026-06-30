@@ -54,6 +54,7 @@ interface QuotationBuilderState {
   lastSavedAt: string | null;
   resetQuotation: () => void;
   setQuotation: (quotation: Quotation) => void;
+  applyAutosaveResult: (snapshot: Quotation, saved: Quotation) => void;
   updateGlobalConfig: (globalConfig: Quotation["globalConfig"]) => void;
   updateCustomer: (key: keyof Quotation["customerDetails"], value: string) => void;
   updateQuotationField: (key: keyof Quotation["quotationDetails"], value: string) => void;
@@ -86,6 +87,69 @@ export const useQuotationBuilderStore = create<QuotationBuilderState>()((set, ge
     set({
       quotation,
       selectedItemId: quotation.items[0]?.id ?? null
+    }),
+  applyAutosaveResult: (snapshot, saved) =>
+    set((state) => {
+      const current = state.quotation;
+      const items = current.items.map((item, itemIndex) => {
+        const snapshotItem = snapshot.items[itemIndex];
+        const savedItem = saved.items[itemIndex];
+        if (!snapshotItem || !savedItem) return item;
+        if (getQuotationItemIdentity(item) !== getQuotationItemIdentity(snapshotItem)) {
+          return item;
+        }
+
+        const subItems = item.subItems?.map((subItem, subItemIndex) => {
+          const snapshotSubItem = snapshotItem.subItems?.[subItemIndex];
+          const savedSubItem = savedItem.subItems?.[subItemIndex];
+          if (!snapshotSubItem || !savedSubItem) return subItem;
+          const currentIdentity = String(subItem.id || subItem._id || subItem.refCode || "");
+          const snapshotIdentity = String(
+            snapshotSubItem.id || snapshotSubItem._id || snapshotSubItem.refCode || ""
+          );
+          if (currentIdentity !== snapshotIdentity) return subItem;
+          return subItem.refImage === snapshotSubItem.refImage
+            ? { ...subItem, refImage: savedSubItem.refImage }
+            : subItem;
+        });
+
+        return {
+          ...item,
+          refImage:
+            item.refImage === snapshotItem.refImage
+              ? savedItem.refImage
+              : item.refImage,
+          subItems,
+        };
+      });
+
+      const currentLogo = current.globalConfig?.logo;
+      const snapshotLogo = snapshot.globalConfig?.logo;
+      return {
+        quotation: {
+          ...current,
+          _id: saved._id ?? current._id,
+          user: saved.user ?? current.user,
+          generatedId: saved.generatedId ?? current.generatedId,
+          quotationItems: saved.quotationItems ?? current.quotationItems,
+          createdAt: saved.createdAt ?? current.createdAt,
+          updatedAt: saved.updatedAt ?? current.updatedAt,
+          quotationDetails: {
+            ...current.quotationDetails,
+            id: saved.quotationDetails?.id || current.quotationDetails.id,
+          },
+          globalConfig: current.globalConfig
+            ? {
+                ...current.globalConfig,
+                logo:
+                  currentLogo === snapshotLogo
+                    ? saved.globalConfig?.logo ?? currentLogo
+                    : currentLogo,
+              }
+            : saved.globalConfig,
+          items,
+        },
+      };
     }),
   updateGlobalConfig: (globalConfig) =>
     set((state) => ({

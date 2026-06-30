@@ -156,7 +156,7 @@ function toBackendItem(item: Quotation["items"][number]) {
   };
 }
 
-function toBackendQuotation(quotation: Quotation) {
+export function toBackendQuotation(quotation: Quotation) {
   const itemTotal = Array.isArray(quotation.items)
     ? quotation.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
     : 0;
@@ -204,6 +204,9 @@ function toBackendQuotation(quotation: Quotation) {
     generatedId: quotation.generatedId || undefined,
   };
 }
+
+export const getQuotationSaveFingerprint = (quotation: Quotation) =>
+  JSON.stringify(toBackendQuotation(quotation));
 
 function unwrapQuotationList(payload: unknown): BackendQuotationRecord[] {
   const source = typeof payload === "object" && payload !== null ? (payload as ApiQuotationListResponse) : {};

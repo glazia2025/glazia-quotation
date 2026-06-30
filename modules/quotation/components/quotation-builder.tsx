@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -21,7 +21,7 @@ import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-bui
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { getArea, getPerimeter } from "@/modules/quotation/utils/calculations";
 import { createEmptyQuotation } from "@/modules/quotation/utils/factory";
-import { getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationDraft, getElevationPdfBlob } from "@/services/quotation-service";
+import { getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationDraft, getElevationPdfBlob, getQuotationSaveFingerprint } from "@/services/quotation-service";
 import type { Quotation, QuotationItem } from "@/types/quotation";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { getQuotationPdfDownloadName } from "@/utils/quotationPdf";
@@ -994,7 +994,16 @@ export function QuotationBuilder({
   const searchParams = useSearchParams();
   const isCreateMode = quotationBasePath === "/quotations/new";
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
+  const applyAutosaveResult = useQuotationBuilderStore((state) => state.applyAutosaveResult);
   const updateGlobalConfig = useQuotationBuilderStore((state) => state.updateGlobalConfig);
+  const markSaved = useQuotationBuilderStore((state) => state.markSaved);
+  const { quotation, saveState } = useQuotationBuilder();
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autosaveChainRef = useRef<Promise<Quotation | null>>(Promise.resolve(null));
+  const autosaveReadyRef = useRef(false);
+  const lastSubmittedFingerprintRef = useRef<string | null>(null);
+  const lastSavedFingerprintRef = useRef<string | null>(null);
+  const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "unsaved" | "saving" | "failed">("idle");
   const requestedTab = searchParams.get("tab");
   const isReturningFromConfigurator = isCreateMode && requestedTab === "item";
   const router = useRouter();
@@ -1024,13 +1033,25 @@ export function QuotationBuilder({
   }, []);
   useEffect(() => {
     if (isCreateMode) {
-      if (isReturningFromConfigurator) return;
+      if (isReturningFromConfigurator) {
+        autosaveReadyRef.current = true;
+        return;
+      }
+      autosaveReadyRef.current = false;
+      lastSubmittedFingerprintRef.current = null;
+      lastSavedFingerprintRef.current = null;
       setQuotation(initialQuotation ?? createEmptyQuotation());
       hydratedQuotationKeyRef.current = null;
+      autosaveReadyRef.current = true;
       return;
     }
 
     if (!initialQuotation) return;
+
+    autosaveReadyRef.current = false;
+    const initialFingerprint = getQuotationSaveFingerprint(initialQuotation);
+    lastSubmittedFingerprintRef.current = initialFingerprint;
+    lastSavedFingerprintRef.current = initialFingerprint;
 
     const nextQuotationKey = getQuotationIdentity(initialQuotation);
     if (
@@ -1041,6 +1062,7 @@ export function QuotationBuilder({
       hydratedGlobalConfigKeyRef.current = null;
       setQuotation(initialQuotation);
     }
+    autosaveReadyRef.current = true;
   }, [initialQuotation, isCreateMode, isReturningFromConfigurator, setQuotation]);
   const [activeTab, setActiveTab] = useState<TabKey>(() => (isTabKey(requestedTab) ? requestedTab : "customer"));
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -1066,8 +1088,6 @@ export function QuotationBuilder({
     setActiveTab(requestedTab);
   }, [requestedTab]);
 
-  const { quotation, saveState } = useQuotationBuilder();
-  const markSaved = useQuotationBuilderStore((state) => state.markSaved);
   const logoPreview = globalConfig.logoUrl || globalConfig.logo;
   const quotationWithGlobalConfig = useMemo(
     () => ({
@@ -1090,6 +1110,69 @@ export function QuotationBuilder({
     }),
     [globalConfig, quotation]
   );
+
+  const queueAutosave = useCallback(
+    (snapshot: Quotation) => {
+      const submittedFingerprint = getQuotationSaveFingerprint(snapshot);
+
+      const persist = async () => {
+        const currentQuotation = useQuotationBuilderStore.getState().quotation;
+        if (
+          currentQuotation._id &&
+          (submittedFingerprint === lastSubmittedFingerprintRef.current ||
+            submittedFingerprint === lastSavedFingerprintRef.current)
+        ) {
+          return currentQuotation;
+        }
+
+        const quotationToSave = snapshot._id
+          ? snapshot
+          : { ...snapshot, _id: currentQuotation._id };
+
+        setAutosaveStatus("saving");
+        try {
+          const saved = await saveQuotationDraft(quotationToSave);
+          if (!saved) throw new Error("Quotation autosave returned no quotation");
+
+          lastSubmittedFingerprintRef.current = submittedFingerprint;
+          lastSavedFingerprintRef.current = getQuotationSaveFingerprint(saved);
+          applyAutosaveResult(snapshot, saved);
+          markSaved();
+
+          const snapshotLogo = snapshot.globalConfig?.logo || "";
+          const savedLogo = saved.globalConfig?.logo || "";
+          if (savedLogo && savedLogo !== snapshotLogo) {
+            setGlobalConfig((current) =>
+              (current.logo || "") === snapshotLogo
+                ? { ...current, logo: savedLogo, logoUrl: savedLogo }
+                : current
+            );
+          }
+
+          setAutosaveStatus("idle");
+          return saved;
+        } catch (error) {
+          setAutosaveStatus("failed");
+          throw error;
+        }
+      };
+
+      autosaveChainRef.current = autosaveChainRef.current
+        .catch(() => null)
+        .then(persist);
+      return autosaveChainRef.current;
+    },
+    [applyAutosaveResult, markSaved]
+  );
+
+  const flushAutosave = useCallback(async () => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    const saved = await queueAutosave(quotationWithGlobalConfig);
+    return saved ?? useQuotationBuilderStore.getState().quotation;
+  }, [queueAutosave, quotationWithGlobalConfig]);
 
   useEffect(() => {
     const savedGlobalConfig = quotation.globalConfig;
@@ -1155,18 +1238,34 @@ export function QuotationBuilder({
     updateGlobalConfig(nextGlobalConfig);
   }, [globalConfig, quotation.globalConfig, updateGlobalConfig]);
 
-  const handleSave = async () => {
-    try {
-      const savedQuotation = await saveQuotationDraft(quotationWithGlobalConfig);
-      if (savedQuotation) {
-        setQuotation(savedQuotation);
-      }
-      markSaved();
-    } catch (err) {
-      console.error(err);
-      alert("Error saving ");
+  useEffect(() => {
+    if (!autosaveReadyRef.current) return;
+    if (!quotationWithGlobalConfig._id && quotationWithGlobalConfig.items.length === 0) return;
+
+    const fingerprint = getQuotationSaveFingerprint(quotationWithGlobalConfig);
+    if (
+      fingerprint === lastSubmittedFingerprintRef.current ||
+      fingerprint === lastSavedFingerprintRef.current
+    ) {
+      return;
     }
-  };
+
+    setAutosaveStatus("unsaved");
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => {
+      autosaveTimerRef.current = null;
+      queueAutosave(quotationWithGlobalConfig).catch((error) => {
+        console.error("Quotation autosave failed", error);
+      });
+    }, 600);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+    };
+  }, [queueAutosave, quotationWithGlobalConfig]);
 
   const handleLogoUpload = (file: File | null) => {
     if (!file) return;
@@ -1192,7 +1291,7 @@ export function QuotationBuilder({
         hasGlobalConfig: Boolean(globalConfig),
         hasLogo: Boolean(globalConfig?.logoUrl || globalConfig?.logo)
       });
-      const savedQuotation = await saveQuotationDraft(quotationWithGlobalConfig);
+      const savedQuotation = await flushAutosave();
       const pdfQuotationId =
         savedQuotation?._id ??
         quotationWithGlobalConfig._id ??
@@ -1226,7 +1325,7 @@ export function QuotationBuilder({
     try {
       setIsGeneratingElevation(true);
 
-      const savedQuotation = await saveQuotationDraft(quotationWithGlobalConfig);
+      const savedQuotation = await flushAutosave();
 
       const pdfQuotationId =
         savedQuotation?._id ??
@@ -1258,7 +1357,7 @@ export function QuotationBuilder({
   const exportCuttingSchedule = async () => {
     try {
       setIsGeneratingCuttingSchedule(true);
-      const savedQuotation = await saveQuotationDraft(quotationWithGlobalConfig);
+      const savedQuotation = await flushAutosave();
       const pdfQuotationId =
         savedQuotation?._id ??
         quotationWithGlobalConfig._id ??
@@ -1296,7 +1395,7 @@ export function QuotationBuilder({
   const exportBom = async () => {
     try {
       setIsGeneratingBom(true);
-      const savedQuotation = await saveQuotationDraft(quotationWithGlobalConfig);
+      const savedQuotation = await flushAutosave();
       const pdfQuotationId =
         savedQuotation?._id ??
         quotationWithGlobalConfig._id ??
@@ -1352,7 +1451,15 @@ export function QuotationBuilder({
       description={pageDescription}
       actions={
         <>
-          <Badge variant="success">{saveState}</Badge>
+          <Badge variant={autosaveStatus === "failed" ? "danger" : autosaveStatus === "unsaved" ? "warning" : "success"}>
+            {autosaveStatus === "saving"
+              ? "Saving..."
+              : autosaveStatus === "failed"
+                ? "Autosave failed"
+                : autosaveStatus === "unsaved"
+                  ? "Unsaved changes"
+                  : saveState}
+          </Badge>
            
           <Button variant="outline"
            onClick={exportCuttingSchedule} disabled={isGeneratingCuttingSchedule}>
@@ -1380,9 +1487,6 @@ export function QuotationBuilder({
           <Button variant="outline">
             <Share2 className="h-4 w-4" />
             Share
-          </Button>
-          <Button onClick={handleSave}>
-            Save
           </Button>
         </>
       }
