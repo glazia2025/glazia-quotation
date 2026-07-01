@@ -20,5 +20,12 @@ export function ExistingQuotationConfiguratorPage({
     return <div className="min-h-screen bg-[linear-gradient(180deg,#e2e8f0_0%,#f8fafc_100%)]" />;
   }
 
-  return <FullPageConfigurator itemId={itemId} initialQuotation={quotation} returnPath={`/quotations/${quotationId}`} />;
+  return (
+    <FullPageConfigurator
+      itemId={itemId}
+      initialQuotation={quotation}
+      returnPath={`/quotations/${quotationId}`}
+      quotationQueryKey={quotationId}
+    />
+  );
 }

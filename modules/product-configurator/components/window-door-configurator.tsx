@@ -2418,7 +2418,7 @@ export function WindowDoorConfigurator({
       }
       console.log("IMAGE CHECK:", image);
       const nextItem: QuotationItem = {
-        id: persistedItem?.id ?? crypto.randomUUID(),
+        id: persistedItem?.id ?? persistedItem?._id ?? crypto.randomUUID(),
         refCode: trimmedRefCode,
         location: meta.location || "",
         projectLocation: meta.location || "",

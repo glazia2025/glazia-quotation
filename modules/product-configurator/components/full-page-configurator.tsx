@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { WindowDoorConfigurator } from "@/modules/product-configurator/components/window-door-configurator";
@@ -21,13 +22,17 @@ const getQuotationItemIdentity = (item: QuotationItem | null | undefined) => {
 export function FullPageConfigurator({
   itemId,
   returnPath = "/quotations/new",
-  initialQuotation
+  initialQuotation,
+  quotationQueryKey,
 }: {
   itemId: string;
   returnPath?: string;
   initialQuotation?: Quotation;
+  quotationQueryKey?: string;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const initialSyncKeyRef = useRef("");
   const quotationId = useQuotationBuilderStore((state) => state.quotation._id ?? state.quotation.quotationDetails.id);
   const quotation = useQuotationBuilderStore((state) => state.quotation);
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
@@ -38,15 +43,26 @@ export function FullPageConfigurator({
   const item =
     initialQuotation?.items.find((entry) => getQuotationItemIdentity(entry) === itemId) ??
     quotation.items.find((entry) => getQuotationItemIdentity(entry) === itemId);
+  const activeItemRef = useRef<QuotationItem | undefined>(item);
+  if (item) activeItemRef.current = item;
+  const activeItem = item ?? activeItemRef.current;
 
   useEffect(() => {
     if (!initialQuotation) return;
     const initialQuotationId = initialQuotation._id ?? initialQuotation.quotationDetails.id;
+    const syncKey = `${initialQuotationId}:${itemId}`;
+    if (initialSyncKeyRef.current === syncKey) return;
+    initialSyncKeyRef.current = syncKey;
     const hasRequestedItem = quotation.items.some(
       (entry) => getQuotationItemIdentity(entry) === itemId
     );
     if (quotationId === initialQuotationId && hasRequestedItem) return;
-    setQuotation(initialQuotation);
+    const initialHasRequestedItem = initialQuotation.items.some(
+      (entry) => getQuotationItemIdentity(entry) === itemId
+    );
+    if (quotationId !== initialQuotationId || initialHasRequestedItem) {
+      setQuotation(initialQuotation);
+    }
   }, [initialQuotation, itemId, quotation.items, quotationId, setQuotation]);
 
   const handleClose = () => {
@@ -61,11 +77,17 @@ export function FullPageConfigurator({
       .quotation.items.find((i) => getQuotationItemIdentity(i) === itemId);
 
     let localItemId = nextItem.id;
+    const serverItemId = String(exists?._id || exists?.id || "");
     if (exists) {
       const realId = exists.id || exists._id;
       if (!realId) throw new Error("Could not resolve the quotation item id");
       localItemId = realId;
-      updateItem(realId, nextItem);
+      updateItem(
+        realId,
+        /^[a-f\d]{24}$/i.test(serverItemId)
+          ? nextItem
+          : { ...nextItem, id: realId }
+      );
     } else {
       const currentQuotation = useQuotationBuilderStore.getState().quotation;
       setQuotation({
@@ -83,20 +105,28 @@ export function FullPageConfigurator({
       quotationId = savedParent._id;
     }
 
-    const serverItemId = String(exists?._id || exists?.id || "");
     const savedItem = /^[a-f\d]{24}$/i.test(serverItemId)
       ? await updateQuotationItem(quotationId, serverItemId, nextItem)
       : await createQuotationItem(quotationId, nextItem);
     replaceItem(localItemId, savedItem);
     markSaved();
+    if (quotationQueryKey) {
+      queryClient.setQueryData(
+        ["quotation", quotationQueryKey],
+        useQuotationBuilderStore.getState().quotation
+      );
+      void queryClient.invalidateQueries({
+        queryKey: ["quotation", quotationQueryKey],
+      });
+    }
   };
 
   return (
     <div className="fixed inset-0 z-[200] bg-[linear-gradient(180deg,#e2e8f0_0%,#f8fafc_100%)]">
       <div className="h-full w-full">
-        {item || !initialQuotation ? (
+        {activeItem || !initialQuotation ? (
           <WindowDoorConfigurator
-            initialItem={item ?? null}
+            initialItem={activeItem ?? null}
             profitPercentage={0}
             onSaveItem={handleSaveItem}
             onClose={handleClose}
