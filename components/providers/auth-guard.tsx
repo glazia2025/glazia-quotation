@@ -70,9 +70,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         }
       })
       .finally(() => {
-        if (!cancelled) {
           setBootstrapping(false);
-        }
       });
 
     return () => {
