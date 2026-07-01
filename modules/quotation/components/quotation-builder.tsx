@@ -374,6 +374,12 @@ function QuotationPreview({ item }: { item: QuotationItem | undefined }) {
 function ItemTab({ quotationBasePath }: { quotationBasePath: string }) {
   const quotation = useQuotationBuilderStore((state) => state.quotation);
   const items = quotation.items;
+  const ITEMS_PER_PAGE = 30;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+const endIndex = startIndex + ITEMS_PER_PAGE;
+const currentItems = items.slice(startIndex, endIndex);
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
   const router = useRouter();
   const profit = Number(quotation.breakdown?.profitPercentage) || 0;
@@ -485,7 +491,7 @@ function ItemTab({ quotationBasePath }: { quotationBasePath: string }) {
           <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
 
 
-            {items.map((item) => (
+            {currentItems.map((item) => (
               <SortableItem
                 key={item.id}
                 item={item}
@@ -508,6 +514,29 @@ function ItemTab({ quotationBasePath }: { quotationBasePath: string }) {
       </button> */}
 
           </div>
+           {/* Pagination */}
+  <div className="flex justify-center gap-2 mt-6">
+    <Button
+      variant="outline"
+      disabled={currentPage === 1}
+      onClick={() => setCurrentPage((p) => p - 1)}
+    >
+      Previous
+    </Button>
+
+    <span className="px-4 py-2">
+      Page {currentPage} of {totalPages}
+    </span>
+
+    <Button
+      variant="outline"
+      disabled={currentPage === totalPages}
+      onClick={() => setCurrentPage((p) => p + 1)}
+    >
+      Next
+    </Button>
+  </div>
+
         </SortableContext>
       </DndContext>
     </div>
