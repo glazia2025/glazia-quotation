@@ -1891,7 +1891,7 @@ export function WindowDoorConfigurator({
   initialItem,
   profitPercentage,
 }: {
-  onSaveItem: (item: QuotationItem) => void;
+  onSaveItem: (item: QuotationItem) => Promise<void> | void;
   onClose: () => void;
   initialItem?: QuotationItem | null;
   profitPercentage: number;
@@ -2413,6 +2413,9 @@ export function WindowDoorConfigurator({
         pixelRatio: 2
       });
       gridGroupRef.current?.show();
+      if (!image) {
+        throw new Error("Could not capture the quotation item image");
+      }
       console.log("IMAGE CHECK:", image);
       const nextItem: QuotationItem = {
         id: persistedItem?.id ?? crypto.randomUUID(),
@@ -2466,8 +2469,11 @@ export function WindowDoorConfigurator({
         discountPercent: persistedItem?.discountPercent ?? 0,
         previewPanels: persistedItem?.previewPanels ?? 1,
       };
-      onSaveItem(nextItem);
+      await onSaveItem(nextItem);
       onClose();
+    } catch (error) {
+      console.error("Failed to save quotation item", error);
+      alert("Failed to save the quotation item and its image. Please try again.");
     } finally {
       setHideSelectionForExport(false);
       setIsSaving(false);
@@ -2918,8 +2924,9 @@ export function WindowDoorConfigurator({
       <button
         type="button"
         onClick={onClose}
+        disabled={isSaving}
         aria-label="Close configurator"
-        className="absolute right-4 top-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:bg-gray-50"
+        className="absolute right-4 top-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <X className="h-5 w-5" />
       </button>

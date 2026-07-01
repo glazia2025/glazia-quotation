@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { WindowDoorConfigurator } from "@/modules/product-configurator/components/window-door-configurator";
+import { saveQuotationDraft } from "@/services/quotation-service";
 import type { Quotation, QuotationItem } from "@/types/quotation";
 
 const getQuotationItemIdentity = (item: QuotationItem | null | undefined) => {
@@ -27,6 +28,8 @@ export function FullPageConfigurator({
   const quotation = useQuotationBuilderStore((state) => state.quotation);
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
   const updateItem = useQuotationBuilderStore((state) => state.updateItem);
+  const applyAutosaveResult = useQuotationBuilderStore((state) => state.applyAutosaveResult);
+  const markSaved = useQuotationBuilderStore((state) => state.markSaved);
   const item =
     initialQuotation?.items.find((entry) => getQuotationItemIdentity(entry) === itemId) ??
     quotation.items.find((entry) => getQuotationItemIdentity(entry) === itemId);
@@ -44,26 +47,30 @@ export function FullPageConfigurator({
     router.push(`${target.pathname}${target.search}`);
   };
 
-  // const handleSaveItem = (nextItem: QuotationItem) => {
-  //   updateItem(itemId, nextItem);
-  // };
-  const handleSaveItem = (nextItem: QuotationItem) => {
-  const exists = quotation.items.find((i) => getQuotationItemIdentity(i) === itemId);
-  
-  // if (exists) {
-  //   updateItem(exists.id, nextItem);
-  if (exists) {
-    const realId = exists.id || exists._id;
-    if (!realId) return;
-    updateItem(realId, nextItem);
+  const handleSaveItem = async (nextItem: QuotationItem) => {
+    const exists = useQuotationBuilderStore
+      .getState()
+      .quotation.items.find((i) => getQuotationItemIdentity(i) === itemId);
 
-  } else {
-    setQuotation({
-      ...quotation,
-      items: [...quotation.items, nextItem]
-    });
-  }
-};
+    if (exists) {
+      const realId = exists.id || exists._id;
+      if (!realId) throw new Error("Could not resolve the quotation item id");
+      updateItem(realId, nextItem);
+    } else {
+      const currentQuotation = useQuotationBuilderStore.getState().quotation;
+      setQuotation({
+        ...currentQuotation,
+        items: [...currentQuotation.items, nextItem]
+      });
+    }
+
+    const snapshot = useQuotationBuilderStore.getState().quotation;
+    const saved = await saveQuotationDraft(snapshot);
+    if (!saved) throw new Error("Saving the quotation item returned no quotation");
+
+    applyAutosaveResult(snapshot, saved);
+    markSaved();
+  };
 
   return (
     <div className="fixed inset-0 z-[200] bg-[linear-gradient(180deg,#e2e8f0_0%,#f8fafc_100%)]">

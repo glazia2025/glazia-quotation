@@ -208,6 +208,9 @@ export function toBackendQuotation(quotation: Quotation) {
 export const getQuotationSaveFingerprint = (quotation: Quotation) =>
   JSON.stringify(toBackendQuotation(quotation));
 
+export const getQuotationItemsSaveFingerprint = (quotation: Quotation) =>
+  JSON.stringify(toBackendQuotation(quotation).items);
+
 function unwrapQuotationList(payload: unknown): BackendQuotationRecord[] {
   const source = typeof payload === "object" && payload !== null ? (payload as ApiQuotationListResponse) : {};
   const quotations = source.quotations ?? source.data ?? payload;

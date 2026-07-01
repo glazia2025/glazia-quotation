@@ -21,7 +21,7 @@ import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-bui
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { getArea, getPerimeter } from "@/modules/quotation/utils/calculations";
 import { createEmptyQuotation } from "@/modules/quotation/utils/factory";
-import { getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationDraft, getElevationPdfBlob, getQuotationSaveFingerprint } from "@/services/quotation-service";
+import { getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationDraft, getElevationPdfBlob, getQuotationItemsSaveFingerprint, getQuotationSaveFingerprint } from "@/services/quotation-service";
 import type { Quotation, QuotationItem } from "@/types/quotation";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { getQuotationPdfDownloadName } from "@/utils/quotationPdf";
@@ -1003,6 +1003,7 @@ export function QuotationBuilder({
   const autosaveReadyRef = useRef(false);
   const lastSubmittedFingerprintRef = useRef<string | null>(null);
   const lastSavedFingerprintRef = useRef<string | null>(null);
+  const lastObservedItemsFingerprintRef = useRef<string | null>(null);
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "unsaved" | "saving" | "failed">("idle");
   const requestedTab = searchParams.get("tab");
   const isReturningFromConfigurator = isCreateMode && requestedTab === "item";
@@ -1040,6 +1041,9 @@ export function QuotationBuilder({
       autosaveReadyRef.current = false;
       lastSubmittedFingerprintRef.current = null;
       lastSavedFingerprintRef.current = null;
+      lastObservedItemsFingerprintRef.current = getQuotationItemsSaveFingerprint(
+        initialQuotation ?? createEmptyQuotation()
+      );
       setQuotation(initialQuotation ?? createEmptyQuotation());
       hydratedQuotationKeyRef.current = null;
       autosaveReadyRef.current = true;
@@ -1052,6 +1056,7 @@ export function QuotationBuilder({
     const initialFingerprint = getQuotationSaveFingerprint(initialQuotation);
     lastSubmittedFingerprintRef.current = initialFingerprint;
     lastSavedFingerprintRef.current = initialFingerprint;
+    lastObservedItemsFingerprintRef.current = getQuotationItemsSaveFingerprint(initialQuotation);
 
     const nextQuotationKey = getQuotationIdentity(initialQuotation);
     if (
@@ -1243,6 +1248,11 @@ export function QuotationBuilder({
     if (!quotationWithGlobalConfig._id && quotationWithGlobalConfig.items.length === 0) return;
 
     const fingerprint = getQuotationSaveFingerprint(quotationWithGlobalConfig);
+    const itemsFingerprint = getQuotationItemsSaveFingerprint(quotationWithGlobalConfig);
+    const itemsChanged =
+      lastObservedItemsFingerprintRef.current !== null &&
+      itemsFingerprint !== lastObservedItemsFingerprintRef.current;
+    lastObservedItemsFingerprintRef.current = itemsFingerprint;
     if (
       fingerprint === lastSubmittedFingerprintRef.current ||
       fingerprint === lastSavedFingerprintRef.current
@@ -1252,6 +1262,12 @@ export function QuotationBuilder({
 
     setAutosaveStatus("unsaved");
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    if (itemsChanged) {
+      queueAutosave(quotationWithGlobalConfig).catch((error) => {
+        console.error("Quotation item save failed", error);
+      });
+      return;
+    }
     autosaveTimerRef.current = setTimeout(() => {
       autosaveTimerRef.current = null;
       queueAutosave(quotationWithGlobalConfig).catch((error) => {
@@ -1444,6 +1460,12 @@ export function QuotationBuilder({
   };
   const pageTitle = isCreateMode ? "Create Quotation" : "Edit Quotation";
   const pageDescription = quotation.generatedId ? `#${quotation.generatedId}` : "";
+  const isSaveBlockingExports = autosaveStatus === "saving" || autosaveStatus === "unsaved";
+  const isAnyExportInProgress =
+    isGeneratingPdf ||
+    isGeneratingCuttingSchedule ||
+    isGeneratingBom ||
+    isGeneratingElevation;
 
   return (
     <PageShell
@@ -1462,29 +1484,29 @@ export function QuotationBuilder({
           </Badge>
            
           <Button variant="outline"
-           onClick={exportCuttingSchedule} disabled={isGeneratingCuttingSchedule}>
+           onClick={exportCuttingSchedule} disabled={isSaveBlockingExports || isAnyExportInProgress}>
             <Ruler className="h-4 w-4" />
             {isGeneratingCuttingSchedule ? "Generating..." : "Cutting"}
           </Button>
-          <Button variant="outline" onClick={exportBom} disabled={isGeneratingBom}>
+          <Button variant="outline" onClick={exportBom} disabled={isSaveBlockingExports || isAnyExportInProgress}>
             <Download className="h-4 w-4" />
             {isGeneratingBom ? "Generating..." : "BOM"}
           </Button>
          
           
-          <Button variant="outline" onClick={exportPdf} disabled={isGeneratingPdf}>
+          <Button variant="outline" onClick={exportPdf} disabled={isSaveBlockingExports || isAnyExportInProgress}>
             <Download className="h-4 w-4" />
             {isGeneratingPdf ? "Generating..." : "PDF"}
           </Button>
           <Button
             variant="outline"
             onClick={exportElevationPdf}
-            disabled={isGeneratingElevation}
+            disabled={isSaveBlockingExports || isAnyExportInProgress}
           >
             <Download className="h-4 w-4" />
             {isGeneratingElevation ? "Generating..." : "Elevation"}
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" disabled={isSaveBlockingExports || isAnyExportInProgress}>
             <Share2 className="h-4 w-4" />
             Share
           </Button>
@@ -1514,7 +1536,8 @@ export function QuotationBuilder({
             {/* RIGHT SIDE (BUTTON) */}
             <button
               onClick={handleAddItem}
-              className="rounded-xl bg-[#124657] px-4 py-2 text-sm text-white hover:bg-[#0b3642]"
+              disabled={autosaveStatus === "saving"}
+              className="rounded-xl bg-[#124657] px-4 py-2 text-sm text-white hover:bg-[#0b3642] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Add Item
             </button>
