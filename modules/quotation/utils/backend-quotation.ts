@@ -84,7 +84,7 @@ const normalizeSubItem = (value: unknown): QuotationSubItem => {
   };
 };
 
-const normalizeItem = (value: unknown): QuotationItem => {
+export const extractBackendQuotationItem = (value: unknown): QuotationItem => {
   const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
   const location = toStringValue(source.location);
   const width = toNumberValue(source.width);
@@ -187,7 +187,7 @@ export function extractBackendQuotation(payload: unknown): BackendQuotationRecor
         quotationItems: Array.isArray(source.quotationItems)
           ? source.quotationItems.map((id) => toStringValue(id)).filter(Boolean)
           : undefined,
-        items: Array.isArray(source.items) ? source.items.map(normalizeItem) : [],
+        items: Array.isArray(source.items) ? source.items.map(extractBackendQuotationItem) : [],
         customerDetails:
           typeof source.customerDetails === "object" && source.customerDetails !== null
             ? {

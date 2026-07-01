@@ -59,6 +59,7 @@ interface QuotationBuilderState {
   updateCustomer: (key: keyof Quotation["customerDetails"], value: string) => void;
   updateQuotationField: (key: keyof Quotation["quotationDetails"], value: string) => void;
   updateItem: (itemId: string, patch: Partial<QuotationItem>) => void;
+  replaceItem: (itemId: string, item: QuotationItem) => void;
   addItem: (itemId?: string) => string;
   ensureItem: (itemId: string) => void;
   duplicateItem: (itemId: string, refCode: string) => void;
@@ -185,6 +186,17 @@ export const useQuotationBuilderStore = create<QuotationBuilderState>()((set, ge
         ...state.quotation,
         items: state.quotation.items.map((item) => (getQuotationItemIdentity(item) === itemId ? { ...item, ...patch } : item))
       }
+    })),
+  replaceItem: (itemId, replacement) =>
+    set((state) => ({
+      quotation: {
+        ...state.quotation,
+        items: state.quotation.items.map((item) =>
+          getQuotationItemIdentity(item) === itemId ? replacement : item
+        ),
+      },
+      selectedItemId:
+        state.selectedItemId === itemId ? getQuotationItemIdentity(replacement) : state.selectedItemId,
     })),
   addItem: (itemId) => {
     const next = createDefaultItem(itemId);

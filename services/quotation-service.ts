@@ -4,7 +4,7 @@ import { QUOTATION_API_BASE_URL } from "@/services/api";
 import { useAuthStore } from "@/store/auth-store";
 import type { Quotation, QuotationSubItem } from "@/types/quotation";
 import { getAuthToken } from "@/utils/auth-cookie";
-import { extractBackendQuotation } from "@/modules/quotation/utils/backend-quotation";
+import { extractBackendQuotation, extractBackendQuotationItem } from "@/modules/quotation/utils/backend-quotation";
 
 export type BackendQuotationRecord = Quotation;
 
@@ -112,7 +112,7 @@ function toBackendSubItem(subItem: QuotationSubItem) {
   };
 }
 
-function toBackendItem(item: Quotation["items"][number]) {
+export function toBackendItem(item: Quotation["items"][number]) {
   const handleType = item.handleType || "";
   const frameCutAngle = normalizeCutAngle(item.frameCutAngle);
   const shutterCutAngle = normalizeCutAngle(item.shutterCutAngle);
@@ -210,6 +210,11 @@ export const getQuotationSaveFingerprint = (quotation: Quotation) =>
 
 export const getQuotationItemsSaveFingerprint = (quotation: Quotation) =>
   JSON.stringify(toBackendQuotation(quotation).items);
+
+export const getQuotationMetadataSaveFingerprint = (quotation: Quotation) => {
+  const { items: _items, ...metadata } = toBackendQuotation(quotation);
+  return JSON.stringify(metadata);
+};
 
 function unwrapQuotationList(payload: unknown): BackendQuotationRecord[] {
   const source = typeof payload === "object" && payload !== null ? (payload as ApiQuotationListResponse) : {};
@@ -310,6 +315,59 @@ export async function saveQuotationDraft(quotation: Quotation): Promise<BackendQ
 
   const envelope = findQuotationEnvelope(response.data);
   return envelope ? extractBackendQuotation(envelope) : null;
+}
+
+export async function saveQuotationMetadata(quotation: Quotation): Promise<BackendQuotationRecord | null> {
+  const headers = getAuthHeaders();
+  const { items: _items, ...payload } = toBackendQuotation(quotation);
+  const response = quotation._id
+    ? await axios.post(`${QUOTATION_API_BASE_URL}/api/quotations/${quotation._id}`, payload, { headers })
+    : await axios.post(`${QUOTATION_API_BASE_URL}/api/quotations`, payload, { headers });
+  const envelope = findQuotationEnvelope(response.data);
+  return envelope ? extractBackendQuotation(envelope) : null;
+}
+
+const extractItemResponse = (payload: unknown) => {
+  if (!payload || typeof payload !== "object") throw new Error("Quotation item API returned no item");
+  const item = (payload as { item?: unknown }).item;
+  if (!item) throw new Error("Quotation item API returned no item");
+  return extractBackendQuotationItem(item);
+};
+
+export async function createQuotationItem(quotationId: string, item: Quotation["items"][number]) {
+  const response = await axios.post(
+    `${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/items`,
+    { item: toBackendItem(item) },
+    { headers: getAuthHeaders() }
+  );
+  return extractItemResponse(response.data);
+}
+
+export async function updateQuotationItem(
+  quotationId: string,
+  itemId: string,
+  item: Quotation["items"][number]
+) {
+  const response = await axios.patch(
+    `${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/items/${itemId}`,
+    { item: toBackendItem(item) },
+    { headers: getAuthHeaders() }
+  );
+  return extractItemResponse(response.data);
+}
+
+export async function deleteQuotationItem(quotationId: string, itemId: string) {
+  await axios.delete(`${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/items/${itemId}`, {
+    headers: getAuthHeaders(),
+  });
+}
+
+export async function reorderQuotationItems(quotationId: string, itemIds: string[]) {
+  await axios.patch(
+    `${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/items/reorder`,
+    { itemIds },
+    { headers: getAuthHeaders() }
+  );
 }
 
 export async function deleteQuotation(quotationId: string) {

@@ -21,7 +21,7 @@ import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-bui
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { getArea, getPerimeter } from "@/modules/quotation/utils/calculations";
 import { createEmptyQuotation } from "@/modules/quotation/utils/factory";
-import { getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationDraft, getElevationPdfBlob, getQuotationItemsSaveFingerprint, getQuotationSaveFingerprint } from "@/services/quotation-service";
+import { createQuotationItem, deleteQuotationItem, getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationMetadata, getElevationPdfBlob, getQuotationMetadataSaveFingerprint, reorderQuotationItems } from "@/services/quotation-service";
 import type { Quotation, QuotationItem } from "@/types/quotation";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { getQuotationPdfDownloadName } from "@/utils/quotationPdf";
@@ -65,6 +65,8 @@ const getQuotationItemIdentity = (item: QuotationItem) => {
   const withBackendId = item as QuotationItem & { _id?: string };
   return String(item.id || withBackendId._id || item.refCode || "");
 };
+const getServerQuotationItemId = (item: QuotationItem) =>
+  [item._id, item.id].map(String).find((value) => /^[a-f\d]{24}$/i.test(value)) || "";
 
 const createBuilderGlobalConfig = () => ({
   logo: "",
@@ -87,14 +89,23 @@ const createBuilderGlobalConfig = () => ({
 const getQuotationIdentity = (quotation: Quotation | null | undefined) =>
   quotation?._id || quotation?.generatedId || quotation?.quotationDetails?.id || "";
 
-function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configuratorBasePath: string }) {
+function ItemCard({
+  item,
+  configuratorBasePath,
+  onDeleteItem,
+  onDuplicateItem,
+}: {
+  item: QuotationItem;
+  configuratorBasePath: string;
+  onDeleteItem: (item: QuotationItem) => Promise<void>;
+  onDuplicateItem: (item: QuotationItem, refCode: string) => Promise<void>;
+}) {
   const [showSections, setShowSections] = useState(false);
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [duplicateRefCode, setDuplicateRefCode] = useState("");
   const [duplicateError, setDuplicateError] = useState("");
-  const removeItem = useQuotationBuilderStore((state) => state.removeItem);
-  const duplicateItem = useQuotationBuilderStore((state) => state.duplicateItem);
+  const [isMutating, setIsMutating] = useState(false);
   const systemLabel = item.systemType || item.series || item.openingType || "Not configured";
   const locationLabel = item.location || item.projectLocation || "Not specified";
   const refCodeLabel = item.refCode || (item.id ? item.id.slice(0, 8).toUpperCase() : "Item");
@@ -105,9 +116,17 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
     setIsDeleteModalOpen(true);
   };
 
-  const confirmDelete = () => {
-    removeItem(itemIdentity);
-    setIsDeleteModalOpen(false);
+  const confirmDelete = async () => {
+    setIsMutating(true);
+    try {
+      await onDeleteItem(item);
+      setIsDeleteModalOpen(false);
+    } catch (error) {
+      console.error("Failed to delete quotation item", error);
+      alert("Failed to delete the quotation item.");
+    } finally {
+      setIsMutating(false);
+    }
   };
 
   const handleDuplicate = () => {
@@ -116,17 +135,25 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
     setIsDuplicateModalOpen(true);
   };
 
-  const confirmDuplicate = () => {
+  const confirmDuplicate = async () => {
     const trimmedRefCode = duplicateRefCode.trim();
     if (!trimmedRefCode) {
       setDuplicateError("Ref Code is required to duplicate an item.");
       return;
     }
 
-    duplicateItem(itemIdentity, trimmedRefCode);
-    setIsDuplicateModalOpen(false);
-    setDuplicateRefCode("");
-    setDuplicateError("");
+    setIsMutating(true);
+    try {
+      await onDuplicateItem(item, trimmedRefCode);
+      setIsDuplicateModalOpen(false);
+      setDuplicateRefCode("");
+      setDuplicateError("");
+    } catch (error) {
+      console.error("Failed to duplicate quotation item", error);
+      setDuplicateError("Failed to duplicate this item.");
+    } finally {
+      setIsMutating(false);
+    }
   };
 
   return (
@@ -249,8 +276,8 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
               <Button variant="outline" size="sm" onClick={() => setIsDeleteModalOpen(false)}>
                 Cancel
               </Button>
-              <Button size="sm" onClick={confirmDelete} className="bg-red-600 text-white hover:bg-red-700">
-                Delete
+              <Button size="sm" onClick={confirmDelete} disabled={isMutating} className="bg-red-600 text-white hover:bg-red-700">
+                {isMutating ? "Deleting..." : "Delete"}
               </Button>
             </div>
           </div>
@@ -282,8 +309,8 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
               <Button variant="outline" size="sm" onClick={() => { setIsDuplicateModalOpen(false); setDuplicateError(""); }}>
                 Cancel
               </Button>
-              <Button size="sm" onClick={confirmDuplicate} className="bg-[#124657] hover:bg-[#0b3642]">
-                Duplicate
+              <Button size="sm" onClick={confirmDuplicate} disabled={isMutating} className="bg-[#124657] hover:bg-[#0b3642]">
+                {isMutating ? "Saving..." : "Duplicate"}
               </Button>
             </div>
           </div>
@@ -297,9 +324,13 @@ function ItemCard({ item, configuratorBasePath }: { item: QuotationItem; configu
 function SortableItem({
   item,
   configuratorBasePath,
+  onDeleteItem,
+  onDuplicateItem,
 }: {
   item: QuotationItem;
   configuratorBasePath: string;
+  onDeleteItem: (item: QuotationItem) => Promise<void>;
+  onDuplicateItem: (item: QuotationItem, refCode: string) => Promise<void>;
 }) {
   const {
     attributes,
@@ -316,7 +347,12 @@ function SortableItem({
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <ItemCard item={item} configuratorBasePath={configuratorBasePath} />
+      <ItemCard
+        item={item}
+        configuratorBasePath={configuratorBasePath}
+        onDeleteItem={onDeleteItem}
+        onDuplicateItem={onDuplicateItem}
+      />
     </div>
   );
 }
@@ -371,7 +407,17 @@ function QuotationPreview({ item }: { item: QuotationItem | undefined }) {
 //     alert("Error saving ");
 //   }
 // };
-function ItemTab({ quotationBasePath }: { quotationBasePath: string }) {
+function ItemTab({
+  quotationBasePath,
+  onDeleteItem,
+  onDuplicateItem,
+  onReorderItems,
+}: {
+  quotationBasePath: string;
+  onDeleteItem: (item: QuotationItem) => Promise<void>;
+  onDuplicateItem: (item: QuotationItem, refCode: string) => Promise<void>;
+  onReorderItems: (startIndex: number, endIndex: number) => Promise<void>;
+}) {
   const quotation = useQuotationBuilderStore((state) => state.quotation);
   const items = quotation.items;
   const ITEMS_PER_PAGE = 30;
@@ -425,12 +471,11 @@ const currentItems = items.slice(startIndex, endIndex);
   //   router.push(`${configuratorBasePath}/${newItemId}`);
   // };
   // for reorder item 
-  const reorderItems = useQuotationBuilderStore((s) => s.reorderItems);
   const sensors = useSensors(
     useSensor(PointerSensor)
   );
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
 
     if (!over || active.id === over.id) return;
@@ -438,7 +483,11 @@ const currentItems = items.slice(startIndex, endIndex);
     const oldIndex = items.findIndex((item) => item.id === active.id);
     const newIndex = items.findIndex((item) => item.id === over.id);
 
-    reorderItems(oldIndex, newIndex);
+    try {
+      await onReorderItems(oldIndex, newIndex);
+    } catch (error) {
+      console.error("Failed to reorder quotation items", error);
+    }
   };
 
   return (
@@ -496,6 +545,8 @@ const currentItems = items.slice(startIndex, endIndex);
                 key={item.id}
                 item={item}
                 configuratorBasePath={configuratorBasePath}
+                onDeleteItem={onDeleteItem}
+                onDuplicateItem={onDuplicateItem}
               />
             ))}
 
@@ -1029,10 +1080,11 @@ export function QuotationBuilder({
   const { quotation, saveState } = useQuotationBuilder();
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autosaveChainRef = useRef<Promise<Quotation | null>>(Promise.resolve(null));
+  const itemMutationChainRef = useRef<Promise<void>>(Promise.resolve());
   const autosaveReadyRef = useRef(false);
   const lastSubmittedFingerprintRef = useRef<string | null>(null);
   const lastSavedFingerprintRef = useRef<string | null>(null);
-  const lastObservedItemsFingerprintRef = useRef<string | null>(null);
+  const [itemMutationsInProgress, setItemMutationsInProgress] = useState(0);
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "unsaved" | "saving" | "failed">("idle");
   const requestedTab = searchParams.get("tab");
   const isReturningFromConfigurator = isCreateMode && requestedTab === "item";
@@ -1064,15 +1116,17 @@ export function QuotationBuilder({
   useEffect(() => {
     if (isCreateMode) {
       if (isReturningFromConfigurator) {
+        const currentFingerprint = getQuotationMetadataSaveFingerprint(
+          useQuotationBuilderStore.getState().quotation
+        );
+        lastSubmittedFingerprintRef.current = currentFingerprint;
+        lastSavedFingerprintRef.current = currentFingerprint;
         autosaveReadyRef.current = true;
         return;
       }
       autosaveReadyRef.current = false;
       lastSubmittedFingerprintRef.current = null;
       lastSavedFingerprintRef.current = null;
-      lastObservedItemsFingerprintRef.current = getQuotationItemsSaveFingerprint(
-        initialQuotation ?? createEmptyQuotation()
-      );
       setQuotation(initialQuotation ?? createEmptyQuotation());
       hydratedQuotationKeyRef.current = null;
       autosaveReadyRef.current = true;
@@ -1082,10 +1136,9 @@ export function QuotationBuilder({
     if (!initialQuotation) return;
 
     autosaveReadyRef.current = false;
-    const initialFingerprint = getQuotationSaveFingerprint(initialQuotation);
+    const initialFingerprint = getQuotationMetadataSaveFingerprint(initialQuotation);
     lastSubmittedFingerprintRef.current = initialFingerprint;
     lastSavedFingerprintRef.current = initialFingerprint;
-    lastObservedItemsFingerprintRef.current = getQuotationItemsSaveFingerprint(initialQuotation);
 
     const nextQuotationKey = getQuotationIdentity(initialQuotation);
     if (
@@ -1147,7 +1200,7 @@ export function QuotationBuilder({
 
   const queueAutosave = useCallback(
     (snapshot: Quotation) => {
-      const submittedFingerprint = getQuotationSaveFingerprint(snapshot);
+      const submittedFingerprint = getQuotationMetadataSaveFingerprint(snapshot);
 
       const persist = async () => {
         const currentQuotation = useQuotationBuilderStore.getState().quotation;
@@ -1165,11 +1218,11 @@ export function QuotationBuilder({
 
         setAutosaveStatus("saving");
         try {
-          const saved = await saveQuotationDraft(quotationToSave);
+          const saved = await saveQuotationMetadata(quotationToSave);
           if (!saved) throw new Error("Quotation autosave returned no quotation");
 
           lastSubmittedFingerprintRef.current = submittedFingerprint;
-          lastSavedFingerprintRef.current = getQuotationSaveFingerprint(saved);
+          lastSavedFingerprintRef.current = getQuotationMetadataSaveFingerprint(saved);
           applyAutosaveResult(snapshot, saved);
           markSaved();
 
@@ -1204,9 +1257,101 @@ export function QuotationBuilder({
       clearTimeout(autosaveTimerRef.current);
       autosaveTimerRef.current = null;
     }
+    await itemMutationChainRef.current;
     const saved = await queueAutosave(quotationWithGlobalConfig);
     return saved ?? useQuotationBuilderStore.getState().quotation;
   }, [queueAutosave, quotationWithGlobalConfig]);
+
+  const runItemMutation = useCallback((mutation: () => Promise<void>) => {
+    setItemMutationsInProgress((count) => count + 1);
+    const operation = itemMutationChainRef.current
+      .catch(() => undefined)
+      .then(mutation);
+    itemMutationChainRef.current = operation.then(
+      () => undefined,
+      () => undefined
+    );
+    return operation.finally(() => {
+      setItemMutationsInProgress((count) => Math.max(0, count - 1));
+    });
+  }, []);
+
+  const ensureParentQuotation = useCallback(async () => {
+    const current = useQuotationBuilderStore.getState().quotation;
+    if (current._id) return current._id;
+    const snapshot = {
+      ...current,
+      globalConfig: quotationWithGlobalConfig.globalConfig,
+    };
+    const saved = await saveQuotationMetadata(snapshot);
+    if (!saved?._id) throw new Error("Creating the quotation returned no id");
+    applyAutosaveResult(snapshot, saved);
+    markSaved();
+    return saved._id;
+  }, [applyAutosaveResult, markSaved, quotationWithGlobalConfig.globalConfig]);
+
+  const persistDeleteItem = useCallback(
+    (item: QuotationItem) =>
+      runItemMutation(async () => {
+        const itemId = getServerQuotationItemId(item);
+        const localId = getQuotationItemIdentity(item);
+        const quotationId = await ensureParentQuotation();
+        if (itemId) await deleteQuotationItem(quotationId, itemId);
+        useQuotationBuilderStore.getState().removeItem(localId);
+        markSaved();
+      }),
+    [ensureParentQuotation, markSaved, runItemMutation]
+  );
+
+  const persistDuplicateItem = useCallback(
+    (item: QuotationItem, refCode: string) =>
+      runItemMutation(async () => {
+        const sourceId = getQuotationItemIdentity(item);
+        const store = useQuotationBuilderStore.getState();
+        store.duplicateItem(sourceId, refCode);
+        const items = useQuotationBuilderStore.getState().quotation.items;
+        const sourceIndex = items.findIndex(
+          (entry) => getQuotationItemIdentity(entry) === sourceId
+        );
+        const duplicate = items[sourceIndex + 1];
+        if (!duplicate) throw new Error("Failed to create the local duplicate");
+        const duplicateLocalId = getQuotationItemIdentity(duplicate);
+        try {
+          const quotationId = await ensureParentQuotation();
+          const savedItem = await createQuotationItem(quotationId, duplicate);
+          useQuotationBuilderStore.getState().replaceItem(duplicateLocalId, savedItem);
+          markSaved();
+        } catch (error) {
+          useQuotationBuilderStore.getState().removeItem(duplicateLocalId);
+          throw error;
+        }
+      }),
+    [ensureParentQuotation, markSaved, runItemMutation]
+  );
+
+  const persistReorderedItems = useCallback(
+    (startIndex: number, endIndex: number) =>
+      runItemMutation(async () => {
+        const store = useQuotationBuilderStore.getState();
+        store.reorderItems(startIndex, endIndex);
+        try {
+          const quotationId = await ensureParentQuotation();
+          const itemIds = useQuotationBuilderStore
+            .getState()
+            .quotation.items.map(getServerQuotationItemId);
+          if (itemIds.some((id) => !id)) {
+            throw new Error("All items must be saved before they can be reordered");
+          }
+          await reorderQuotationItems(quotationId, itemIds);
+          markSaved();
+        } catch (error) {
+          useQuotationBuilderStore.getState().reorderItems(endIndex, startIndex);
+          alert("Failed to save the new item order.");
+          throw error;
+        }
+      }),
+    [ensureParentQuotation, markSaved, runItemMutation]
+  );
 
   useEffect(() => {
     const savedGlobalConfig = quotation.globalConfig;
@@ -1276,12 +1421,7 @@ export function QuotationBuilder({
     if (!autosaveReadyRef.current) return;
     if (!quotationWithGlobalConfig._id && quotationWithGlobalConfig.items.length === 0) return;
 
-    const fingerprint = getQuotationSaveFingerprint(quotationWithGlobalConfig);
-    const itemsFingerprint = getQuotationItemsSaveFingerprint(quotationWithGlobalConfig);
-    const itemsChanged =
-      lastObservedItemsFingerprintRef.current !== null &&
-      itemsFingerprint !== lastObservedItemsFingerprintRef.current;
-    lastObservedItemsFingerprintRef.current = itemsFingerprint;
+    const fingerprint = getQuotationMetadataSaveFingerprint(quotationWithGlobalConfig);
     if (
       fingerprint === lastSubmittedFingerprintRef.current ||
       fingerprint === lastSavedFingerprintRef.current
@@ -1291,12 +1431,6 @@ export function QuotationBuilder({
 
     setAutosaveStatus("unsaved");
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
-    if (itemsChanged) {
-      queueAutosave(quotationWithGlobalConfig).catch((error) => {
-        console.error("Quotation item save failed", error);
-      });
-      return;
-    }
     autosaveTimerRef.current = setTimeout(() => {
       autosaveTimerRef.current = null;
       queueAutosave(quotationWithGlobalConfig).catch((error) => {
@@ -1489,7 +1623,10 @@ export function QuotationBuilder({
   };
   const pageTitle = isCreateMode ? "Create Quotation" : "Edit Quotation";
   const pageDescription = quotation.generatedId ? `#${quotation.generatedId}` : "";
-  const isSaveBlockingExports = autosaveStatus === "saving" || autosaveStatus === "unsaved";
+  const isSaveBlockingExports =
+    autosaveStatus === "saving" ||
+    autosaveStatus === "unsaved" ||
+    itemMutationsInProgress > 0;
   const isAnyExportInProgress =
     isGeneratingPdf ||
     isGeneratingCuttingSchedule ||
@@ -1502,8 +1639,10 @@ export function QuotationBuilder({
       description={pageDescription}
       actions={
         <>
-          <Badge variant={autosaveStatus === "failed" ? "danger" : autosaveStatus === "unsaved" ? "warning" : "success"}>
-            {autosaveStatus === "saving"
+          <Badge variant={autosaveStatus === "failed" ? "danger" : autosaveStatus === "unsaved" || itemMutationsInProgress > 0 ? "warning" : "success"}>
+            {itemMutationsInProgress > 0
+              ? "Saving item..."
+              : autosaveStatus === "saving"
               ? "Saving..."
               : autosaveStatus === "failed"
                 ? "Autosave failed"
@@ -1565,7 +1704,7 @@ export function QuotationBuilder({
             {/* RIGHT SIDE (BUTTON) */}
             <button
               onClick={handleAddItem}
-              disabled={autosaveStatus === "saving"}
+              disabled={autosaveStatus === "saving" || itemMutationsInProgress > 0}
               className="rounded-xl bg-[#124657] px-4 py-2 text-sm text-white hover:bg-[#0b3642] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Add Item
@@ -1591,7 +1730,14 @@ export function QuotationBuilder({
                 handleLogoUpload={handleLogoUpload}
               />
             )}
-            {activeTab === "item" && <ItemTab quotationBasePath={quotationBasePath} />}
+            {activeTab === "item" && (
+              <ItemTab
+                quotationBasePath={quotationBasePath}
+                onDeleteItem={persistDeleteItem}
+                onDuplicateItem={persistDuplicateItem}
+                onReorderItems={persistReorderedItems}
+              />
+            )}
 
           </motion.div>
         </AnimatePresence>
