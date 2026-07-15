@@ -1209,6 +1209,7 @@ export function QuotationBuilder({
           (submittedFingerprint === lastSubmittedFingerprintRef.current ||
             submittedFingerprint === lastSavedFingerprintRef.current)
         ) {
+           setAutosaveStatus("idle"); 
           return currentQuotation;
         }
 
