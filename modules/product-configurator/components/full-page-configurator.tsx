@@ -33,6 +33,7 @@ export function FullPageConfigurator({
   const router = useRouter();
   const queryClient = useQueryClient();
   const initialSyncKeyRef = useRef("");
+  const returnPathRef = useRef(returnPath);
   const quotationId = useQuotationBuilderStore((state) => state.quotation._id ?? state.quotation.quotationDetails.id);
   const quotation = useQuotationBuilderStore((state) => state.quotation);
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
@@ -66,7 +67,7 @@ export function FullPageConfigurator({
   }, [initialQuotation, itemId, quotation.items, quotationId, setQuotation]);
 
   const handleClose = () => {
-    const target = new URL(returnPath, window.location.origin);
+    const target = new URL(returnPathRef.current, window.location.origin);
     target.searchParams.set("tab", "item");
     router.push(`${target.pathname}${target.search}`);
   };
@@ -103,6 +104,10 @@ export function FullPageConfigurator({
       if (!savedParent?._id) throw new Error("Creating the quotation returned no id");
       applyAutosaveResult(snapshot, savedParent);
       quotationId = savedParent._id;
+    }
+
+    if (returnPath === "/quotations/new") {
+      returnPathRef.current = `/quotations/${quotationId}`;
     }
 
     const savedItem = /^[a-f\d]{24}$/i.test(serverItemId)

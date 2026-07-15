@@ -21,7 +21,7 @@ import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-bui
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { getArea, getPerimeter } from "@/modules/quotation/utils/calculations";
 import { createEmptyQuotation } from "@/modules/quotation/utils/factory";
-import { createQuotationItem, deleteQuotationItem, getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationMetadata, getElevationPdfBlob, getQuotationMetadataSaveFingerprint, reorderQuotationItems } from "@/services/quotation-service";
+import { createQuotationItem, deleteQuotationItem, getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationMetadata, getElevationPdfBlob, reorderQuotationItems } from "@/services/quotation-service";
 import type { Quotation, QuotationItem } from "@/types/quotation";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { getQuotationPdfDownloadName } from "@/utils/quotationPdf";
@@ -412,11 +412,15 @@ function ItemTab({
   onDeleteItem,
   onDuplicateItem,
   onReorderItems,
+  onSavePricing,
+  isSavingMetadata,
 }: {
   quotationBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
   onDuplicateItem: (item: QuotationItem, refCode: string) => Promise<void>;
   onReorderItems: (startIndex: number, endIndex: number) => Promise<void>;
+  onSavePricing: () => Promise<void>;
+  isSavingMetadata: boolean;
 }) {
   const quotation = useQuotationBuilderStore((state) => state.quotation);
   const items = quotation.items;
@@ -529,6 +533,15 @@ const currentItems = items.slice(startIndex, endIndex);
               <div className="mt-1 text-xl font-bold">{formatCurrency(finalWithGST)}</div>
             </div>
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void onSavePricing()}
+            disabled={isSavingMetadata}
+            className="border-slate-600 bg-slate-900 text-white hover:bg-slate-800"
+          >
+            {isSavingMetadata ? "Saving..." : "Save Pricing"}
+          </Button>
         </div>
       </div>
 
@@ -593,7 +606,7 @@ const currentItems = items.slice(startIndex, endIndex);
     </div>
   );
 }
-function CustomerTab() {
+function CustomerTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSaving: boolean }) {
   const customer = useQuotationBuilderStore((state) => state.quotation.customerDetails);
   const updateCustomer = useQuotationBuilderStore((state) => state.updateCustomer);
   const customerValues = customer ?? {
@@ -616,11 +629,7 @@ function CustomerTab() {
         className="mb-6 flex w-full items-center justify-between text-left"
       >
         <h2 className="text-xl font-bold text-gray-900">Customer Details</h2>
-        {expanded ? (
-          <span>▲</span>
-        ) : (
-          <span>▼</span>
-        )}
+        <span>{expanded ? "▲" : "▼"}</span>
       </button>
 
       {expanded && (
@@ -732,13 +741,20 @@ function CustomerTab() {
 
         </div>
       )}
+      <div className="mt-6 flex justify-end">
+        <Button type="button" onClick={() => void onSave()} disabled={isSaving}>
+          {isSaving ? "Saving..." : "Save Customer Details"}
+        </Button>
+      </div>
     </div>
   );
 }
 function GlobalConfigTab({ globalConfig,
   setGlobalConfig,
   logoPreview,
-  handleLogoUpload
+  handleLogoUpload,
+  onSave,
+  isSaving,
 }: any) {
   const [expanded, setExpanded] = useState(true);
 
@@ -999,10 +1015,15 @@ function GlobalConfigTab({ globalConfig,
 
         </>
       )}
+      <div className="mt-6 flex justify-end">
+        <Button type="button" onClick={() => void onSave()} disabled={isSaving}>
+          {isSaving ? "Saving..." : "Save Global Configuration"}
+        </Button>
+      </div>
     </div>
   );
 }
-function QuotationDetailsTab() {
+function QuotationDetailsTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSaving: boolean }) {
   const quotationDetails = useQuotationBuilderStore((s) => s.quotation.quotationDetails);
   const updateQuotationField = useQuotationBuilderStore((s) => s.updateQuotationField);
 
@@ -1059,6 +1080,11 @@ function QuotationDetailsTab() {
 
         </div>
       )}
+      <div className="mt-6 flex justify-end">
+        <Button type="button" onClick={() => void onSave()} disabled={isSaving}>
+          {isSaving ? "Saving..." : "Save Quotation Details"}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -1078,14 +1104,10 @@ export function QuotationBuilder({
   const updateGlobalConfig = useQuotationBuilderStore((state) => state.updateGlobalConfig);
   const markSaved = useQuotationBuilderStore((state) => state.markSaved);
   const { quotation, saveState } = useQuotationBuilder();
-  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const autosaveChainRef = useRef<Promise<Quotation | null>>(Promise.resolve(null));
+  const metadataSaveChainRef = useRef<Promise<Quotation | null>>(Promise.resolve(null));
   const itemMutationChainRef = useRef<Promise<void>>(Promise.resolve());
-  const autosaveReadyRef = useRef(false);
-  const lastSubmittedFingerprintRef = useRef<string | null>(null);
-  const lastSavedFingerprintRef = useRef<string | null>(null);
   const [itemMutationsInProgress, setItemMutationsInProgress] = useState(0);
-  const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "unsaved" | "saving" | "failed">("idle");
+  const [metadataSaveStatus, setMetadataSaveStatus] = useState<"idle" | "saving" | "failed">("idle");
   const requestedTab = searchParams.get("tab");
   const isReturningFromConfigurator = isCreateMode && requestedTab === "item";
   const router = useRouter();
@@ -1116,29 +1138,14 @@ export function QuotationBuilder({
   useEffect(() => {
     if (isCreateMode) {
       if (isReturningFromConfigurator) {
-        const currentFingerprint = getQuotationMetadataSaveFingerprint(
-          useQuotationBuilderStore.getState().quotation
-        );
-        lastSubmittedFingerprintRef.current = currentFingerprint;
-        lastSavedFingerprintRef.current = currentFingerprint;
-        autosaveReadyRef.current = true;
         return;
       }
-      autosaveReadyRef.current = false;
-      lastSubmittedFingerprintRef.current = null;
-      lastSavedFingerprintRef.current = null;
       setQuotation(initialQuotation ?? createEmptyQuotation());
       hydratedQuotationKeyRef.current = null;
-      autosaveReadyRef.current = true;
       return;
     }
 
     if (!initialQuotation) return;
-
-    autosaveReadyRef.current = false;
-    const initialFingerprint = getQuotationMetadataSaveFingerprint(initialQuotation);
-    lastSubmittedFingerprintRef.current = initialFingerprint;
-    lastSavedFingerprintRef.current = initialFingerprint;
 
     const nextQuotationKey = getQuotationIdentity(initialQuotation);
     if (
@@ -1149,7 +1156,6 @@ export function QuotationBuilder({
       hydratedGlobalConfigKeyRef.current = null;
       setQuotation(initialQuotation);
     }
-    autosaveReadyRef.current = true;
   }, [initialQuotation, isCreateMode, isReturningFromConfigurator, setQuotation]);
   const [activeTab, setActiveTab] = useState<TabKey>(() => (isTabKey(requestedTab) ? requestedTab : "customer"));
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -1198,31 +1204,19 @@ export function QuotationBuilder({
     [globalConfig, quotation]
   );
 
-  const queueAutosave = useCallback(
+  const saveMetadata = useCallback(
     (snapshot: Quotation) => {
-      const submittedFingerprint = getQuotationMetadataSaveFingerprint(snapshot);
-
       const persist = async () => {
         const currentQuotation = useQuotationBuilderStore.getState().quotation;
-        if (
-          currentQuotation._id &&
-          (submittedFingerprint === lastSubmittedFingerprintRef.current ||
-            submittedFingerprint === lastSavedFingerprintRef.current)
-        ) {
-          return currentQuotation;
-        }
-
         const quotationToSave = snapshot._id
           ? snapshot
           : { ...snapshot, _id: currentQuotation._id };
 
-        setAutosaveStatus("saving");
+        setMetadataSaveStatus("saving");
         try {
           const saved = await saveQuotationMetadata(quotationToSave);
-          if (!saved) throw new Error("Quotation autosave returned no quotation");
+          if (!saved) throw new Error("Saving quotation details returned no quotation");
 
-          lastSubmittedFingerprintRef.current = submittedFingerprint;
-          lastSavedFingerprintRef.current = getQuotationMetadataSaveFingerprint(saved);
           applyAutosaveResult(snapshot, saved);
           markSaved();
 
@@ -1236,31 +1230,38 @@ export function QuotationBuilder({
             );
           }
 
-          setAutosaveStatus("idle");
+          setMetadataSaveStatus("idle");
           return saved;
         } catch (error) {
-          setAutosaveStatus("failed");
+          setMetadataSaveStatus("failed");
           throw error;
         }
       };
 
-      autosaveChainRef.current = autosaveChainRef.current
+      metadataSaveChainRef.current = metadataSaveChainRef.current
         .catch(() => null)
         .then(persist);
-      return autosaveChainRef.current;
+      return metadataSaveChainRef.current;
     },
     [applyAutosaveResult, markSaved]
   );
 
-  const flushAutosave = useCallback(async () => {
-    if (autosaveTimerRef.current) {
-      clearTimeout(autosaveTimerRef.current);
-      autosaveTimerRef.current = null;
+  const saveCurrentMetadata = useCallback(async () => {
+    const current = useQuotationBuilderStore.getState().quotation;
+    const snapshot = {
+      ...current,
+      globalConfig: quotationWithGlobalConfig.globalConfig,
+    };
+    const saved = await saveMetadata(snapshot);
+    if (saved?._id && isCreateMode) {
+      router.replace(`/quotations/${saved._id}?tab=${activeTab}`);
     }
+  }, [activeTab, isCreateMode, quotationWithGlobalConfig.globalConfig, router, saveMetadata]);
+
+  const getPersistedQuotation = useCallback(async () => {
     await itemMutationChainRef.current;
-    const saved = await queueAutosave(quotationWithGlobalConfig);
-    return saved ?? useQuotationBuilderStore.getState().quotation;
-  }, [queueAutosave, quotationWithGlobalConfig]);
+    return useQuotationBuilderStore.getState().quotation;
+  }, []);
 
   const runItemMutation = useCallback((mutation: () => Promise<void>) => {
     setItemMutationsInProgress((count) => count + 1);
@@ -1417,35 +1418,6 @@ export function QuotationBuilder({
     updateGlobalConfig(nextGlobalConfig);
   }, [globalConfig, quotation.globalConfig, updateGlobalConfig]);
 
-  useEffect(() => {
-    if (!autosaveReadyRef.current) return;
-    if (!quotationWithGlobalConfig._id && quotationWithGlobalConfig.items.length === 0) return;
-
-    const fingerprint = getQuotationMetadataSaveFingerprint(quotationWithGlobalConfig);
-    if (
-      fingerprint === lastSubmittedFingerprintRef.current ||
-      fingerprint === lastSavedFingerprintRef.current
-    ) {
-      return;
-    }
-
-    setAutosaveStatus("unsaved");
-    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
-    autosaveTimerRef.current = setTimeout(() => {
-      autosaveTimerRef.current = null;
-      queueAutosave(quotationWithGlobalConfig).catch((error) => {
-        console.error("Quotation autosave failed", error);
-      });
-    }, 600);
-
-    return () => {
-      if (autosaveTimerRef.current) {
-        clearTimeout(autosaveTimerRef.current);
-        autosaveTimerRef.current = null;
-      }
-    };
-  }, [queueAutosave, quotationWithGlobalConfig]);
-
   const handleLogoUpload = (file: File | null) => {
     if (!file) return;
 
@@ -1470,7 +1442,7 @@ export function QuotationBuilder({
         hasGlobalConfig: Boolean(globalConfig),
         hasLogo: Boolean(globalConfig?.logoUrl || globalConfig?.logo)
       });
-      const savedQuotation = await flushAutosave();
+      const savedQuotation = await getPersistedQuotation();
       const pdfQuotationId =
         savedQuotation?._id ??
         quotationWithGlobalConfig._id ??
@@ -1504,7 +1476,7 @@ export function QuotationBuilder({
     try {
       setIsGeneratingElevation(true);
 
-      const savedQuotation = await flushAutosave();
+      const savedQuotation = await getPersistedQuotation();
 
       const pdfQuotationId =
         savedQuotation?._id ??
@@ -1536,7 +1508,7 @@ export function QuotationBuilder({
   const exportCuttingSchedule = async () => {
     try {
       setIsGeneratingCuttingSchedule(true);
-      const savedQuotation = await flushAutosave();
+      const savedQuotation = await getPersistedQuotation();
       const pdfQuotationId =
         savedQuotation?._id ??
         quotationWithGlobalConfig._id ??
@@ -1574,7 +1546,7 @@ export function QuotationBuilder({
   const exportBom = async () => {
     try {
       setIsGeneratingBom(true);
-      const savedQuotation = await flushAutosave();
+      const savedQuotation = await getPersistedQuotation();
       const pdfQuotationId =
         savedQuotation?._id ??
         quotationWithGlobalConfig._id ??
@@ -1624,8 +1596,7 @@ export function QuotationBuilder({
   const pageTitle = isCreateMode ? "Create Quotation" : "Edit Quotation";
   const pageDescription = quotation.generatedId ? `#${quotation.generatedId}` : "";
   const isSaveBlockingExports =
-    autosaveStatus === "saving" ||
-    autosaveStatus === "unsaved" ||
+    metadataSaveStatus === "saving" ||
     itemMutationsInProgress > 0;
   const isAnyExportInProgress =
     isGeneratingPdf ||
@@ -1639,16 +1610,14 @@ export function QuotationBuilder({
       description={pageDescription}
       actions={
         <>
-          <Badge variant={autosaveStatus === "failed" ? "danger" : autosaveStatus === "unsaved" || itemMutationsInProgress > 0 ? "warning" : "success"}>
+          <Badge variant={metadataSaveStatus === "failed" ? "danger" : itemMutationsInProgress > 0 ? "warning" : "success"}>
             {itemMutationsInProgress > 0
               ? "Saving item..."
-              : autosaveStatus === "saving"
+              : metadataSaveStatus === "saving"
               ? "Saving..."
-              : autosaveStatus === "failed"
-                ? "Autosave failed"
-                : autosaveStatus === "unsaved"
-                  ? "Unsaved changes"
-                  : saveState}
+              : metadataSaveStatus === "failed"
+                ? "Save failed"
+                : saveState}
           </Badge>
            
           <Button variant="outline"
@@ -1704,7 +1673,7 @@ export function QuotationBuilder({
             {/* RIGHT SIDE (BUTTON) */}
             <button
               onClick={handleAddItem}
-              disabled={autosaveStatus === "saving" || itemMutationsInProgress > 0}
+              disabled={metadataSaveStatus === "saving" || itemMutationsInProgress > 0}
               className="rounded-xl bg-[#124657] px-4 py-2 text-sm text-white hover:bg-[#0b3642] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Add Item
@@ -1720,14 +1689,26 @@ export function QuotationBuilder({
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.18 }}
           >
-            {activeTab === "customer" && <CustomerTab />}
-            {activeTab === "quotation" && <QuotationDetailsTab />}
+            {activeTab === "customer" && (
+              <CustomerTab
+                onSave={saveCurrentMetadata}
+                isSaving={metadataSaveStatus === "saving"}
+              />
+            )}
+            {activeTab === "quotation" && (
+              <QuotationDetailsTab
+                onSave={saveCurrentMetadata}
+                isSaving={metadataSaveStatus === "saving"}
+              />
+            )}
             {activeTab === "global" && (
               <GlobalConfigTab
                 globalConfig={globalConfig}
                 setGlobalConfig={setGlobalConfig}
                 logoPreview={logoPreview}
                 handleLogoUpload={handleLogoUpload}
+                onSave={saveCurrentMetadata}
+                isSaving={metadataSaveStatus === "saving"}
               />
             )}
             {activeTab === "item" && (
@@ -1736,6 +1717,8 @@ export function QuotationBuilder({
                 onDeleteItem={persistDeleteItem}
                 onDuplicateItem={persistDuplicateItem}
                 onReorderItems={persistReorderedItems}
+                onSavePricing={saveCurrentMetadata}
+                isSavingMetadata={metadataSaveStatus === "saving"}
               />
             )}
 
