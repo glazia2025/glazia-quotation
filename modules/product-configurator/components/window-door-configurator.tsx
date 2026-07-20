@@ -1908,6 +1908,14 @@ export function WindowDoorConfigurator({
   const panOriginRef = useRef({ x: 0, y: 0 });
   const { data: systems } = useSystemsQuery();
   console.log("SYSTEMS", systems);
+  const [badgeDropdown, setBadgeDropdown] = useState<{
+  id:string;
+  x: number;
+  y: number;
+  value: "C" | "M";
+} | null>(null);
+
+const [badgeValues, setBadgeValues] = useState<Record<string, "C" | "M">>({});
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSlidingPanelIndex, setSelectedSlidingPanelIndex] = useState<number | null>(null);
@@ -2562,6 +2570,7 @@ export function WindowDoorConfigurator({
       },
     });
     layer.add(contentGroup);
+    const dividerBadges: { id: string; x: number; y: number }[] = [];
     const drawParentDividers = (parent: SectionNode) => {
       if (!parent.children || parent.children.length < 2) return;
       const dir = parent.split;
@@ -2575,13 +2584,24 @@ export function WindowDoorConfigurator({
           if (a.systemType !== "Blank Area" &&
             b.systemType !== "Blank Area") {
             addMemberRect(contentGroup, x - PROFILE.mullion / 2, fy + PROFILE.outer, PROFILE.mullion, fh - PROFILE.outer * 2);
+            dividerBadges.push({
+               id: `divider-${dividerBadges.length}`,
+    x,
+    y: fy + fh / 2 - 120,
+});
           }
-        } else {
+} else {
           if (a.systemType !== "Blank Area" &&
             b.systemType !== "Blank Area") {
             const y = fy + boundary * fh;
             addMemberRect(contentGroup, fx + PROFILE.outer, y - PROFILE.mullion / 2, fw - PROFILE.outer * 2, PROFILE.mullion);
+dividerBadges.push({
+   id: `divider-${dividerBadges.length}`,
+    x: fx + fw / 2,
+    y,
+});
           }
+          
         }
       }
       parent.children.forEach(drawParentDividers);
@@ -2764,7 +2784,53 @@ export function WindowDoorConfigurator({
       g.add(new Konva.Line({ points: [x + w / 2, y + h / 2 - 2, x + w / 2, y + h / 2 + 18], stroke: COLORS.frameDark, strokeWidth: 0.6, opacity: 0.85, listening: false }));
       contentGroup.add(g);
     });
-    const splitDepths: Array<{ split: SplitDirection; depth: number }> = [];
+
+   
+dividerBadges.forEach(({id, x, y }) => {
+
+  const badgeGroup = new Konva.Group({
+    listening: true,
+  });
+
+  const circle = new Konva.Circle({
+    x,
+    y,
+    radius: 14,
+    fill: "#111111",
+    stroke: "#FFD700",
+    strokeWidth: 2,
+  });
+
+  const text = new Konva.Text({
+    x: x - 14,
+    y: y - 8,
+    width: 28,
+    align: "center",
+    text: badgeValues[id] ?? "C",
+    fontSize: 13,
+    fontStyle: "bold",
+    fill: "#FFFFFF",
+  });
+
+  badgeGroup.add(circle);
+  badgeGroup.add(text);
+
+  badgeGroup.on("click", () => {
+
+    setBadgeDropdown({
+      id,
+        x,
+        y,
+        value: "C",
+    });
+
+});
+
+  contentGroup.add(badgeGroup);
+
+});
+
+const splitDepths: Array<{ split: SplitDirection; depth: number }> = [];
     const collectSplitDepths = (node: SectionNode, depth = 0) => {
       if (node.children && node.children.length >= 2 && node.split !== "none") splitDepths.push({ split: node.split, depth });
       node.children?.forEach((child) => collectSplitDepths(child, depth + 1));
@@ -2803,7 +2869,7 @@ export function WindowDoorConfigurator({
     const rightMost = [...leaves2].sort((a, b) => (b.x + b.w) - (a.x + a.w) || (b.y + b.h) - (a.y + a.h))[0];
     if (rightMost) addTag(contentGroup, fx + rightMost.x * fw + rightMost.w * fw - 54, fy + rightMost.y * fh + rightMost.h * fh - 54, "F1");
     layer.draw();
-  }, [heightMm, hideSelectionForExport, panOffset, root, selectedId, selectedSlidingPanelIndex, stageSize.h, stageSize.w, view, widthMm]);
+  }, [heightMm, hideSelectionForExport, panOffset, root, selectedId, selectedSlidingPanelIndex, stageSize.h, stageSize.w, view, widthMm,badgeValues]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -2934,6 +3000,38 @@ export function WindowDoorConfigurator({
         <div className="h-full flex-1 min-w-0 border-r border-slate-200 bg-white p-2">
           <div ref={canvasWrapRef} className="relative h-full min-h-[520px] w-full min-w-0">
             <div ref={containerRef} className="rounded-xl border border-gray-200 bg-[#F9FBFD] w-full overflow-hidden" style={{ width: "100%", height: stageSize.h }} />
+            {badgeDropdown && (
+  <select
+    autoFocus
+    value={badgeDropdown.value}
+    onBlur={() => setBadgeDropdown(null)}
+    // onChange={(e) => {
+    //   console.log(e.target.value);
+    //   setBadgeDropdown(null);
+    // }}
+    onChange={(e) => {
+
+    const value = e.target.value as "C" | "M";
+
+    setBadgeValues(prev => ({
+        ...prev,
+        [badgeDropdown!.id]: value,
+    }));
+
+    setBadgeDropdown(null);
+
+}}
+    style={{
+      position: "absolute",
+      left: badgeDropdown.x,
+      top: badgeDropdown.y,
+      zIndex: 9999,
+    }}
+  >
+    <option value="C">Coupler</option>
+    <option value="M">Mullion</option>
+  </select>
+)}
             <div className="pointer-events-none absolute inset-0">
               {dimensionLabels.map((label) => (
                 <div key={label.id} className="pointer-events-auto absolute w-[88px]" style={{ left: label.x, top: label.y }}>
