@@ -1633,7 +1633,7 @@ export function QuotationBuilder({
           
           <Button variant="outline" onClick={exportPdf} disabled={isSaveBlockingExports || isAnyExportInProgress}>
             <Download className="h-4 w-4" />
-            {isGeneratingPdf ? "Generating..." : "PDF"}
+            {isGeneratingPdf ? "Generating..." : "Quotation"}
           </Button>
           <Button
             variant="outline"
