@@ -61,6 +61,7 @@ type SectionNode = {
   glass: YesNo;
   mesh: YesNo;
   children?: SectionNode[];
+  dividerTypes?: Record<string, "C" | "M">;
 };
 
 type ProductMeta = {
@@ -314,6 +315,26 @@ const findNode = (node: SectionNode, id: string): SectionNode | null => {
   return null;
 };
 
+const getResolvedSystemType = (
+  root: SectionNode,
+  nodeId: string
+): SystemType | "Mixed" => {
+  const node = findNode(root, nodeId);
+
+  if (!node) return "Casement";
+
+  const systems = new Set<SystemType>();
+
+  mapLeafNodes(node, (leaf) => {
+    systems.add(leaf.systemType);
+  });
+
+  if (systems.size === 1) {
+    return [...systems][0];
+  }
+
+  return "Mixed";
+};
 const mapLeafNodes = (node: SectionNode, cb: (leaf: SectionNode) => void) => {
   if (!node.children || node.children.length === 0) {
     cb(node);
@@ -491,6 +512,12 @@ const normalizeStoredSectionNode = (value: unknown, fallbackSystemType: SystemTy
       .map((value) => normalizeSashType(value, "fixed"))
       .filter(Boolean)
     : undefined;
+    const dividerTypes =
+    typeof source.dividerTypes === "object" && source.dividerTypes !== null
+      ? Object.fromEntries(
+          Object.entries(source.dividerTypes as Record<string, unknown>).map(([key, value]) => [key, value === "M" ? "M" : "C"] as const)
+        ) as Record<string, "C" | "M">
+      : undefined;
 
   return {
     id: typeof source.id === "string" && source.id ? source.id : crypto.randomUUID(),
@@ -517,6 +544,7 @@ const normalizeStoredSectionNode = (value: unknown, fallbackSystemType: SystemTy
     archHeightRatio: normalizeArchHeightRatio(source.archHeightRatio),
     glass: yesNoFromValue(source.glass as string | boolean | undefined),
     mesh: yesNoFromValue(source.mesh as string | boolean | undefined),
+    dividerTypes,
     children: split === "none" ? undefined : children,
   };
 };
@@ -1908,6 +1936,20 @@ export function WindowDoorConfigurator({
   const panOriginRef = useRef({ x: 0, y: 0 });
   const { data: systems } = useSystemsQuery();
   console.log("SYSTEMS", systems);
+const [selectedDivider, setSelectedDivider] = useState<{
+    id: string;
+   leftId: string;
+  rightId: string;
+} | null>(null);
+
+const [badgeValues, setBadgeValues] = useState<Record<string, "C" | "M">>({});
+const dividerBadgesRef = useRef<
+  {
+    id: string;
+    leftId: string;
+    rightId: string;
+  }[]
+>([]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSlidingPanelIndex, setSelectedSlidingPanelIndex] = useState<number | null>(null);
@@ -2333,7 +2375,8 @@ export function WindowDoorConfigurator({
         const resolvedRate = manualChildRates[leaf.id] ?? autoChildRates[leaf.id] ?? computedRate;
         const quantity = 1;
         return {
-          id: crypto.randomUUID(),
+          // id: crypto.randomUUID(),
+          id: leaf.id,
           refCode: meta.refCode ? `${meta.refCode}-${alpha(idx)}` : "",
           location: meta.location || "",
           width: Math.round(leaf.w * widthMm),
@@ -2463,12 +2506,58 @@ export function WindowDoorConfigurator({
         baseRate,
         areaSlabIndex,
         subItems: isCombination ? subItems : [],
-        configuratorLayout: cloneTree(root) as unknown as Record<string, unknown>,
+        // configuratorLayout: cloneTree(root) as unknown as Record<string, unknown>,
+         configuratorLayout: (() => {
+          const layout = cloneTree(root) as SectionNode;
+          layout.dividerTypes = dividerBadgesRef.current.reduce<Record<string, "C" | "M">>((acc, badge) => {
+            acc[badge.id] = badgeValues[badge.id] ?? "C";
+            return acc;
+          }, {});
+          return layout as unknown as Record<string, unknown>;
+        })(),
+        joins: dividerBadgesRef.current.map((badge) => ({
+  p1: badge.leftId,
+  p2: badge.rightId,
+  type:
+    getResolvedSystemType(root, badge.leftId) === "Casement" &&
+    getResolvedSystemType(root, badge.rightId) === "Casement"
+      ? "Mullion"
+      : getResolvedSystemType(root, badge.leftId) === "Sliding" &&
+        getResolvedSystemType(root, badge.rightId) === "Sliding"
+      ? "Coupler"
+      : badgeValues[badge.id] === "M"
+      ? "Mullion"
+      : "Coupler",
+})),
         laborRate: persistedItem?.laborRate ?? 0,
         transportRate: persistedItem?.transportRate ?? 0,
         discountPercent: persistedItem?.discountPercent ?? 0,
         previewPanels: persistedItem?.previewPanels ?? 1,
       };
+      console.log(
+  "LEAF IDS",
+  leafNodes.map((l) => ({
+    leafId: l.id,
+    system: l.systemType,
+  }))
+);
+
+console.log(
+  "SUBITEM IDS",
+  subItems.map((s) => ({
+    subItemId: s.id,
+    refCode: s.refCode,
+  }))
+);
+
+console.log(
+  "DIVIDER BADGES",
+  dividerBadgesRef.current
+);
+      console.log("JOINS:", nextItem.joins);
+console.log("ITEM:", nextItem);
+console.log("SUBITEMS:", nextItem.subItems);
+
       await onSaveItem(nextItem);
       onClose();
     } catch (error) {
@@ -2545,7 +2634,7 @@ export function WindowDoorConfigurator({
     const rootArchHeightRatio = normalizeArchHeightRatio(root.archHeightRatio);
     addProfileRect(layer, fx, fy, fw, fh, selectedForRender === "root", rootArchType, rootArchHeightRatio);
     const rootHit = new Konva.Rect({ x: fx, y: fy, width: fw, height: fh, fill: "transparent" });
-    rootHit.on("mousedown touchstart", () => { setSelectedId("root"); setSelectedSlidingPanelIndex(null); });
+    rootHit.on("mousedown touchstart", () => {  setSelectedDivider(null); setSelectedId("root"); setSelectedSlidingPanelIndex(null); });
     layer.add(rootHit);
     const contentGroup = new Konva.Group({
       clipFunc: (ctx) => {
@@ -2562,6 +2651,11 @@ export function WindowDoorConfigurator({
       },
     });
     layer.add(contentGroup);
+    const dividerBadges: { id: string; x: number; y: number;
+      // leftSystem: SystemType;rightSystem: SystemType;
+     leftId: string;
+    rightId: string;
+    }[] = [];
     const drawParentDividers = (parent: SectionNode) => {
       if (!parent.children || parent.children.length < 2) return;
       const dir = parent.split;
@@ -2575,18 +2669,56 @@ export function WindowDoorConfigurator({
           if (a.systemType !== "Blank Area" &&
             b.systemType !== "Blank Area") {
             addMemberRect(contentGroup, x - PROFILE.mullion / 2, fy + PROFILE.outer, PROFILE.mullion, fh - PROFILE.outer * 2);
+            console.log({
+  left: a.systemType,
+  right: b.systemType,
+  a,
+  b,
+});
+            dividerBadges.push({
+               id: `divider-${dividerBadges.length}`,
+    x,
+    y: fy + fh / 2 - 120,
+    // leftSystem: a.systemType,
+    // rightSystem: b.systemType,
+     leftId: a.id,
+    rightId: b.id,
+
+});
           }
-        } else {
+} else {
           if (a.systemType !== "Blank Area" &&
             b.systemType !== "Blank Area") {
             const y = fy + boundary * fh;
             addMemberRect(contentGroup, fx + PROFILE.outer, y - PROFILE.mullion / 2, fw - PROFILE.outer * 2, PROFILE.mullion);
+dividerBadges.push({
+   id: `divider-${dividerBadges.length}`,
+    x: fx + fw / 2+50,
+    y,
+     leftId: a.id,
+    rightId: b.id,
+});
           }
+          
         }
       }
       parent.children.forEach(drawParentDividers);
     };
     drawParentDividers(root);
+    dividerBadgesRef.current = dividerBadges;
+    if (editingItem?.joins?.length) {
+  const nextBadgeValues: Record<string, "C" | "M"> = { ...(root.dividerTypes ?? {}) };
+
+    editingItem.joins.forEach((join) => {
+        const badge = dividerBadges.find((d) => d.leftId === join.p1 && d.rightId === join.p2);
+
+   if (badge) {
+          nextBadgeValues[badge.id] = join.type === "Mullion" ? "M" : "C";
+        }
+      });
+
+  setBadgeValues(nextBadgeValues);
+}
     const leaves: SectionNode[] = [];
     mapLeafNodes(root, (leaf) => leaves.push(leaf));
     leaves.sort((a, b) => (a.y - b.y) || (a.x - b.x));
@@ -2600,6 +2732,7 @@ export function WindowDoorConfigurator({
       const leafHit = new Konva.Rect({ x, y, width: w, height: h, fill: "rgba(255,255,255,0.01)", listening: true });
       leafHit.on("mousedown touchstart", (event) => {
         event.cancelBubble = true;
+        setSelectedDivider(null);
         setSelectedId(leaf.id);
         setSelectedSlidingPanelIndex(null);
       });
@@ -2764,7 +2897,58 @@ export function WindowDoorConfigurator({
       g.add(new Konva.Line({ points: [x + w / 2, y + h / 2 - 2, x + w / 2, y + h / 2 + 18], stroke: COLORS.frameDark, strokeWidth: 0.6, opacity: 0.85, listening: false }));
       contentGroup.add(g);
     });
-    const splitDepths: Array<{ split: SplitDirection; depth: number }> = [];
+
+   
+dividerBadges.forEach(({id, x, y,leftId,rightId }) => {
+   const leftSystem = getResolvedSystemType(root, leftId);
+  const rightSystem = getResolvedSystemType(root, rightId);
+
+  const badgeGroup = new Konva.Group({
+    listening: true,
+  });
+
+  const circle = new Konva.Circle({
+    x,
+    y,
+    radius: 14,
+    fill: "#111111",
+    stroke: "#FFD700",
+    strokeWidth: 2,
+  });
+  const displayValue =
+  leftSystem === "Casement" && rightSystem === "Casement"
+    ? "M"
+    : leftSystem === "Sliding" && rightSystem === "Sliding"
+    ? "C"
+    : badgeValues[id] ?? "C";
+
+  const text = new Konva.Text({
+    x: x - 14,
+    y: y - 8,
+    width: 28,
+    align: "center",
+    text: displayValue,
+    fontSize: 13,
+    fontStyle: "bold",
+    fill: "#FFFFFF",
+  });
+
+  badgeGroup.add(circle);
+  badgeGroup.add(text);
+
+badgeGroup.on("click", (e) => {
+   e.cancelBubble = true;
+    setSelectedDivider({
+        id,
+     leftId,
+    rightId,
+    });
+});
+  contentGroup.add(badgeGroup);
+
+});
+
+const splitDepths: Array<{ split: SplitDirection; depth: number }> = [];
     const collectSplitDepths = (node: SectionNode, depth = 0) => {
       if (node.children && node.children.length >= 2 && node.split !== "none") splitDepths.push({ split: node.split, depth });
       node.children?.forEach((child) => collectSplitDepths(child, depth + 1));
@@ -2803,7 +2987,7 @@ export function WindowDoorConfigurator({
     const rightMost = [...leaves2].sort((a, b) => (b.x + b.w) - (a.x + a.w) || (b.y + b.h) - (a.y + a.h))[0];
     if (rightMost) addTag(contentGroup, fx + rightMost.x * fw + rightMost.w * fw - 54, fy + rightMost.y * fh + rightMost.h * fh - 54, "F1");
     layer.draw();
-  }, [heightMm, hideSelectionForExport, panOffset, root, selectedId, selectedSlidingPanelIndex, stageSize.h, stageSize.w, view, widthMm]);
+  }, [heightMm, hideSelectionForExport, panOffset, root, selectedId, selectedSlidingPanelIndex, stageSize.h, stageSize.w, view, widthMm,badgeValues]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -2858,6 +3042,8 @@ export function WindowDoorConfigurator({
   useEffect(() => {
     if (!editingItem) return;
     const mapped = mapItemToConfiguratorState(editingItem);
+    console.log("EDITING ITEM JOINS");
+console.dir(editingItem.joins, { depth: null });
     setWidthMm(mapped.width);
     setHeightMm(mapped.height);
     setBaseSystemType(mapped.baseSystemType);
@@ -2865,6 +3051,8 @@ export function WindowDoorConfigurator({
     setBaseMesh(mapped.baseMesh);
     setMeta(mapped.meta);
     reset(mapped.root);
+ console.log("ROOT DIVIDER TYPES");
+console.dir(mapped.root.dividerTypes, { depth: null });
     const mappedLeaves: SectionNode[] = [];
     mapLeafNodes(mapped.root, (leaf) => mappedLeaves.push(leaf));
     setSelectedId(mappedLeaves.length > 1 ? mappedLeaves[0].id : "root");
@@ -2918,6 +3106,30 @@ export function WindowDoorConfigurator({
       ) : null}
     </>
   ) : null;
+  const leftSystem = selectedDivider
+  ? getResolvedSystemType(root, selectedDivider.leftId)
+  : null;
+
+const rightSystem = selectedDivider
+  ? getResolvedSystemType(root, selectedDivider.rightId)
+  : null;
+
+  const onlyMullion =
+  leftSystem === "Casement" &&
+  rightSystem === "Casement";
+
+const onlyCoupler =
+  leftSystem === "Sliding" &&
+  rightSystem === "Sliding";
+
+ const dividerValue =
+  onlyMullion
+    ? "M"
+    : onlyCoupler
+    ? "C"
+    : selectedDivider
+      ? (badgeValues[selectedDivider.id] ?? "C")
+      : "C";
 
   return (
     <div className="relative h-full w-full overflow-hidden border border-slate-300 bg-white shadow-2xl">
@@ -2980,7 +3192,43 @@ export function WindowDoorConfigurator({
             <div className="mb-5 rounded-lg border border-gray-200 p-3">
               <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Quotation Fields</div>
               <div className="grid grid-cols-1 gap-3 text-sm">
-                {isCombinationParentSelection ? (
+                
+{selectedDivider && (
+  <label className="text-xs text-gray-600">
+    Divider Type
+
+    {onlyMullion ? (
+      <input
+        value="Mullion"
+        readOnly
+        className="mt-1 w-full rounded-md border border-gray-300 bg-gray-100 px-2 py-2 text-sm text-gray-700"
+      />
+    ) : onlyCoupler ? (
+      <input
+        value="Coupler"
+        readOnly
+        className="mt-1 w-full rounded-md border border-gray-300 bg-gray-100 px-2 py-2 text-sm text-gray-700"
+      />
+    ) : (
+      <select
+        value={dividerValue}
+        onChange={(e) => {
+          const value = e.target.value as "C" | "M";
+          setBadgeValues((prev) => ({
+            ...prev,
+            [selectedDivider.id]: value,
+          }));
+        }}
+        className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm"
+      >
+        <option value="C">Coupler</option>
+        <option value="M">Mullion</option>
+      </select>
+    )}
+  </label>
+)}
+{!selectedDivider && (
+                isCombinationParentSelection ? (
                   <>
                     <label className="text-xs text-gray-600">Ref Code<input value={meta.refCode} onChange={(e) => setMeta((prev) => ({ ...prev, refCode: e.target.value }))} required className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                     <label className="text-xs text-gray-600">Location<input value={meta.location} placeholder="Living Room" onChange={(e) => setMeta((prev) => ({ ...prev, location: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
@@ -3126,8 +3374,13 @@ export function WindowDoorConfigurator({
                       </>
                     )}
                   </>
-                )}
+                )
+              )}  
+            
+              
+
               </div>
+              
             </div>
             <div className="space-y-3 text-sm text-gray-700">
               <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"><span className="text-gray-500">Width</span><span className="font-semibold">{widthMm} mm</span></div>

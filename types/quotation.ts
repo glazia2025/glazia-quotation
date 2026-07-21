@@ -74,11 +74,18 @@ export interface QuotationItem {
   baseRate?: number;
   areaSlabIndex?: number;
   subItems?: QuotationSubItem[];
+  joins?: QuotationJoin[];
   configuratorLayout?: Record<string, unknown>;
   laborRate: number;
   transportRate: number;
   discountPercent: number;
   previewPanels: number;
+}
+
+export interface QuotationJoin {
+  p1: string;
+  p2: string;
+  type: "Mullion" | "Coupler";
 }
 
 export interface QuotationSubItem {
