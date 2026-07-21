@@ -71,11 +71,13 @@ function findQuotationEnvelope(payload: unknown): Record<string, unknown> | null
 }
 
 function toBackendSubItem(subItem: QuotationSubItem) {
+  
   const handleType = subItem.handleType || "";
   const frameCutAngle = normalizeCutAngle(subItem.frameCutAngle);
   const shutterCutAngle = normalizeCutAngle(subItem.shutterCutAngle);
 
   return {
+      id: subItem.id,  
     refCode: subItem.refCode || "",
     location: subItem.location || "",
     width: Number(subItem.width) || 0,
@@ -113,11 +115,14 @@ function toBackendSubItem(subItem: QuotationSubItem) {
 }
 
 export function toBackendItem(item: Quotation["items"][number]) {
+   console.log("ITEM SUBITEMS BEFORE BACKEND");
+  console.dir(item.subItems, { depth: null });
   const handleType = item.handleType || "";
   const frameCutAngle = normalizeCutAngle(item.frameCutAngle);
   const shutterCutAngle = normalizeCutAngle(item.shutterCutAngle);
 
   return {
+      id: item.id,  
     refCode: item.refCode || "",
     location: item.location || item.projectLocation || "",
     width: Number(item.width) || 0,
@@ -152,6 +157,13 @@ export function toBackendItem(item: Quotation["items"][number]) {
     baseRate: Number(item.baseRate) || 0,
     areaSlabIndex: Number(item.areaSlabIndex) || 0,
     subItems: Array.isArray(item.subItems) ? item.subItems.map(toBackendSubItem) : [],
+    joins: Array.isArray(item.joins)
+  ? item.joins.map((join) => ({
+      p1: join.p1,
+      p2: join.p2,
+      type: join.type,
+    }))
+  : [],
     configuratorLayout: item.configuratorLayout || undefined,
   };
 }

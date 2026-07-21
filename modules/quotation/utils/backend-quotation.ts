@@ -1,4 +1,4 @@
-import type { Quotation, QuotationItem, QuotationSubItem } from "@/types/quotation";
+import type { Quotation, QuotationItem, QuotationSubItem,QuotationJoin, } from "@/types/quotation";
 
 export type BackendQuotationRecord = Quotation;
 
@@ -83,6 +83,18 @@ const normalizeSubItem = (value: unknown): QuotationSubItem => {
     areaSlabIndex: toNumberValue(source.areaSlabIndex),
   };
 };
+const normalizeJoin = (value: unknown): QuotationJoin => {
+  const source =
+    typeof value === "object" && value !== null
+      ? (value as Record<string, unknown>)
+      : {};
+
+  return {
+    p1: toStringValue(source.p1),
+    p2: toStringValue(source.p2),
+    type: source.type === "Mullion" ? "Mullion" : "Coupler",
+  };
+};
 
 export const extractBackendQuotationItem = (value: unknown): QuotationItem => {
   const source = typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
@@ -138,6 +150,9 @@ export const extractBackendQuotationItem = (value: unknown): QuotationItem => {
     baseRate: toNumberValue(source.baseRate),
     areaSlabIndex: toNumberValue(source.areaSlabIndex),
     subItems: Array.isArray(source.subItems) ? source.subItems.map(normalizeSubItem) : [],
+    joins: Array.isArray(source.joins)
+  ? source.joins.map(normalizeJoin)
+  : [],
     configuratorLayout:
       typeof source.configuratorLayout === "object" && source.configuratorLayout !== null
         ? (source.configuratorLayout as Record<string, unknown>)
