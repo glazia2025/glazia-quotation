@@ -650,6 +650,20 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
 
   if (storedRoot) {
     root = storedRoot;
+
+    // The backend replaces client-side sub-item ids with MongoDB ids when the
+    // quotation is persisted. Keep the restored layout in that same identity
+    // space so persisted joins can be matched to the rendered dividers.
+    if (hasSubItems) {
+      const storedLeaves: SectionNode[] = [];
+      mapLeafNodes(root, (leaf) => storedLeaves.push(leaf));
+      storedLeaves
+        .sort((a, b) => (a.y - b.y) || (a.x - b.x))
+        .forEach((leaf, index) => {
+          const persistedId = subItems[index]?.id || subItems[index]?._id;
+          if (persistedId) leaf.id = String(persistedId);
+        });
+    }
   } else if (hasSubItems) {
     const avgHeightMatch =
       subItems.reduce((sum, sub) => sum + ((sub.height || 0) / Math.max(height, 1)), 0) /
@@ -2706,19 +2720,6 @@ dividerBadges.push({
     };
     drawParentDividers(root);
     dividerBadgesRef.current = dividerBadges;
-    if (editingItem?.joins?.length) {
-  const nextBadgeValues: Record<string, "C" | "M"> = { ...(root.dividerTypes ?? {}) };
-
-    editingItem.joins.forEach((join) => {
-        const badge = dividerBadges.find((d) => d.leftId === join.p1 && d.rightId === join.p2);
-
-   if (badge) {
-          nextBadgeValues[badge.id] = join.type === "Mullion" ? "M" : "C";
-        }
-      });
-
-  setBadgeValues(nextBadgeValues);
-}
     const leaves: SectionNode[] = [];
     mapLeafNodes(root, (leaf) => leaves.push(leaf));
     leaves.sort((a, b) => (a.y - b.y) || (a.x - b.x));
@@ -2936,8 +2937,10 @@ dividerBadges.forEach(({id, x, y,leftId,rightId }) => {
   badgeGroup.add(circle);
   badgeGroup.add(text);
 
-badgeGroup.on("click", (e) => {
+badgeGroup.on("mousedown touchstart", (e) => {
    e.cancelBubble = true;
+    setSelectedId(null);
+    setSelectedSlidingPanelIndex(null);
     setSelectedDivider({
         id,
      leftId,
@@ -3056,6 +3059,7 @@ console.dir(mapped.root.dividerTypes, { depth: null });
     const mappedLeaves: SectionNode[] = [];
     mapLeafNodes(mapped.root, (leaf) => mappedLeaves.push(leaf));
     setSelectedId(mappedLeaves.length > 1 ? mappedLeaves[0].id : "root");
+    setSelectedDivider(null);
     setSelectedSlidingPanelIndex(null);
     setIsManualRate(false);
     const leaves: SectionNode[] = [];
@@ -3082,6 +3086,33 @@ console.dir(mapped.root.dividerTypes, { depth: null });
     setManualChildRates(nextManualRates);
     setAutoChildRates({});
     setChildSectionMeta(nextChildSectionMeta);
+
+    let dividerIndex = 0;
+    const nextBadgeValues: Record<string, "C" | "M"> = {
+      ...(mapped.root.dividerTypes ?? {}),
+    };
+    const hydrateDividerValues = (parent: SectionNode) => {
+      if (
+        parent.children &&
+        parent.children.length >= 2 &&
+        (parent.split === "vertical" || parent.split === "horizontal")
+      ) {
+        for (let index = 0; index < parent.children.length - 1; index += 1) {
+          const left = parent.children[index];
+          const right = parent.children[index + 1];
+          if (left.systemType === "Blank Area" || right.systemType === "Blank Area") continue;
+
+          const badgeId = `divider-${dividerIndex++}`;
+          const join = editingItem.joins?.find(
+            (entry) => entry.p1 === left.id && entry.p2 === right.id
+          );
+          if (join) nextBadgeValues[badgeId] = join.type === "Mullion" ? "M" : "C";
+        }
+      }
+      parent.children?.forEach(hydrateDividerValues);
+    };
+    hydrateDividerValues(mapped.root);
+    setBadgeValues(nextBadgeValues);
   }, [editingItem, reset]);
 
   useEffect(() => {
