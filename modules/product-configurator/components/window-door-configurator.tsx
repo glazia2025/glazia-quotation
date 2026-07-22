@@ -1990,7 +1990,7 @@ const dividerBadgesRef = useRef<
   const canInsertExhaustFan = selectedNode.systemType === "Casement" && selectedNode.description === "Fix" && !selectedNode.children?.length;
   const hasAdjustableExhaustFan = !selectedNode.children?.length && (selectedNode.systemType === "Exhaust Fan" || Boolean(selectedNode.hasExhaustFan));
   const isSlidingPanelSelection = selectedNode.systemType === "Sliding" && !selectedNode.children?.length && (selectedNode.panelFractions?.length ?? 0) > 1 && selectedSlidingPanelIndex !== null && selectedSlidingPanelIndex >= 0 && selectedSlidingPanelIndex < (selectedNode.panelFractions?.length ?? 0);
-  const showSummaryPopup = selectedId !== null;
+  const showSummaryPopup = selectedId !== null || selectedDivider !== null;
   const systemsQuery = useSystemsQuery();
   const selectedSeriesQuery = useSeriesQuery(selectedSystemSupportsCatalog ? selectedNode.systemType : "");
   const selectedDescriptionsQuery = useDescriptionsQuery(selectedSystemSupportsCatalog ? selectedNode.systemType : "", selectedSystemSupportsCatalog ? selectedNode.series : "");
@@ -2628,6 +2628,7 @@ console.log("SUBITEMS:", nextItem.subItems);
       panOriginRef.current = panOffset;
       setSelectedId(null);
       setSelectedSlidingPanelIndex(null);
+      setSelectedDivider(null);
       stage.container().style.cursor = "grabbing";
     });
     panHit.on("mouseenter", () => { if (!isPanningRef.current) stage.container().style.cursor = "grab"; });
@@ -2780,7 +2781,7 @@ dividerBadges.push({
                 g.add(new Konva.Arrow({ points: [from, arrowY, to, arrowY], stroke: "#111827", fill: "#111827", strokeWidth: 0.6, pointerLength: 7, pointerWidth: 7, opacity: 0.7, listening: false }));
               }
               const panelHit = new Konva.Rect({ x: cursor, y: innerY, width: pw, height: innerH, fill: "rgba(255,255,255,0.001)", stroke: isSelected && selectedSlidingPanelIndex === idx ? COLORS.selected : "rgb(30, 30, 30)", strokeWidth: 7, listening: true });
-              panelHit.on("mousedown touchstart", (event) => { event.cancelBubble = true; setSelectedId(leaf.id); setSelectedSlidingPanelIndex(idx); });
+              panelHit.on("mousedown touchstart", (event) => { event.cancelBubble = true; setSelectedDivider(null); setSelectedId(leaf.id); setSelectedSlidingPanelIndex(idx); });
               g.add(panelHit);
             }
             if (meshCount > 0 && idx >= fractions.length - meshCount) drawMeshTriangle(g, cursor + pw - 6, innerY + innerH - 6, Math.min(pw, innerH) * 0.5);
