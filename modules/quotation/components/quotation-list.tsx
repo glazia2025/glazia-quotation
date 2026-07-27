@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageShell } from "@/components/shared/page-shell";
 import { useTenantQuery } from "@/hooks/use-tenant-query";
 import { deleteQuotation, getQuotations } from "@/services/quotation-service";
+import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
+
 
 export function QuotationList() {
   const [page, setPage] = useState(1);
@@ -21,6 +23,8 @@ export function QuotationList() {
     queryKey: ["quotations", String(page)],
     queryFn: () => getQuotations(page, pageSize)
   });
+   const quotationDetails = useQuotationBuilderStore((s) => s.quotation.quotationDetails);
+  const updateQuotationField = useQuotationBuilderStore((s) => s.updateQuotationField);
 
   console.log(data, "DATAAAAAAA")
   const quotations = data?.quotations ?? [];
@@ -129,6 +133,8 @@ export function QuotationList() {
             const quotationId = quotation._id || quotation.quotationDetails?.id || "";
             const quotationNumber = quotation.generatedId || quotation.quotationDetails?.id || quotationId;
             const quotationStatus: string = "Draft";
+            const opportunity =
+  quotation.quotationDetails?.opportunity || "Enquiry";
 
             return (
               <div key={`${quotationId}-${index}`} className="grid gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 md:grid-cols-[1.2fr_0.8fr_auto] md:items-center">
@@ -144,9 +150,17 @@ export function QuotationList() {
                   </div>
                 </div>
                 <div className="text-sm text-slate-600">
-                
                 </div>
+                
                 <div className="flex items-center gap-2">
+                  <div className="text-sm text-slate-600">
+   <div className="min-w-[170px]">
+
+  <Badge variant="outline">
+    {opportunity}
+  </Badge>
+</div>
+</div>
                   <Button variant="outline" size="sm" asChild>
                     <Link href={`/quotations/${quotationId}`}>
                       <Eye className="h-4 w-4" />
