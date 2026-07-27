@@ -2952,6 +2952,35 @@ badgeGroup.on("mousedown touchstart", (e) => {
 
 });
 
+    // A dimension label can select a split group rather than an individual leaf.
+    // Draw its selection last and outside the clipped content group so edges that
+    // touch the outer frame remain visible on every side.
+    if (selectedForRender && selectedForRender !== "root") {
+      const selectedSection = findNode(root, selectedForRender);
+      if (selectedSection) {
+        const selectionInset = Math.max(2, PROFILE.sash / 2);
+        const selectionX = fx + selectedSection.x * fw + selectionInset;
+        const selectionY = fy + selectedSection.y * fh + selectionInset;
+        const selectionWidth = safeDrawSize(
+          selectedSection.w * fw - selectionInset * 2
+        );
+        const selectionHeight = safeDrawSize(
+          selectedSection.h * fh - selectionInset * 2
+        );
+        layer.add(
+          new Konva.Rect({
+            x: selectionX,
+            y: selectionY,
+            width: selectionWidth,
+            height: selectionHeight,
+            stroke: COLORS.selected,
+            strokeWidth: PROFILE.sash,
+            listening: false,
+          })
+        );
+      }
+    }
+
 const splitDepths: Array<{ split: SplitDirection; depth: number }> = [];
     const collectSplitDepths = (node: SectionNode, depth = 0) => {
       if (node.children && node.children.length >= 2 && node.split !== "none") splitDepths.push({ split: node.split, depth });
