@@ -2529,21 +2529,29 @@ const dividerBadgesRef = useRef<
           }, {});
           return layout as unknown as Record<string, unknown>;
         })(),
+//         joins: dividerBadgesRef.current.map((badge) => ({
+//   p1: badge.leftId,
+//   p2: badge.rightId,
+//   type:
+//     getResolvedSystemType(root, badge.leftId) === "Casement" &&
+//     getResolvedSystemType(root, badge.rightId) === "Casement"
+//       ? "Mullion"
+//       : getResolvedSystemType(root, badge.leftId) === "Sliding" &&
+//         getResolvedSystemType(root, badge.rightId) === "Sliding"
+//       ? "Coupler"
+//       : badgeValues[badge.id] === "M"
+//       ? "Mullion"
+//       : "Coupler",
+// })),
         joins: dividerBadgesRef.current.map((badge) => ({
   p1: badge.leftId,
   p2: badge.rightId,
-  type:
-    getResolvedSystemType(root, badge.leftId) === "Casement" &&
-    getResolvedSystemType(root, badge.rightId) === "Casement"
-      ? "Mullion"
-      : getResolvedSystemType(root, badge.leftId) === "Sliding" &&
-        getResolvedSystemType(root, badge.rightId) === "Sliding"
-      ? "Coupler"
-      : badgeValues[badge.id] === "M"
-      ? "Mullion"
-      : "Coupler",
+  type: badgeValues[badge.id] === "M"
+    ? "Mullion"
+    : "Coupler",
 })),
-        laborRate: persistedItem?.laborRate ?? 0,
+
+laborRate: persistedItem?.laborRate ?? 0,
         transportRate: persistedItem?.transportRate ?? 0,
         discountPercent: persistedItem?.discountPercent ?? 0,
         previewPanels: persistedItem?.previewPanels ?? 1,
@@ -2917,12 +2925,17 @@ dividerBadges.forEach(({id, x, y,leftId,rightId }) => {
     stroke: "#FFD700",
     strokeWidth: 2,
   });
+  // const displayValue =
+  // leftSystem === "Casement" && rightSystem === "Casement"
+  //   ? "M"
+  //   : leftSystem === "Sliding" && rightSystem === "Sliding"
+  //   ? "C"
+  //   : badgeValues[id] ?? "C";
   const displayValue =
-  leftSystem === "Casement" && rightSystem === "Casement"
+  badgeValues[id] ??
+  (leftSystem === "Casement" && rightSystem === "Casement"
     ? "M"
-    : leftSystem === "Sliding" && rightSystem === "Sliding"
-    ? "C"
-    : badgeValues[id] ?? "C";
+    : "C");
 
   const text = new Konva.Text({
     x: x - 14,
@@ -3154,14 +3167,20 @@ const onlyCoupler =
   leftSystem === "Sliding" &&
   rightSystem === "Sliding";
 
- const dividerValue =
-  onlyMullion
-    ? "M"
-    : onlyCoupler
-    ? "C"
-    : selectedDivider
-      ? (badgeValues[selectedDivider.id] ?? "C")
-      : "C";
+//  const dividerValue =
+//   onlyMullion
+//     ? "M"
+//     : onlyCoupler
+//     ? "C"
+//     : selectedDivider
+//       ? (badgeValues[selectedDivider.id] ?? "C")
+//       : "C";
+const dividerValue = selectedDivider
+  ? (
+      badgeValues[selectedDivider.id] ??
+      (onlyMullion ? "M" : "C")
+    )
+  : "C";
 
   return (
     <div className="relative h-full w-full overflow-hidden border border-slate-300 bg-white shadow-2xl">
@@ -3229,34 +3248,21 @@ const onlyCoupler =
   <label className="text-xs text-gray-600">
     Divider Type
 
-    {onlyMullion ? (
-      <input
-        value="Mullion"
-        readOnly
-        className="mt-1 w-full rounded-md border border-gray-300 bg-gray-100 px-2 py-2 text-sm text-gray-700"
-      />
-    ) : onlyCoupler ? (
-      <input
-        value="Coupler"
-        readOnly
-        className="mt-1 w-full rounded-md border border-gray-300 bg-gray-100 px-2 py-2 text-sm text-gray-700"
-      />
-    ) : (
-      <select
-        value={dividerValue}
-        onChange={(e) => {
-          const value = e.target.value as "C" | "M";
-          setBadgeValues((prev) => ({
-            ...prev,
-            [selectedDivider.id]: value,
-          }));
-        }}
-        className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm"
-      >
-        <option value="C">Coupler</option>
-        <option value="M">Mullion</option>
-      </select>
-    )}
+    <select
+      value={dividerValue}
+      onChange={(e) => {
+        const value = e.target.value as "C" | "M";
+
+        setBadgeValues((prev) => ({
+          ...prev,
+          [selectedDivider.id]: value,
+        }));
+      }}
+      className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm"
+    >
+      <option value="C">Coupler</option>
+      <option value="M">Mullion</option>
+    </select>
   </label>
 )}
 {!selectedDivider && (
