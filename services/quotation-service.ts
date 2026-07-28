@@ -200,6 +200,7 @@ export function toBackendQuotation(quotation: Quotation) {
     },
     globalConfig: {
       logo: quotation.globalConfig?.logo || "",
+      website: quotation.globalConfig?.website || "",
       terms: quotation.globalConfig?.terms || "",
       prerequisites: quotation.globalConfig?.prerequisites || "",
       additionalCosts: {
