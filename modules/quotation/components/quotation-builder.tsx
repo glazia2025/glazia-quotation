@@ -1300,9 +1300,10 @@ export function QuotationBuilder({
   useEffect(() => {
     const fetchData = async () => {
       const data = await loadGlobalConfig();
-      if (data) {
-        setGlobalConfig(data);
-      }
+      console.log("Global Config API:", data)
+      // if (data) {
+      //   setGlobalConfig(data);
+      // }
     };
 
     fetchData();
@@ -1359,6 +1360,7 @@ export function QuotationBuilder({
       ...quotation,
       globalConfig: {
         logo: globalConfig.logo || "",
+        website: globalConfig.website || "",
         terms: globalConfig.terms || "",
         prerequisites: globalConfig.prerequisites || "",
         additionalCosts: {
@@ -1388,6 +1390,8 @@ export function QuotationBuilder({
         try {
           const saved = await saveQuotationMetadata(quotationToSave);
           if (!saved) throw new Error("Saving quotation details returned no quotation");
+          console.log("Saved Response:", saved.globalConfig);
+          console.log("Saved Response:", JSON.stringify(saved.globalConfig, null, 2));
 
           applyAutosaveResult(snapshot, saved);
           markSaved();
@@ -1558,6 +1562,7 @@ export function QuotationBuilder({
       ...prev,
       logo: savedGlobalConfig.logo ?? prev.logo,
       logoUrl: savedGlobalConfig.logo ?? prev.logoUrl,
+      website: savedGlobalConfig.website ?? prev.website,
       prerequisites: savedGlobalConfig.prerequisites ?? prev.prerequisites,
       terms: savedGlobalConfig.terms ?? prev.terms,
       additionalCosts: {
@@ -1577,6 +1582,7 @@ export function QuotationBuilder({
   useEffect(() => {
     const nextGlobalConfig = {
       logo: globalConfig.logo || "",
+      website: globalConfig.website || "",
       terms: globalConfig.terms || "",
       prerequisites: globalConfig.prerequisites || "",
       additionalCosts: {
@@ -1594,6 +1600,7 @@ export function QuotationBuilder({
     const currentGlobalConfig = quotation.globalConfig;
     const isSameGlobalConfig =
       (currentGlobalConfig?.logo || "") === nextGlobalConfig.logo &&
+      (currentGlobalConfig?.website || "") === nextGlobalConfig.website &&
       (currentGlobalConfig?.terms || "") === nextGlobalConfig.terms &&
       (currentGlobalConfig?.prerequisites || "") === nextGlobalConfig.prerequisites &&
       (Number(currentGlobalConfig?.additionalCosts?.installation) || 0) === nextGlobalConfig.additionalCosts.installation &&

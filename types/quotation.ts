@@ -152,6 +152,7 @@ export interface Quotation {
   globalConfig?: {
     logo?: string;
     terms?: string;
+    website?: string;
     prerequisites?: string;
     additionalCosts?: {
       installation?: number;

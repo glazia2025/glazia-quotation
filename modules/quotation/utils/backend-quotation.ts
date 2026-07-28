@@ -255,6 +255,7 @@ export function extractBackendQuotation(payload: unknown): BackendQuotationRecor
           typeof source.globalConfig === "object" && source.globalConfig !== null
             ? {
                 logo: toStringValue((source.globalConfig as Record<string, unknown>).logo) || undefined,
+                website: toStringValue((source.globalConfig as Record<string, unknown>).website) || undefined,
                 terms: toStringValue((source.globalConfig as Record<string, unknown>).terms) || undefined,
                 prerequisites: toStringValue((source.globalConfig as Record<string, unknown>).prerequisites) || undefined,
                 additionalCosts:
