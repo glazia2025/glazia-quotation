@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -21,12 +22,13 @@ import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-bui
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { getArea, getPerimeter } from "@/modules/quotation/utils/calculations";
 import { createEmptyQuotation } from "@/modules/quotation/utils/factory";
-import { createQuotationItem, deleteQuotationItem, getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationMetadata, getElevationPdfBlob, reorderQuotationItems } from "@/services/quotation-service";
+import { bulkUpdateQuotationItems, createQuotationItem, deleteQuotationItem, getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationMetadata, getElevationPdfBlob, reorderQuotationItems } from "@/services/quotation-service";
 import type { Quotation, QuotationItem } from "@/types/quotation";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { getQuotationPdfDownloadName } from "@/utils/quotationPdf";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loadGlobalConfig } from "../../../utils/globalConfig";
+import { fetchOptions } from "@/lib/quotations/api";
 import {
   DndContext,
   closestCenter,
@@ -45,18 +47,17 @@ import type { DragEndEvent } from "@dnd-kit/core";
 import { rectSortingStrategy } from "@dnd-kit/sortable";
 
 
-type TabKey = "customer" | "quotation" | "global" | "item";
+type TabKey = "customer" | "quotation" | "global" | "item" | "bulk";
 
 const tabs: { key: TabKey; label: string }[] = [
   { key: "customer", label: "Customer Details" },
   { key: "quotation", label: "Quotation Details" },
   { key: "global", label: "Global Config" },
   { key: "item", label: "Item List" },
-
-
+  { key: "bulk", label: "Bulk Update" },
 ];
 const isTabKey = (value: string | null): value is TabKey =>
-  value === "customer" || value === "quotation" || value === "global" || value === "item";
+  value === "customer" || value === "quotation" || value === "global" || value === "item" || value === "bulk";
 
 const formatDimensionMm = (value: number | string | undefined) => `${value ?? "-"} mm`;
 const formatSizeMm = (width: number | string | undefined, height: number | string | undefined) =>
@@ -1089,6 +1090,177 @@ function QuotationDetailsTab({ onSave, isSaving }: { onSave: () => Promise<void>
   );
 }
 
+type BulkUpdateField = "glass" | "colorFinish";
+
+const collectUsedBulkOptions = (
+  items: QuotationItem[],
+  field: BulkUpdateField
+) => {
+  const property = field === "glass" ? "glassSpec" : "colorFinish";
+  const values = new Set<string>();
+  const collect = (item: QuotationItem) => {
+    const value = String(item[property] || "").trim();
+    if (value) values.add(value);
+    item.subItems?.forEach((subItem) => collect(subItem as QuotationItem));
+  };
+  items.forEach(collect);
+  return Array.from(values).sort((a, b) => a.localeCompare(b));
+};
+
+function BulkUpdateTab({
+  quotation,
+  onApply,
+  isSaving,
+}: {
+  quotation: Quotation;
+  onApply: (
+    field: BulkUpdateField,
+    from: string,
+    to: string
+  ) => Promise<number>;
+  isSaving: boolean;
+}) {
+  const [field, setField] = useState<BulkUpdateField>("glass");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [message, setMessage] = useState("");
+  const optionsQuery = useQuery({
+    queryKey: ["quotation-options", "bulk-update"],
+    queryFn: () => fetchOptions(""),
+  });
+  const usedOptions = useMemo(
+    () => collectUsedBulkOptions(quotation.items, field),
+    [field, quotation.items]
+  );
+  const replacementOptions = useMemo(() => {
+    const source =
+      field === "glass"
+        ? optionsQuery.data?.glassSpecs
+        : optionsQuery.data?.colorFinishes;
+    return Array.from(
+      new Set((source || []).map((option) => option.name.trim()).filter(Boolean))
+    )
+      .filter((option) => option !== from)
+      .sort((a, b) => a.localeCompare(b));
+  }, [field, from, optionsQuery.data]);
+
+  const selectField = (next: BulkUpdateField) => {
+    setField(next);
+    setFrom("");
+    setTo("");
+    setMessage("");
+  };
+
+  const applyUpdate = async () => {
+    setMessage("");
+    try {
+      const count = await onApply(field, from, to);
+      setMessage(
+        `${count} item${count === 1 ? "" : "s"} updated successfully.`
+      );
+      setFrom("");
+      setTo("");
+      window.location.reload();
+    } catch (error) {
+      console.error("Bulk quotation update failed", error);
+      setMessage(
+        error instanceof Error ? error.message : "Bulk update failed."
+      );
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div>
+        <h2 className="text-xl font-bold text-slate-900">Bulk Update</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Replace a glass specification or colour finish everywhere it is used
+          in this quotation.
+        </p>
+      </div>
+
+      <div className="mt-6 grid gap-6 md:grid-cols-3">
+        <label className="text-sm font-medium text-slate-700">
+          What to update
+          <select
+            value={field}
+            onChange={(event) =>
+              selectField(event.target.value as BulkUpdateField)
+            }
+            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+          >
+            <option value="glass">Glass</option>
+            <option value="colorFinish">Colour Finish</option>
+          </select>
+        </label>
+
+        <label className="text-sm font-medium text-slate-700">
+          Replace
+          <select
+            value={from}
+            onChange={(event) => {
+              setFrom(event.target.value);
+              setTo("");
+              setMessage("");
+            }}
+            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+          >
+            <option value="">Select an option used in this quotation</option>
+            {usedOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          {!usedOptions.length ? (
+            <span className="mt-2 block text-xs font-normal text-amber-700">
+              No {field === "glass" ? "glass specifications" : "colour finishes"} are used yet.
+            </span>
+          ) : null}
+        </label>
+
+        <label className="text-sm font-medium text-slate-700">
+          Replace with
+          <select
+            value={to}
+            onChange={(event) => {
+              setTo(event.target.value);
+              setMessage("");
+            }}
+            disabled={!from || optionsQuery.isLoading}
+            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 disabled:bg-slate-100"
+          >
+            <option value="">
+              {optionsQuery.isLoading ? "Loading options..." : "Select replacement"}
+            </option>
+            {replacementOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="mt-6 flex items-center justify-between gap-4">
+        <div className="text-sm text-slate-600">
+          {message ||
+            (from
+              ? `${quotation.items.length} quotation item${quotation.items.length === 1 ? "" : "s"} will be checked.`
+              : "")}
+        </div>
+        <Button
+          type="button"
+          onClick={() => void applyUpdate()}
+          disabled={!from || !to || isSaving}
+        >
+          {isSaving ? "Saving..." : "Save Bulk Update"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 
 export function QuotationBuilder({
   initialQuotation,
@@ -1352,6 +1524,26 @@ export function QuotationBuilder({
         }
       }),
     [ensureParentQuotation, markSaved, runItemMutation]
+  );
+
+  const persistBulkUpdate = useCallback(
+    async (field: BulkUpdateField, from: string, to: string) => {
+      let updatedCount = 0;
+      await runItemMutation(async () => {
+        const quotationId = await ensureParentQuotation();
+        const result = await bulkUpdateQuotationItems(
+          quotationId,
+          field,
+          from,
+          to
+        );
+        setQuotation(result.quotation);
+        updatedCount = result.updatedCount;
+        markSaved();
+      });
+      return updatedCount;
+    },
+    [ensureParentQuotation, markSaved, runItemMutation, setQuotation]
   );
 
   useEffect(() => {
@@ -1719,6 +1911,13 @@ export function QuotationBuilder({
                 onReorderItems={persistReorderedItems}
                 onSavePricing={saveCurrentMetadata}
                 isSavingMetadata={metadataSaveStatus === "saving"}
+              />
+            )}
+            {activeTab === "bulk" && (
+              <BulkUpdateTab
+                quotation={quotation}
+                onApply={persistBulkUpdate}
+                isSaving={itemMutationsInProgress > 0}
               />
             )}
 

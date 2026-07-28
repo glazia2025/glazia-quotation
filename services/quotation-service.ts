@@ -382,6 +382,27 @@ export async function reorderQuotationItems(quotationId: string, itemIds: string
   );
 }
 
+export async function bulkUpdateQuotationItems(
+  quotationId: string,
+  field: "glass" | "colorFinish",
+  from: string,
+  to: string
+) {
+  const response = await axios.patch(
+    `${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/items/bulk-update`,
+    { field, from, to },
+    { headers: getAuthHeaders() }
+  );
+  const quotation = extractBackendQuotation(response.data?.quotation);
+  if (!quotation) {
+    throw new Error("Bulk update returned an invalid quotation");
+  }
+  return {
+    quotation,
+    updatedCount: Number(response.data?.updatedCount) || 0,
+  };
+}
+
 export async function deleteQuotation(quotationId: string) {
   await axios.delete(`${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}`, {
     headers: getAuthHeaders(),
