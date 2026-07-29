@@ -2689,40 +2689,40 @@ console.log("SUBITEMS:", nextItem.subItems);
         const boundary = dir === "vertical" ? a.x + a.w : a.y + a.h;
         if (dir === "vertical") {
           const x = fx + boundary * fw;
-          if (a.systemType !== "Blank Area" &&
-            b.systemType !== "Blank Area") {
-            addMemberRect(contentGroup, x - PROFILE.mullion / 2, fy + PROFILE.outer, PROFILE.mullion, fh - PROFILE.outer * 2);
-            console.log({
-  left: a.systemType,
-  right: b.systemType,
-  a,
-  b,
-});
-            dividerBadges.push({
-               id: `divider-${dividerBadges.length}`,
-    x,
-    y: fy + fh / 2 - 120,
-    // leftSystem: a.systemType,
-    // rightSystem: b.systemType,
-     leftId: a.id,
-    rightId: b.id,
-
-});
-          }
-} else {
-          if (a.systemType !== "Blank Area" &&
-            b.systemType !== "Blank Area") {
-            const y = fy + boundary * fh;
-            addMemberRect(contentGroup, fx + PROFILE.outer, y - PROFILE.mullion / 2, fw - PROFILE.outer * 2, PROFILE.mullion);
-dividerBadges.push({
-   id: `divider-${dividerBadges.length}`,
-    x: fx + fw / 2+50,
-    y,
-     leftId: a.id,
-    rightId: b.id,
-});
-          }
-          
+          const memberY = fy + parent.y * fh + PROFILE.outer;
+          const memberHeight = parent.h * fh - PROFILE.outer * 2;
+          addMemberRect(
+            contentGroup,
+            x - PROFILE.mullion / 2,
+            memberY,
+            PROFILE.mullion,
+            memberHeight
+          );
+          dividerBadges.push({
+            id: `divider-${dividerBadges.length}`,
+            x,
+            y: fy + (parent.y + parent.h / 2) * fh,
+            leftId: a.id,
+            rightId: b.id,
+          });
+        } else {
+          const y = fy + boundary * fh;
+          const memberX = fx + parent.x * fw + PROFILE.outer;
+          const memberWidth = parent.w * fw - PROFILE.outer * 2;
+          addMemberRect(
+            contentGroup,
+            memberX,
+            y - PROFILE.mullion / 2,
+            memberWidth,
+            PROFILE.mullion
+          );
+          dividerBadges.push({
+            id: `divider-${dividerBadges.length}`,
+            x: fx + (parent.x + parent.w / 2) * fw,
+            y,
+            leftId: a.id,
+            rightId: b.id,
+          });
         }
       }
       parent.children.forEach(drawParentDividers);
@@ -3143,8 +3143,6 @@ console.dir(mapped.root.dividerTypes, { depth: null });
         for (let index = 0; index < parent.children.length - 1; index += 1) {
           const left = parent.children[index];
           const right = parent.children[index + 1];
-          if (left.systemType === "Blank Area" || right.systemType === "Blank Area") continue;
-
           const badgeId = `divider-${dividerIndex++}`;
           const join = editingItem.joins?.find(
             (entry) => entry.p1 === left.id && entry.p2 === right.id
