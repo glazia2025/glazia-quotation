@@ -11,6 +11,7 @@ import {
   Plus,
   Ruler,
   Share2,
+  ShoppingCart,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,9 @@ import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-bui
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { getArea, getPerimeter } from "@/modules/quotation/utils/calculations";
 import { createEmptyQuotation } from "@/modules/quotation/utils/factory";
-import { bulkUpdateQuotationItems, createQuotationItem, deleteQuotationItem, getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationMetadata, getElevationPdfBlob, reorderQuotationItems } from "@/services/quotation-service";
+import { bulkUpdateQuotationItems, createQuotationItem, deleteQuotationItem, getBomOrderData, getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationMetadata, getElevationPdfBlob, reorderQuotationItems } from "@/services/quotation-service";
+import type { BomOrderData } from "@/services/quotation-service";
+import { BomOrderPlacement } from "@/modules/quotation/components/bom-order-placement";
 import type { Quotation, QuotationItem } from "@/types/quotation";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { getQuotationPdfDownloadName } from "@/utils/quotationPdf";
@@ -1339,6 +1342,8 @@ export function QuotationBuilder({
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState("Quotation PDF Preview");
   const [pdfDownloadName, setPdfDownloadName] = useState("");
+  const [bomOrderData, setBomOrderData] = useState<BomOrderData | null>(null);
+  const [isOrderPlacementOpen, setIsOrderPlacementOpen] = useState(false);
   const [globalConfig, setGlobalConfig] = useState(createBuilderGlobalConfig);
   const hydratedQuotationKeyRef = useRef<string | null>(null);
   const hydratedGlobalConfigKeyRef = useRef<string | null>(null);
@@ -1756,7 +1761,10 @@ export function QuotationBuilder({
         throw new Error("Failed to resolve quotation id before BOM generation.");
       }
 
-      const blob = await getBomPdfBlob(pdfQuotationId);
+      const [blob, orderData] = await Promise.all([
+        getBomPdfBlob(pdfQuotationId),
+        getBomOrderData(pdfQuotationId),
+      ]);
       const nextPdfPreviewUrl = URL.createObjectURL(blob);
       const quoteNo =
         savedQuotation?.generatedId ||
@@ -1766,6 +1774,7 @@ export function QuotationBuilder({
         "quotation";
       setPdfPreviewTitle("BOM PDF Preview");
       setPdfDownloadName(`${quoteNo}-bom.pdf`);
+      setBomOrderData(orderData);
       setPdfPreviewUrl((currentUrl) => {
         if (currentUrl) {
           URL.revokeObjectURL(currentUrl);
@@ -1939,6 +1948,12 @@ export function QuotationBuilder({
                   <div className="text-sm text-slate-500">{pdfDownloadName || getQuotationPdfDownloadName({ ...quotation, globalConfig })}</div>
                 </div>
                 <div className="flex items-center gap-3">
+                  {pdfPreviewTitle === "BOM PDF Preview" && bomOrderData ? (
+                    <Button onClick={() => setIsOrderPlacementOpen(true)}>
+                      <ShoppingCart className="h-4 w-4" />
+                      Place Order
+                    </Button>
+                  ) : null}
                   <Button variant="outline" onClick={downloadPreviewedPdf}>
                     <Download className="h-4 w-4" />
                     Download
@@ -1957,6 +1972,13 @@ export function QuotationBuilder({
               </div>
             </div>
           </div>
+        ) : null}
+        {isOrderPlacementOpen && bomOrderData ? (
+          <BomOrderPlacement
+            bom={bomOrderData}
+            onClose={() => setIsOrderPlacementOpen(false)}
+            onSuccess={() => undefined}
+          />
         ) : null}
       </div>
     </PageShell>

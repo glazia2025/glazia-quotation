@@ -318,6 +318,43 @@ export async function getBomPdfBlob(quotationId: string): Promise<Blob> {
   return response.data;
 }
 
+export type BomOrderRow = {
+  type: string;
+  system: string;
+  series: string;
+  description: string;
+  itemCode: string;
+  quantity: number;
+  unit: string;
+  rate: number;
+  amount: number;
+};
+
+export type BomOrderData = {
+  project: string;
+  projectCode: string;
+  customer: {
+    name?: string;
+    city?: string;
+    phone?: string;
+  };
+  rows: BomOrderRow[];
+  totals: Record<string, number> & { grand: number };
+  notes: string[];
+};
+
+export async function getBomOrderData(quotationId: string): Promise<BomOrderData> {
+  const response = await axios.get<BomOrderData>(
+    `${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/bom-data`,
+    {
+      headers: getAuthHeaders(),
+      withCredentials: true,
+    }
+  );
+
+  return response.data;
+}
+
 export async function saveQuotationDraft(quotation: Quotation): Promise<BackendQuotationRecord | null> {
   const headers = getAuthHeaders();
   const payload = toBackendQuotation(quotation);
