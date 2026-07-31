@@ -9,24 +9,7 @@ import type { BomOrderData } from "@/services/quotation-service";
 import { getAuthToken } from "@/utils/auth-cookie";
 import { formatCurrency } from "@/utils/format";
 
-type StoredUser = {
-  id?: string;
-  name?: string;
-  phone?: string;
-  city?: string;
-};
-
 type Step = "payment" | "proof" | "processing" | "success";
-
-function readStoredUser(): StoredUser {
-  if (typeof window === "undefined") return {};
-
-  try {
-    return JSON.parse(window.localStorage.getItem("glazia-user") || "{}") as StoredUser;
-  } catch {
-    return {};
-  }
-}
 
 export function BomOrderPlacement({
   bom,
@@ -39,10 +22,21 @@ export function BomOrderPlacement({
 }) {
   const [step, setStep] = useState<Step>("payment");
   const [paymentProof, setPaymentProof] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const subtotal = Number(bom.totals.grand) || 0;
+  const shippingDiscount =
+    subtotal >= 2_000_000
+      ? 20_000
+      : subtotal >= 1_000_000
+        ? 10_000
+        : subtotal >= 500_000
+          ? 5_000
+          : subtotal >= 1
+            ? 2_500
+            : 0;
   const tax = Math.round(subtotal * 0.18);
   const total = subtotal + tax;
 
@@ -60,21 +54,22 @@ export function BomOrderPlacement({
     }
 
     setError("");
+    setIsUploading(true);
     const reader = new FileReader();
-    reader.onload = () => setPaymentProof(String(reader.result || ""));
-    reader.onerror = () => setError("Failed to read the selected file.");
+    reader.onload = () => {
+      setPaymentProof(String(reader.result || ""));
+      setIsUploading(false);
+    };
+    reader.onerror = () => {
+      setError("Failed to read the selected file.");
+      setIsUploading(false);
+    };
     reader.readAsDataURL(file);
   };
 
   const placeOrder = async () => {
     if (!paymentProof) {
       setError("Please upload the payment proof.");
-      return;
-    }
-
-    const user = readStoredUser();
-    if (!user.id || !user.name || !user.phone) {
-      setError("Your user profile is incomplete. Please log in again before placing the order.");
       return;
     }
 
@@ -96,12 +91,6 @@ export function BomOrderPlacement({
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          user: {
-            userId: user.id,
-            name: user.name,
-            city: user.city || "Not specified",
-            phoneNumber: user.phone,
-          },
           products: bom.rows.map((row, index) => ({
             productId: row.itemCode || `${bom.projectCode}-${index + 1}`,
             description: [
@@ -128,7 +117,7 @@ export function BomOrderPlacement({
       }
 
       setStep("success");
-      onSuccess();
+      window.setTimeout(onSuccess, 2000);
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Failed to place the order.");
       setStep("proof");
@@ -164,6 +153,11 @@ export function BomOrderPlacement({
               <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-semibold">
                 <span>Total payable</span><span>{formatCurrency(total)}</span>
               </div>
+              {shippingDiscount > 0 ? (
+                <div className="flex justify-between border-t border-slate-200 pt-2 font-medium text-green-700">
+                  <span>Shipping Discount</span><span>{formatCurrency(shippingDiscount)}</span>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -178,8 +172,8 @@ export function BomOrderPlacement({
             <>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-2xl bg-blue-50 p-6 text-center">
-                  <h3 className="mb-2 font-semibold text-slate-900">Scan QR Code to Pay</h3>
-                  <p className="mb-4 text-sm text-slate-600">For orders below ₹1 lakh</p>
+                  <h3 className="mb-2 font-semibold text-slate-900">Scan QR Code to Pay (For orders less than 1 lakh)</h3>
+                  <p className="mb-4 text-sm text-slate-600">Scan this QR code with any UPI app to pay {formatCurrency(total)}</p>
                   <img
                     src="/upi.jpeg"
                     alt="Glazia payment QR code"
@@ -204,6 +198,9 @@ export function BomOrderPlacement({
               <Button className="w-full" onClick={() => setStep("proof")}>
                 I&apos;ve Made the Payment
               </Button>
+              <Button variant="outline" className="w-full" onClick={onClose}>
+                Cancel
+              </Button>
             </>
           ) : null}
 
@@ -221,17 +218,61 @@ export function BomOrderPlacement({
                 onChange={selectProof}
                 className="hidden"
               />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full rounded-2xl border-2 border-dashed border-slate-300 p-7 text-sm text-slate-600 hover:border-[#124657] hover:bg-slate-50"
-              >
-                {paymentProof ? "Payment proof selected — click to replace" : "Click to select payment proof"}
-              </button>
-              <div className="flex gap-3">
-                <Button variant="outline" className="flex-1" onClick={() => setStep("payment")}>Back</Button>
-                <Button className="flex-1" onClick={placeOrder} disabled={!paymentProof}>Place Order</Button>
-              </div>
+              {paymentProof ? (
+                <div className="space-y-4">
+                  <div className="rounded-xl border-2 border-green-300 bg-green-50 p-4">
+                    <div className="mb-2 flex items-center gap-2">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      <span className="font-medium text-green-700">Payment proof uploaded</span>
+                    </div>
+                    {paymentProof.startsWith("data:application/pdf") ? (
+                      <div className="flex items-center justify-center gap-2 text-sm text-slate-700">
+                        <span className="rounded border bg-white px-2 py-1">PDF</span>
+                        <a
+                          href={paymentProof}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#124657] hover:underline"
+                        >
+                          View uploaded PDF
+                        </a>
+                      </div>
+                    ) : (
+                      <img
+                        src={paymentProof}
+                        alt="Payment proof"
+                        className="mx-auto h-32 max-w-full rounded object-contain"
+                      />
+                    )}
+                  </div>
+                  <Button className="w-full bg-green-600 hover:bg-green-700" onClick={placeOrder}>
+                    Place Order
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setPaymentProof(null);
+                      setError("");
+                    }}
+                  >
+                    Upload Different File
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="w-full rounded-2xl border-2 border-dashed border-slate-300 p-7 text-sm text-slate-600 hover:border-[#124657] hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {isUploading ? "Uploading..." : "Click to upload payment proof"}
+                  <span className="mt-1 block text-xs text-slate-500">PNG, JPG, PDF up to 5MB</span>
+                </button>
+              )}
+              <Button variant="outline" className="w-full" onClick={() => setStep("payment")}>
+                Back to QR Code
+              </Button>
             </div>
           ) : null}
 
