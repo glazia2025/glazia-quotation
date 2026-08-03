@@ -23,7 +23,7 @@ import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-bui
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { getArea, getPerimeter } from "@/modules/quotation/utils/calculations";
 import { createEmptyQuotation } from "@/modules/quotation/utils/factory";
-import { bulkUpdateQuotationItems, createQuotationItem, deleteQuotationItem, getBomOrderData, getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationMetadata, getElevationPdfBlob, reorderQuotationItems } from "@/services/quotation-service";
+import { bulkUpdateQuotationItems, createQuotationItem, deleteQuotationItem, getBomOrderData, getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationMetadata, getElevationPdfBlob, getOptimizedFinal, reorderQuotationItems } from "@/services/quotation-service";
 import type { BomOrderData } from "@/services/quotation-service";
 import { BomOrderPlacement } from "@/modules/quotation/components/bom-order-placement";
 import type { Quotation, QuotationItem } from "@/types/quotation";
@@ -438,6 +438,9 @@ const currentItems = items.slice(startIndex, endIndex);
   const router = useRouter();
   const profit = Number(quotation.breakdown?.profitPercentage) || 0;
   const configuratorBasePath = `${quotationBasePath}/configurator`;
+  const [optimizedFinal, setOptimizedFinal] = useState<number | null>(null);
+  const [isCalculatingOptimizedFinal, setIsCalculatingOptimizedFinal] = useState(false);
+  const [optimizedFinalError, setOptimizedFinalError] = useState("");
 
   const totalQuantity = items.reduce((sum, item) => sum + Math.max(1, item.quantity || 1), 0);
   const totalArea = items.reduce((sum, item) => 
@@ -458,7 +461,31 @@ const currentItems = items.slice(startIndex, endIndex);
     return sum + amount;
   }, 0);
   const finalAmount = totalAmount + (totalAmount * profit) / 100;
-  const finalWithGST = finalAmount + (finalAmount * 18) / 100;
+  const finalWithGSTBase = optimizedFinal ?? finalAmount;
+  const finalWithGST = finalWithGSTBase + (finalWithGSTBase * 18) / 100;
+  useEffect(() => {
+    setOptimizedFinal(null);
+    setOptimizedFinalError("");
+  }, [items, profit]);
+
+  const calculateOptimizedFinal = async () => {
+    const quotationId = getQuotationIdentity(quotation);
+    if (!quotationId) {
+      setOptimizedFinalError("Save the quotation before calculating the optimized final.");
+      return;
+    }
+    setIsCalculatingOptimizedFinal(true);
+    setOptimizedFinalError("");
+    try {
+      const result = await getOptimizedFinal(quotationId);
+      setOptimizedFinal(Number(result.optimizedFinal) || 0);
+    } catch (error) {
+      console.error("Failed to calculate optimized final", error);
+      setOptimizedFinalError("Unable to calculate optimized final.");
+    } finally {
+      setIsCalculatingOptimizedFinal(false);
+    }
+  };
   const updateProfit = (nextProfit: number) => {
     const safeProfit = Number.isFinite(nextProfit) ? nextProfit : 0;
     const nextFinalAmount = totalAmount + (totalAmount * safeProfit) / 100;
@@ -502,11 +529,7 @@ const currentItems = items.slice(startIndex, endIndex);
     <div className="space-y-4">
       <div className="rounded-2xl border bg-slate-950 px-5 py-4 text-white">
         <div className="flex flex-wrap items-start gap-5">
-          <div className="min-w-[180px]">
-            <h2 className="text-lg font-semibold">Configured Items</h2>
-            <p className="text-sm text-slate-300">{items.length} item{items.length === 1 ? "" : "s"} in this quotation</p>
-          </div>
-          <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+          <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-7">
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Quantity</div>
               <div className="mt-1 text-xl font-bold">{totalQuantity}</div>
@@ -531,6 +554,22 @@ const currentItems = items.slice(startIndex, endIndex);
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Final</div>
               <div className="mt-1 text-xl font-bold">{formatCurrency(finalAmount)}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Optimized Final</div>
+              {optimizedFinal === null ? (
+                <button
+                  type="button"
+                  onClick={() => void calculateOptimizedFinal()}
+                  disabled={isCalculatingOptimizedFinal}
+                  className="mt-1 rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                >
+                  {isCalculatingOptimizedFinal ? "Calculating…" : "Calculate"}
+                </button>
+              ) : (
+                <div className="mt-1 text-xl font-bold">{formatCurrency(optimizedFinal)}</div>
+              )}
+              {optimizedFinalError && <div className="mt-1 text-[11px] text-red-300">{optimizedFinalError}</div>}
             </div>
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Final + GST</div>

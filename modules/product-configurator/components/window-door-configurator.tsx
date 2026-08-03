@@ -17,6 +17,7 @@ import type { Description, HandleOption, OptionWithRate, OptionsResponse } from 
 import type { QuotationItem, QuotationSubItem } from "@/components/QuotationItemRow";
 import { useQuery } from "@tanstack/react-query";
 import { fetchLouversRates } from "@/lib/quotations/api";
+import { calculateQuotationRates, type RateCalculationResult } from "@/services/quotation-service";
 
 
 type KonvaGroup = InstanceType<typeof Konva.Group>;
@@ -71,6 +72,7 @@ type ProductMeta = {
   description: string;
   colorFinish: string;
   glassSpec: string;
+  hardwareOpeningType: "hinges" | "frictionStay" | "";
   handleType: string;
   handleColor: string;
   meshPresent: string;
@@ -86,7 +88,7 @@ type ProductMeta = {
 
 type SectionOptionMeta = Pick<
   ProductMeta,
-  "colorFinish" | "glassSpec" | "handleType" | "handleColor" | "meshType"
+  "colorFinish" | "glassSpec" | "hardwareOpeningType" | "handleType" | "handleColor" | "meshType"
 >;
 
 const DEFAULT_GLASS_SPEC = "6mm Clear Toughened";
@@ -99,6 +101,7 @@ const DEFAULT_META: ProductMeta = {
   description: "",
   colorFinish: "",
   glassSpec: DEFAULT_GLASS_SPEC,
+  hardwareOpeningType: "hinges",
   handleType: "",
   handleColor: DEFAULT_HANDLE_COLOR,
   meshPresent: "No",
@@ -115,6 +118,7 @@ const DEFAULT_META: ProductMeta = {
 const DEFAULT_SECTION_OPTION_META: SectionOptionMeta = {
   colorFinish: "",
   glassSpec: DEFAULT_GLASS_SPEC,
+  hardwareOpeningType: "hinges",
   handleType: "",
   handleColor: DEFAULT_HANDLE_COLOR,
   meshType: "",
@@ -564,7 +568,8 @@ const calculateRateForItem = (
   descriptions: Description[] | undefined,
   options: OptionsResponse | undefined,
   systems: any[] | undefined,
-  louversRates: number[] | undefined
+  louversRates: number[] | undefined,
+  calculatedBaseRate?: number
 ) => {
   let baseRates: number[] = [];
   let desc: any = null;
@@ -578,7 +583,7 @@ const calculateRateForItem = (
   }
   const slab = AREA_SLABS.find((s) => next.area <= s.max);
   const slabIndex = slab ? slab.index : 0;
-  const baseRate = baseRates[slabIndex] || 0;
+  const baseRate = calculatedBaseRate ?? baseRates[slabIndex] ?? 0;
   console.log("FINAL DEBUG", {
     area: next.area,
     slabIndex,
@@ -603,6 +608,35 @@ const calculateRateForItem = (
     areaSlabIndex: slab?.index ?? 0,
   };
 };
+
+function RateCalculationAction({
+  isCalculating,
+  error,
+  isStale,
+  result,
+  onCalculate,
+}: {
+  isCalculating: boolean;
+  error: string;
+  isStale: boolean;
+  result?: RateCalculationResult | null;
+  onCalculate: () => Promise<void>;
+}) {
+  return (
+    <div className="col-span-full space-y-1">
+      <button
+        type="button"
+        onClick={() => void onCalculate()}
+        disabled={isCalculating}
+        className="w-full rounded-md bg-[#124657] px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {isCalculating ? "Calculating…" : "Calculate Rate"}
+      </button>
+      {error && <div className="text-xs text-red-600">{error}</div>}
+      {isStale && <div className="text-xs text-amber-600">Inputs changed — recalculate rate.</div>}
+    </div>
+  );
+}
 
 const mapItemToConfiguratorState = (item: QuotationItem) => {
   const width = Math.round(item.width || 1500);
@@ -812,6 +846,7 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
     description: item.description || "",
     colorFinish: item.colorFinish || "",
     glassSpec: item.glassSpec || DEFAULT_GLASS_SPEC,
+    hardwareOpeningType: item.hardwareOpeningType || "hinges",
     handleType: item.handleType || "",
     handleColor: item.handleColor || DEFAULT_HANDLE_COLOR,
     meshPresent: yesNoFromValue(item.meshPresent),
@@ -1981,6 +2016,11 @@ const dividerBadgesRef = useRef<
   const [autoChildRates, setAutoChildRates] = useState<Record<string, number>>({});
   const [childSectionMeta, setChildSectionMeta] = useState<Record<string, SectionOptionMeta>>({});
   const [isManualRate, setIsManualRate] = useState(false);
+  const [isCalculatingRate, setIsCalculatingRate] = useState(false);
+  const [rateCalculationError, setRateCalculationError] = useState("");
+  const [singleRateCalculation, setSingleRateCalculation] = useState<RateCalculationResult | null>(null);
+  const [childRateCalculations, setChildRateCalculations] = useState<Record<string, RateCalculationResult>>({});
+  const [rateIsStale, setRateIsStale] = useState(false);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [stageSize, setStageSize] = useState({ w: 1200, h: 780 });
   const { past, future, present, push, setDirect, undo, redo, reset } = useHistory(buildPreset(DEFAULT_META.systemType as SystemType, "Yes", "No"));
@@ -1996,6 +2036,7 @@ const dividerBadgesRef = useRef<
   const selectedDescriptionsQuery = useDescriptionsQuery(selectedSystemSupportsCatalog ? selectedNode.systemType : "", selectedSystemSupportsCatalog ? selectedNode.series : "");
   const optionsSystemType = selectedSystemSupportsCatalog ? selectedNode.systemType || baseSystemType : "";
   const metaOptionsQuery = useOptionsQuery(optionsSystemType);
+  const combinationOptionsQuery = useOptionsQuery(baseSystemType);
   const systemOptions = Array.from(new Set([...(systemsQuery.data?.systems ?? ["Casement", "Sliding", "Slide N Fold"]), "Louvers", "Exhaust Fan"]));
   const selectableSystemOptions = systemOptions.filter((sys): sys is SystemType => sys === "Casement" || sys === "Sliding" || sys === "Slide N Fold" || sys === "Louvers" || sys === "Exhaust Fan");
   const seriesOptions = selectedSeriesQuery.data?.series ?? [];
@@ -2219,7 +2260,7 @@ const dividerBadgesRef = useRef<
   const isCombinationChildSelection = isCombinationDraft && !selectedIsWholeFrame;
   const canConfigureArch = selectedIsWholeFrame && leafNodesForMode.length > 0 && leafNodesForMode.every((leaf) => leaf.systemType === "Casement");
   const selectedLeafIndex = leafNodesForMode.findIndex((leaf) => leaf.id === selectedNode.id);
-  const selectedSectionMeta: SectionOptionMeta = isCombinationChildSelection && selectedId ? (childSectionMeta[selectedId] ?? DEFAULT_SECTION_OPTION_META) : { colorFinish: meta.colorFinish, glassSpec: meta.glassSpec, handleType: meta.handleType, handleColor: meta.handleColor, meshType: meta.meshType };
+  const selectedSectionMeta: SectionOptionMeta = isCombinationChildSelection && selectedId ? (childSectionMeta[selectedId] ?? DEFAULT_SECTION_OPTION_META) : { colorFinish: meta.colorFinish, glassSpec: meta.glassSpec, hardwareOpeningType: meta.hardwareOpeningType, handleType: meta.handleType, handleColor: meta.handleColor, meshType: meta.meshType };
   const metaHandleOption = metaOptionsQuery.data?.handleOptions.find((option) => option.name === selectedSectionMeta.handleType) ?? null;
   const updateSelectedSectionMeta = useCallback((patch: Partial<SectionOptionMeta>) => {
     if (!isCombinationChildSelection || !selectedId) {
@@ -2242,87 +2283,212 @@ const dividerBadgesRef = useRef<
           getEffectiveLeafHeightRatio(root, leafNodesForMode[selectedLeafIndex]) * heightMm
         )
       : 0;
-  const selectedChildRate = isCombinationChildSelection && selectedId ? (manualChildRates[selectedId] ?? autoChildRates[selectedId] ?? 0) : 0;
-  const parentCombinationRate = useMemo(() => {
-    const weightedRateTotal = leafNodesForMode.reduce((sum, leaf) => {
-      const isBlank =
-        leaf.systemType === "Blank Area" ||
-        leaf.description === "Blank Area";
 
-      const leafArea = isBlank
-        ? 0
-        : mmToSqft(
-          leaf.w * widthMm,
-          getEffectiveLeafHeightRatio(root, leaf) * heightMm
-        );
-      const leafRate = manualChildRates[leaf.id] ?? autoChildRates[leaf.id] ?? 0;
-      return sum + leafRate * leafArea;
-    }, 0);
-    const effectiveTotalArea = leafNodesForMode.reduce((sum, leaf) => {
-      const isBlank =
-        leaf.systemType === "Blank Area" ||
-        leaf.description === "Blank Area";
+  const calculateLeafRate = async (
+    leaf: SectionNode,
+    sectionMeta: SectionOptionMeta,
+    width: number,
+    height: number,
+    area: number
+  ) => {
+    const series = leaf.series || "";
+    const description = leaf.description || getDefaultLeafDescription(leaf.systemType, meta.productType, leaf.hasExhaustFan);
+    if (!series || !description) {
+      throw new Error("Select a series and description before calculating the rate.");
+    }
+    const [result] = await calculateQuotationRates([{
+        clientId: leaf.id,
+        systemType: leaf.systemType,
+        series,
+        description,
+        width,
+        height,
+        area,
+        frameCutAngle: normalizeCutAngle(meta.frameCutAngle),
+        shutterCutAngle: normalizeCutAngle(meta.shutterCutAngle),
+        cuttingScheduleKey: String(getCuttingScheduleKey(normalizeCutAngle(meta.frameCutAngle), normalizeCutAngle(meta.shutterCutAngle))),
+        glassSpec: leaf.glass === "Yes" ? (sectionMeta.glassSpec || "Yes") : "",
+        hardwareOpeningType: leaf.systemType === "Casement" ? sectionMeta.hardwareOpeningType : "",
+    }]);
+    const [descriptionsResp, optionsResp] = await Promise.all([
+      fetchDescriptions(leaf.systemType, series),
+      fetchOptions(leaf.systemType),
+    ]);
+    const calc = calculateRateForItem({
+        area,
+        systemType: leaf.systemType,
+        description,
+        colorFinish: meta.colorFinish,
+        glassSpec: leaf.glass === "Yes" ? (sectionMeta.glassSpec || "Yes") : "",
+        handleType: sectionMeta.handleType,
+        handleColor: sectionMeta.handleColor,
+        meshPresent: leaf.mesh,
+        meshType: leaf.mesh === "Yes" ? sectionMeta.meshType : "",
+    }, descriptionsResp.descriptions, optionsResp, systemsQuery.data?.systems, louversRates, result.baseRate);
+    return { rate: roundToTwo(calc.rate), result };
+  };
 
-      const area = isBlank
-        ? 0
-        : mmToSqft(
-          leaf.w * widthMm,
-          getEffectiveLeafHeightRatio(root, leaf) * heightMm
-        );
+  const calculateCombinationRate = async () => {
+    const leaves = leafNodesForMode.filter((leaf) => leaf.systemType !== "Blank Area");
+    if (!leaves.length) throw new Error("Combination has no priceable sub-items.");
+    const inputs = leaves.map((leaf) => {
+      const height = getEffectiveLeafHeightRatio(root, leaf) * heightMm;
+      const area = mmToSqft(leaf.w * widthMm, height);
+      const series = leaf.series || "";
+      const description = leaf.description || getDefaultLeafDescription(leaf.systemType, meta.productType, leaf.hasExhaustFan);
+      if (!series || !description) throw new Error("Select a series and description for every sub-item before calculating the rate.");
+      return {
+        leaf,
+        height,
+        area,
+        series,
+        description,
+      };
+    });
+    const regularRequests = inputs.map(({ leaf, height, area, series, description }) => ({
+      clientId: leaf.id,
+      systemType: leaf.systemType,
+      series,
+      description,
+      width: leaf.w * widthMm,
+      height,
+      area,
+      frameCutAngle: normalizeCutAngle(meta.frameCutAngle),
+      shutterCutAngle: normalizeCutAngle(meta.shutterCutAngle),
+      cuttingScheduleKey: String(getCuttingScheduleKey(normalizeCutAngle(meta.frameCutAngle), normalizeCutAngle(meta.shutterCutAngle))),
+      glassSpec: leaf.glass === "Yes" ? (getLeafSectionMeta(leaf.id).glassSpec || "Yes") : "",
+      hardwareOpeningType: leaf.systemType === "Casement" ? getLeafSectionMeta(leaf.id).hardwareOpeningType : "",
+    }));
+    const joinRequests = dividerBadgesRef.current.map((badge, index) => {
+      const source = findNode(root, badge.leftId) || leaves[0];
+      return {
+        clientId: `__join__${index}`,
+        itemType: "join" as const,
+        joinType: badgeValues[badge.id] === "M" ? "Mullion" as const : "Coupler" as const,
+        systemType: source.systemType,
+        series: source.series || "",
+        description: badgeValues[badge.id] === "M" ? "Mullion" : "Coupler",
+        width: widthMm,
+        height: heightMm,
+        area: effectiveAreaSqft,
+        frameCutAngle: normalizeCutAngle(meta.frameCutAngle),
+        shutterCutAngle: normalizeCutAngle(meta.shutterCutAngle),
+        cuttingScheduleKey: String(getCuttingScheduleKey(normalizeCutAngle(meta.frameCutAngle), normalizeCutAngle(meta.shutterCutAngle))),
+      };
+    }).filter((request) => request.series);
+    const materialResults = await calculateQuotationRates([...regularRequests, ...joinRequests]);
+    const materialById = new Map(materialResults.map((result) => [result.clientId, result]));
+    const joinResults = materialResults.filter((result) => result.clientId.startsWith("__join__"));
+    const calculated = await Promise.all(inputs.map(async ({ leaf, area, series, description }) => {
+      const result = materialById.get(leaf.id);
+      if (!result) throw new Error(`Rate calculation returned no result for ${description}.`);
+      const sectionMeta = getLeafSectionMeta(leaf.id);
+      const [descriptionsResp, optionsResp] = await Promise.all([
+        fetchDescriptions(leaf.systemType, series),
+        fetchOptions(leaf.systemType),
+      ]);
+      const calc = calculateRateForItem({
+        area,
+        systemType: leaf.systemType,
+        description,
+        colorFinish: meta.colorFinish,
+        glassSpec: leaf.glass === "Yes" ? (sectionMeta.glassSpec || "Yes") : "",
+        handleType: sectionMeta.handleType,
+        handleColor: sectionMeta.handleColor,
+        meshPresent: leaf.mesh,
+        meshType: leaf.mesh === "Yes" ? sectionMeta.meshType : "",
+      }, descriptionsResp.descriptions, optionsResp, systemsQuery.data?.systems, louversRates, result.baseRate);
+      return { leaf, rate: roundToTwo(calc.rate), result };
+    }));
+    const joinMaterialValue = joinResults.reduce((sum, result) => sum + result.materialValue, 0);
+    const rate = roundToTwo(
+      calculated.reduce((sum, entry) => sum + entry.rate, 0) / calculated.length +
+      (effectiveAreaSqft > 0 ? joinMaterialValue / effectiveAreaSqft : 0)
+    );
+    const details = Object.fromEntries(
+      calculated.map((entry) => [entry.leaf.id, entry.result])
+    );
+    const rates = Object.fromEntries(
+      calculated.map((entry) => [entry.leaf.id, entry.rate])
+    );
+    const first = calculated[0].result;
+    const aggregate: RateCalculationResult = {
+      ...first,
+      clientId: "combination-parent",
+      baseRate: roundToTwo(calculated.reduce((sum, entry) => sum + entry.result.baseRate, 0) / calculated.length),
+      materialValue: roundToTwo(calculated.reduce((sum, entry) => sum + entry.result.materialValue, 0) + joinMaterialValue),
+      area: roundToTwo(calculated.reduce((sum, entry) => sum + entry.result.area, 0)),
+      totalWeightKg: roundToTwo(calculated.reduce((sum, entry) => sum + entry.result.totalWeightKg, 0) + joinResults.reduce((sum, result) => sum + result.totalWeightKg, 0)),
+      warnings: [...calculated.flatMap((entry) => entry.result.warnings), ...joinResults.flatMap((result) => result.warnings)],
+    };
+    return { rate, aggregate, details, rates };
+  };
 
-      return sum + area;
-    }, 0);
-
-    return effectiveTotalArea > 0
-      ? roundToTwo(weightedRateTotal / effectiveTotalArea)
-      : 0;
-  }, [autoChildRates, leafNodesForMode, manualChildRates, root, widthMm, heightMm]);
-
-  useEffect(() => {
-    if (!isCombinationDraft) {
-      setAutoChildRates({});
+  const handleCalculateRate = async () => {
+    if (isCombinationDraft) {
+      setIsCalculatingRate(true);
+      setRateCalculationError("");
+      try {
+        const calculated = await calculateCombinationRate();
+        setAutoChildRates(calculated.rates);
+        setManualChildRates({});
+        setChildRateCalculations(calculated.details);
+        setMeta((prev) => ({ ...prev, rate: calculated.rate }));
+        setSingleRateCalculation(calculated.aggregate);
+        setIsManualRate(false);
+        setRateIsStale(false);
+      } catch (error) {
+        const message = error && typeof error === "object" && "response" in error
+          ? String((error as { response?: { data?: { message?: string } } }).response?.data?.message || "Unable to calculate rate")
+          : error instanceof Error ? error.message : "Unable to calculate rate";
+        setRateCalculationError(message);
+      } finally {
+        setIsCalculatingRate(false);
+      }
       return;
     }
-    let isActive = true;
-    const run = async () => {
-      const next: Record<string, number> = {};
-      await Promise.all(leafNodesForMode.map(async (leaf) => {
-        const leafMeta = getLeafSectionMeta(leaf.id);
-        const systemType = leaf.systemType;
-        const series = leaf.series || "";
-        const description = leaf.description || getDefaultLeafDescription(systemType, meta.productType, leaf.hasExhaustFan);
-        if (!systemType || !description || (isCatalogSystem(systemType) && !series)) {
-          next[leaf.id] = 0;
-          return;
-        }
-        try {
-          const [descriptionsResp, optionsResp] = await Promise.all([
-            isCatalogSystem(systemType) ? fetchDescriptions(systemType, series) : Promise.resolve({ descriptions: [] }),
-            fetchOptions(systemType),
-          ]);
+    const leaf = isCombinationChildSelection ? selectedNode : leafNodesForMode[0];
+    if (!leaf || leaf.systemType === "Blank Area") return;
+    const sectionMeta = isCombinationChildSelection ? getLeafSectionMeta(leaf.id) : selectedSectionMeta;
+    const width = isCombinationChildSelection ? leaf.w * widthMm : widthMm;
+    const height = isCombinationChildSelection
+      ? getEffectiveLeafHeightRatio(root, leaf) * heightMm
+      : heightMm;
+    const area = isCombinationChildSelection ? selectedLeafAreaSqft : effectiveAreaSqft;
+    setIsCalculatingRate(true);
+    setRateCalculationError("");
+    try {
+      const { rate, result } = await calculateLeafRate(leaf, sectionMeta, width, height, area);
 
-          const isBlank =
-            leaf.systemType === "Blank Area" ||
-            leaf.description === "Blank Area";
+      if (isCombinationChildSelection && selectedId) {
+        setAutoChildRates((prev) => ({ ...prev, [selectedId]: rate }));
+        setManualChildRates((prev) => {
+          const next = { ...prev };
+          delete next[selectedId];
+          return next;
+        });
+        setChildRateCalculations((prev) => ({ ...prev, [selectedId]: result }));
+      } else {
+        setMeta((prev) => ({ ...prev, rate }));
+        setIsManualRate(false);
+        setSingleRateCalculation(result);
+      }
+      setRateIsStale(false);
+    } catch (error) {
+      const message = error && typeof error === "object" && "response" in error
+        ? String((error as { response?: { data?: { message?: string } } }).response?.data?.message || "Unable to calculate rate")
+        : error instanceof Error ? error.message : "Unable to calculate rate";
+      setRateCalculationError(message);
+    } finally {
+      setIsCalculatingRate(false);
+    }
+  };
 
-          const area = isBlank
-            ? 0
-            : mmToSqft(
-              leaf.w * widthMm,
-              getEffectiveLeafHeightRatio(root, leaf) * heightMm
-            );
-          const calc = calculateRateForItem({ area, systemType: leaf.systemType, description, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "" }, descriptionsResp.descriptions, optionsResp, systemsQuery.data?.systems, louversRates);
-          next[leaf.id] = calc.rate;
-        } catch {
-          next[leaf.id] = 0;
-        }
-      }));
-      if (!isActive) return;
-      setAutoChildRates(next);
-    };
-    void run();
-    return () => { isActive = false; };
-  }, [getLeafSectionMeta, heightMm, isCombinationDraft, leafNodesForMode, meta.productType, root, widthMm]);
+  useEffect(() => {
+    if (singleRateCalculation || Object.keys(childRateCalculations).length > 0) {
+      setRateIsStale(true);
+    }
+  }, [widthMm, heightMm, root, meta.frameCutAngle, meta.shutterCutAngle, meta.colorFinish, meta.glassSpec, meta.hardwareOpeningType, meta.handleType, meta.handleColor, meta.meshType, childSectionMeta]);
 
   const handleSaveItem = async () => {
     if (isSaving) return;
@@ -2332,8 +2498,43 @@ const dividerBadgesRef = useRef<
     const frameCutAngle = normalizeCutAngle(meta.frameCutAngle);
     const shutterCutAngle = normalizeCutAngle(meta.shutterCutAngle);
     const cuttingScheduleKey = getCuttingScheduleKey(frameCutAngle, shutterCutAngle);
+    const calculatedRatesForSave: Record<string, number> = {};
+    const calculatedDetailsForSave: Record<string, RateCalculationResult> = {};
+    let calculatedSingleRateForSave: number | null = null;
+    let calculatedSingleDetailsForSave: RateCalculationResult | null = null;
+    let calculatedParentRateForSave: number | null = null;
     setIsSaving(true);
     try {
+      setRateCalculationError("");
+      if (isCombinationDraft && (Number(meta.rate) || 0) <= 0) {
+        const calculated = await calculateCombinationRate();
+        Object.assign(calculatedRatesForSave, calculated.rates);
+        Object.assign(calculatedDetailsForSave, calculated.details);
+        calculatedParentRateForSave = calculated.rate;
+        calculatedSingleDetailsForSave = calculated.aggregate;
+        setAutoChildRates(calculated.rates);
+        setManualChildRates({});
+        setChildRateCalculations(calculated.details);
+        setMeta((prev) => ({ ...prev, rate: calculated.rate }));
+        setSingleRateCalculation(calculated.aggregate);
+        setIsManualRate(false);
+      } else if ((Number(meta.rate) || 0) <= 0) {
+        const leaf = leafNodesForMode[0];
+        if (!leaf) throw new Error("Unable to find an item section for rate calculation.");
+        const calculated = await calculateLeafRate(
+          leaf,
+          selectedSectionMeta,
+          widthMm,
+          heightMm,
+          effectiveAreaSqft
+        );
+        calculatedSingleRateForSave = calculated.rate;
+        calculatedSingleDetailsForSave = calculated.result;
+        setMeta((prev) => ({ ...prev, rate: calculated.rate }));
+        setSingleRateCalculation(calculated.result);
+        setIsManualRate(false);
+      }
+      setRateIsStale(false);
       setHideSelectionForExport(true);
       await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       gridGroupRef.current?.visible(false);
@@ -2385,8 +2586,9 @@ const dividerBadgesRef = useRef<
         console.log("DESCRIPTIONS", descriptions);
         const options = await getOptions(systemType);
         const calc = calculateRateForItem({ area: itemArea, description, systemType: leaf.systemType, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "" }, descriptions, options, systemsQuery.data?.systems, louversRates);
-        const computedRate = calc.rate;
-        const resolvedRate = manualChildRates[leaf.id] ?? autoChildRates[leaf.id] ?? computedRate;
+        const resolvedRate = manualChildRates[leaf.id] ?? calculatedRatesForSave[leaf.id] ?? autoChildRates[leaf.id] ?? 0;
+        const rateDetails = calculatedDetailsForSave[leaf.id] ?? childRateCalculations[leaf.id];
+        const hasManualRate = Object.prototype.hasOwnProperty.call(manualChildRates, leaf.id);
         const quantity = 1;
         return {
           // id: crypto.randomUUID(),
@@ -2399,8 +2601,9 @@ const dividerBadgesRef = useRef<
           systemType,
           series,
           description,
-          colorFinish: leafMeta.colorFinish,
+          colorFinish: meta.colorFinish,
           glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "",
+          hardwareOpeningType: leaf.systemType === "Casement" ? leafMeta.hardwareOpeningType : "",
           handleType: leafMeta.handleType,
           handleColor: leafMeta.handleColor,
           handleCount: calc.handleCount,
@@ -2424,6 +2627,15 @@ const dividerBadgesRef = useRef<
           archHeightRatio: undefined,
           baseRate: calc.baseRate,
           areaSlabIndex: calc.areaSlabIndex,
+          rateSource: hasManualRate ? "manual" : rateDetails ? "calculated" : "legacy",
+          calculatedBaseRate: rateDetails?.baseRate,
+          calculatedFinalRate: rateDetails ? roundToTwo(resolvedRate) : undefined,
+          nalcoPriceUsed: rateDetails?.nalcoPrice,
+          nalcoRatePerKg: rateDetails?.nalcoRatePerKg,
+          profileWeightKg: rateDetails?.totalWeightKg,
+          profileMaterialValue: rateDetails?.materialValue,
+          rateCalculatedAt: rateDetails?.calculatedAt,
+          rateCalculationVersion: rateDetails?.calculationVersion,
         };
       };
       const subItems = await Promise.all(leafNodes.map((leaf, idx) => buildSubItem(leaf, idx)));
@@ -2442,24 +2654,15 @@ const dividerBadgesRef = useRef<
         const descriptions = await getDescriptions(systemType, series);
         const options = await getOptions(systemType);
         const calc = calculateRateForItem({ area: effectiveAreaSqft, description, systemType: meta.systemType, colorFinish: meta.colorFinish, glassSpec: singleLeaf.glass === "Yes" ? (meta.glassSpec || "Yes") : "", handleType: meta.handleType, handleColor: meta.handleColor, meshPresent: singleLeaf.mesh, meshType: singleLeaf.mesh === "Yes" ? meta.meshType : "" }, descriptions, options, systemsQuery.data?.systems, louversRates);
-        baseRate = calc.baseRate;
+        baseRate = calculatedSingleDetailsForSave?.baseRate ?? singleRateCalculation?.baseRate ?? 0;
         areaSlabIndex = calc.areaSlabIndex;
         handleCount = calc.handleCount;
-        rate = isManualRate ? meta.rate : calc.rate;
+        rate = calculatedSingleRateForSave ?? meta.rate;
         amount = roundToTwo(Math.max(1, meta.quantity || 1) * rate * effectiveAreaSqft);
       } else {
         const parentQuantity = Math.max(1, meta.quantity || 1);
-        const perFrameAmount = roundToTwo(subItems.reduce((sum, sub) => sum + sub.amount, 0));
-        const weightedRateTotal = subItems.reduce((sum, sub) => sum + sub.rate * sub.area, 0);
-        const effectiveTotalArea = subItems.reduce((sum, sub) => {
-          const isBlank =
-            sub.systemType === "Blank Area" ||
-            sub.description === "Blank Area";
-
-          return sum + (isBlank ? 0 : sub.area);
-        }, 0);
-        rate = effectiveTotalArea > 0 ? roundToTwo(weightedRateTotal / effectiveTotalArea) : 0;
-        amount = roundToTwo(perFrameAmount * parentQuantity);
+        rate = calculatedParentRateForSave ?? meta.rate;
+        amount = roundToTwo(effectiveAreaSqft * rate * parentQuantity);
       }
       setHideSelectionForExport(true);
       stageRef.current?.batchDraw();
@@ -2493,8 +2696,9 @@ const dividerBadgesRef = useRef<
         systemType: isCombination ? COMBINATION_SYSTEM : singleLeaf?.systemType || baseSystemType,
         series: isCombination ? "" : singleLeaf?.series || "",
         description: isCombination ? "" : singleLeaf?.description || getDefaultLeafDescription(singleLeaf?.systemType || baseSystemType, meta.productType, singleLeaf?.hasExhaustFan),
-        colorFinish: isCombination ? "" : meta.colorFinish,
+        colorFinish: meta.colorFinish,
         glassSpec: isCombination ? "" : singleLeaf?.glass === "Yes" ? (meta.glassSpec || "Yes") : "",
+        hardwareOpeningType: isCombination ? "" : singleLeaf?.systemType === "Casement" ? meta.hardwareOpeningType : "",
         handleType: isCombination ? "" : meta.handleType,
         handleColor: isCombination ? "" : meta.handleColor,
         handleCount,
@@ -2519,6 +2723,15 @@ const dividerBadgesRef = useRef<
         archHeightRatio: leafNodes.every((leaf) => leaf.systemType === "Casement") ? normalizeArchHeightRatio(root.archHeightRatio) : undefined,
         baseRate,
         areaSlabIndex,
+        rateSource: isManualRate ? "manual" : (calculatedSingleDetailsForSave ?? singleRateCalculation) ? "calculated" : "legacy",
+        calculatedBaseRate: (calculatedSingleDetailsForSave ?? singleRateCalculation)?.baseRate,
+        calculatedFinalRate: (calculatedSingleDetailsForSave ?? singleRateCalculation) ? rate : undefined,
+        nalcoPriceUsed: (calculatedSingleDetailsForSave ?? singleRateCalculation)?.nalcoPrice,
+        nalcoRatePerKg: (calculatedSingleDetailsForSave ?? singleRateCalculation)?.nalcoRatePerKg,
+        profileWeightKg: (calculatedSingleDetailsForSave ?? singleRateCalculation)?.totalWeightKg,
+        profileMaterialValue: (calculatedSingleDetailsForSave ?? singleRateCalculation)?.materialValue,
+        rateCalculatedAt: (calculatedSingleDetailsForSave ?? singleRateCalculation)?.calculatedAt,
+        rateCalculationVersion: (calculatedSingleDetailsForSave ?? singleRateCalculation)?.calculationVersion,
         subItems: isCombination ? subItems : [],
         // configuratorLayout: cloneTree(root) as unknown as Record<string, unknown>,
          configuratorLayout: (() => {
@@ -2584,7 +2797,11 @@ console.log("SUBITEMS:", nextItem.subItems);
       onClose();
     } catch (error) {
       console.error("Failed to save quotation item", error);
-      alert("Failed to save the quotation item and its image. Please try again.");
+      const message = error && typeof error === "object" && "response" in error
+        ? String((error as { response?: { data?: { message?: string } } }).response?.data?.message || "Failed to calculate or save the quotation item.")
+        : error instanceof Error ? error.message : "Failed to calculate or save the quotation item.";
+      setRateCalculationError(message);
+      alert(message);
     } finally {
       setHideSelectionForExport(false);
       setIsSaving(false);
@@ -3104,19 +3321,56 @@ console.dir(mapped.root.dividerTypes, { depth: null });
     setSelectedId(mappedLeaves.length > 1 ? mappedLeaves[0].id : "root");
     setSelectedDivider(null);
     setSelectedSlidingPanelIndex(null);
-    setIsManualRate(false);
+    setIsManualRate(editingItem.rateSource === "manual");
+    setSingleRateCalculation(
+      editingItem.rateSource === "calculated" && editingItem.calculatedBaseRate !== undefined
+        ? {
+            clientId: editingItem.id,
+            baseRate: editingItem.calculatedBaseRate,
+            materialValue: editingItem.profileMaterialValue || 0,
+            area: editingItem.area || 0,
+            totalWeightKg: editingItem.profileWeightKg || 0,
+            nalcoPrice: editingItem.nalcoPriceUsed || 0,
+            nalcoRatePerKg: editingItem.nalcoRatePerKg || 0,
+            calculatedAt: editingItem.rateCalculatedAt || "",
+            calculationVersion: editingItem.rateCalculationVersion || 1,
+            warnings: [],
+          }
+        : null
+    );
     const leaves: SectionNode[] = [];
     mapLeafNodes(mapped.root, (leaf) => leaves.push(leaf));
     const sortedLeaves = leaves.sort((a, b) => (a.y - b.y) || (a.x - b.x));
     const subItems = editingItem.subItems ?? [];
     const nextManualRates: Record<string, number> = {};
+    const nextAutoRates: Record<string, number> = {};
+    const nextRateCalculations: Record<string, RateCalculationResult> = {};
     const nextChildSectionMeta: Record<string, SectionOptionMeta> = {};
     sortedLeaves.forEach((leaf, idx) => {
-      if (subItems[idx]?.rate !== undefined) nextManualRates[leaf.id] = Number(subItems[idx].rate) || 0;
+      if (subItems[idx]?.rate !== undefined) {
+        if (subItems[idx].rateSource === "calculated") {
+          nextAutoRates[leaf.id] = Number(subItems[idx].rate) || 0;
+          nextRateCalculations[leaf.id] = {
+            clientId: leaf.id,
+            baseRate: subItems[idx].calculatedBaseRate || 0,
+            materialValue: subItems[idx].profileMaterialValue || 0,
+            area: subItems[idx].area || 0,
+            totalWeightKg: subItems[idx].profileWeightKg || 0,
+            nalcoPrice: subItems[idx].nalcoPriceUsed || 0,
+            nalcoRatePerKg: subItems[idx].nalcoRatePerKg || 0,
+            calculatedAt: subItems[idx].rateCalculatedAt || "",
+            calculationVersion: subItems[idx].rateCalculationVersion || 1,
+            warnings: [],
+          };
+        } else {
+          nextManualRates[leaf.id] = Number(subItems[idx].rate) || 0;
+        }
+      }
       if (subItems[idx]) {
         nextChildSectionMeta[leaf.id] = {
           colorFinish: subItems[idx].colorFinish || "",
           glassSpec: subItems[idx].glassSpec || DEFAULT_GLASS_SPEC,
+          hardwareOpeningType: subItems[idx].hardwareOpeningType || "hinges",
           handleType: subItems[idx].handleType || "",
           handleColor: subItems[idx].handleColor || DEFAULT_HANDLE_COLOR,
           meshType: subItems[idx].meshType || "",
@@ -3127,7 +3381,9 @@ console.dir(mapped.root.dividerTypes, { depth: null });
       }
     });
     setManualChildRates(nextManualRates);
-    setAutoChildRates({});
+    setAutoChildRates(nextAutoRates);
+    setChildRateCalculations(nextRateCalculations);
+    setRateIsStale(false);
     setChildSectionMeta(nextChildSectionMeta);
 
     let dividerIndex = 0;
@@ -3164,11 +3420,14 @@ console.dir(mapped.root.dividerTypes, { depth: null });
     setAutoChildRates({});
     setChildSectionMeta({});
     setIsManualRate(false);
+    setSingleRateCalculation(null);
+    setChildRateCalculations({});
+    setRateIsStale(false);
   }, [baseGlass, baseMesh, baseSystemType, editingItem, reset]);
 
   useEffect(() => {
     setIsManualRate(false);
-  }, [selectedNode.systemType, selectedNode.series, selectedNode.description, selectedNode.glass, selectedNode.mesh, meta.colorFinish, meta.glassSpec, meta.handleType, meta.handleColor, meta.meshType, widthMm, heightMm, profitPercentage]);
+  }, [selectedNode.systemType, selectedNode.series, selectedNode.description, selectedNode.glass, selectedNode.mesh, meta.colorFinish, meta.glassSpec, meta.hardwareOpeningType, meta.handleType, meta.handleColor, meta.meshType, widthMm, heightMm, profitPercentage]);
 
   const archControls = canConfigureArch ? (
     <>
@@ -3302,7 +3561,15 @@ const dividerValue = selectedDivider
                     <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                     <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
                     <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
-                    <label className="text-xs text-gray-600">Rate (Auto)<input value={parentCombinationRate} readOnly className="mt-1 w-full rounded-md border border-gray-400 bg-gray-50 px-2 py-2 text-sm text-gray-600" /></label>
+                    <label className="text-xs text-gray-600">Colour Finish<select value={meta.colorFinish} onChange={(e) => setMeta((prev) => ({ ...prev, colorFinish: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{combinationOptionsQuery.data?.colorFinishes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
+                    <RateCalculationAction
+                      isCalculating={isCalculatingRate}
+                      error={rateCalculationError}
+                      isStale={rateIsStale}
+                      result={singleRateCalculation}
+                      onCalculate={handleCalculateRate}
+                    />
+                    <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={meta.rate} onChange={(e) => { setIsManualRate(true); setMeta((prev) => ({ ...prev, rate: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                     <label className="text-xs text-gray-600">Remarks<textarea value={meta.remarks} onChange={(e) => setMeta((prev) => ({ ...prev, remarks: e.target.value }))} rows={2} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657] resize-none" /></label>
                   </>
                 ) : (
@@ -3410,8 +3677,9 @@ const dividerValue = selectedDivider
                         )}
                         {selectedSystemSupportsCatalog && (
                           <>
-                            <label className="text-xs text-gray-600">Color Finish<select value={selectedSectionMeta.colorFinish} onChange={(e) => updateSelectedSectionMeta({ colorFinish: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.colorFinishes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
+                            {!isCombinationChildSelection && <label className="text-xs text-gray-600">Color Finish<select value={selectedSectionMeta.colorFinish} onChange={(e) => updateSelectedSectionMeta({ colorFinish: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.colorFinishes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>}
                             <label className="text-xs text-gray-600">Glass Spec<select value={selectedSectionMeta.glassSpec} onChange={(e) => updateSelectedSectionMeta({ glassSpec: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.glassSpecs.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
+                            {selectedNode.systemType === "Casement" && <label className="text-xs text-gray-600">Shutter Hardware<select value={selectedSectionMeta.hardwareOpeningType} onChange={(e) => updateSelectedSectionMeta({ hardwareOpeningType: e.target.value as "hinges" | "frictionStay" })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="hinges">Hinges</option><option value="frictionStay">Friction Stay</option></select></label>}
                             <label className="text-xs text-gray-600">Handle Type<select value={selectedSectionMeta.handleType} onChange={(e) => updateSelectedSectionMeta({ handleType: e.target.value, handleColor: DEFAULT_HANDLE_COLOR })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.handleOptions.map((opt: HandleOption) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
                             <label className="text-xs text-gray-600">Handle Color<select value={selectedSectionMeta.handleColor} onChange={(e) => updateSelectedSectionMeta({ handleColor: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{(metaHandleOption?.colors ?? []).map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
                           </>
@@ -3419,10 +3687,7 @@ const dividerValue = selectedDivider
                         {selectedSystemSupportsCatalog && (!isCombinationChildSelection || selectedNode.systemType === "Sliding") && <label className="text-xs text-gray-600">Mesh Type<select value={selectedSectionMeta.meshType} onChange={(e) => updateSelectedSectionMeta({ meshType: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" disabled={selectedNode.mesh !== "Yes"}><option value="">Select</option>{metaOptionsQuery.data?.meshTypes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>}
                         {isCombinationChildSelection ? (
                           <>
-                            {selectedNode.systemType !== "Blank Area" && (
-                              <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={selectedChildRate} onChange={(e) => { if (!selectedId) return; setManualChildRates((prev) => ({ ...prev, [selectedId]: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" />
-                              </label>
-                            )}
+                            {selectedNode.systemType !== "Blank Area" && <div className="text-[11px] text-gray-500">Rate is calculated and edited at the combination parent level.</div>}
                             <div className="mt-1 text-[11px] text-gray-500">Section area: {selectedLeafAreaSqft.toFixed(2)} sqft</div>
                           </>
 
@@ -3432,7 +3697,16 @@ const dividerValue = selectedDivider
                             <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
                             <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label> 
                             {selectedNode.systemType !== "Blank Area" && (
-                              <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={meta.rate} onChange={(e) => { setIsManualRate(true); setMeta((prev) => ({ ...prev, rate: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>)}
+                              <>
+                                <RateCalculationAction
+                                  isCalculating={isCalculatingRate}
+                                  error={rateCalculationError}
+                                  isStale={rateIsStale}
+                                  result={singleRateCalculation}
+                                  onCalculate={handleCalculateRate}
+                                />
+                                <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={meta.rate} onChange={(e) => { setIsManualRate(true); setMeta((prev) => ({ ...prev, rate: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                              </>)}
                             <label className="text-xs text-gray-600">Remarks<textarea value={meta.remarks} onChange={(e) => setMeta((prev) => ({ ...prev, remarks: e.target.value }))} rows={2} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657] resize-none" /></label>
                           </>
                         )}

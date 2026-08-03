@@ -1,6 +1,5 @@
 export const settingsSections = [
   { key: "profileStructure", label: "Quotation Structure" },
-  { key: "profileRate", label: "Profile Rate" },
   { key: "colorFinishRate", label: "Colour Finish Rate" },
   { key: "meshRate", label: "Mesh Rate" },
   { key: "glassRate", label: "Glass Rate" },
