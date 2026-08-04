@@ -339,6 +339,19 @@ const getResolvedSystemType = (
 
   return "Mixed";
 };
+
+const resolveDividerValue = (
+  root: SectionNode,
+  leftId: string,
+  rightId: string,
+  selectedValue?: "C" | "M"
+): "C" | "M" => {
+  if (selectedValue) return selectedValue;
+  return getResolvedSystemType(root, leftId) === "Casement" &&
+    getResolvedSystemType(root, rightId) === "Casement"
+    ? "M"
+    : "C";
+};
 const mapLeafNodes = (node: SectionNode, cb: (leaf: SectionNode) => void) => {
   if (!node.children || node.children.length === 0) {
     cb(node);
@@ -2361,13 +2374,19 @@ const dividerBadgesRef = useRef<
     }));
     const joinRequests = dividerBadgesRef.current.map((badge, index) => {
       const source = findNode(root, badge.leftId) || leaves[0];
+      const dividerValue = resolveDividerValue(
+        root,
+        badge.leftId,
+        badge.rightId,
+        badgeValues[badge.id]
+      );
       return {
         clientId: `__join__${index}`,
         itemType: "join" as const,
-        joinType: badgeValues[badge.id] === "M" ? "Mullion" as const : "Coupler" as const,
+        joinType: dividerValue === "M" ? "Mullion" as const : "Coupler" as const,
         systemType: source.systemType,
         series: source.series || "",
-        description: badgeValues[badge.id] === "M" ? "Mullion" : "Coupler",
+        description: dividerValue === "M" ? "Mullion" : "Coupler",
         width: widthMm,
         height: heightMm,
         area: effectiveAreaSqft,
@@ -2737,7 +2756,12 @@ const dividerBadgesRef = useRef<
          configuratorLayout: (() => {
           const layout = cloneTree(root) as SectionNode;
           layout.dividerTypes = dividerBadgesRef.current.reduce<Record<string, "C" | "M">>((acc, badge) => {
-            acc[badge.id] = badgeValues[badge.id] ?? "C";
+            acc[badge.id] = resolveDividerValue(
+              root,
+              badge.leftId,
+              badge.rightId,
+              badgeValues[badge.id]
+            );
             return acc;
           }, {});
           return layout as unknown as Record<string, unknown>;
@@ -2759,7 +2783,7 @@ const dividerBadgesRef = useRef<
         joins: dividerBadgesRef.current.map((badge) => ({
   p1: badge.leftId,
   p2: badge.rightId,
-  type: badgeValues[badge.id] === "M"
+  type: resolveDividerValue(root, badge.leftId, badge.rightId, badgeValues[badge.id]) === "M"
     ? "Mullion"
     : "Coupler",
 })),
@@ -3127,9 +3151,6 @@ console.log("SUBITEMS:", nextItem.subItems);
 
    
 dividerBadges.forEach(({id, x, y,leftId,rightId }) => {
-   const leftSystem = getResolvedSystemType(root, leftId);
-  const rightSystem = getResolvedSystemType(root, rightId);
-
   const badgeGroup = new Konva.Group({
     listening: true,
   });
@@ -3148,11 +3169,7 @@ dividerBadges.forEach(({id, x, y,leftId,rightId }) => {
   //   : leftSystem === "Sliding" && rightSystem === "Sliding"
   //   ? "C"
   //   : badgeValues[id] ?? "C";
-  const displayValue =
-  badgeValues[id] ??
-  (leftSystem === "Casement" && rightSystem === "Casement"
-    ? "M"
-    : "C");
+  const displayValue = resolveDividerValue(root, leftId, rightId, badgeValues[id]);
 
   const text = new Konva.Text({
     x: x - 14,
@@ -3437,22 +3454,6 @@ console.dir(mapped.root.dividerTypes, { depth: null });
       ) : null}
     </>
   ) : null;
-  const leftSystem = selectedDivider
-  ? getResolvedSystemType(root, selectedDivider.leftId)
-  : null;
-
-const rightSystem = selectedDivider
-  ? getResolvedSystemType(root, selectedDivider.rightId)
-  : null;
-
-  const onlyMullion =
-  leftSystem === "Casement" &&
-  rightSystem === "Casement";
-
-const onlyCoupler =
-  leftSystem === "Sliding" &&
-  rightSystem === "Sliding";
-
 //  const dividerValue =
 //   onlyMullion
 //     ? "M"
@@ -3462,9 +3463,11 @@ const onlyCoupler =
 //       ? (badgeValues[selectedDivider.id] ?? "C")
 //       : "C";
 const dividerValue = selectedDivider
-  ? (
-      badgeValues[selectedDivider.id] ??
-      (onlyMullion ? "M" : "C")
+  ? resolveDividerValue(
+      root,
+      selectedDivider.leftId,
+      selectedDivider.rightId,
+      badgeValues[selectedDivider.id]
     )
   : "C";
 
