@@ -339,6 +339,19 @@ const getResolvedSystemType = (
 
   return "Mixed";
 };
+
+const resolveDividerValue = (
+  root: SectionNode,
+  leftId: string,
+  rightId: string,
+  selectedValue?: "C" | "M"
+): "C" | "M" => {
+  if (selectedValue) return selectedValue;
+  return getResolvedSystemType(root, leftId) === "Casement" &&
+    getResolvedSystemType(root, rightId) === "Casement"
+    ? "M"
+    : "C";
+};
 const mapLeafNodes = (node: SectionNode, cb: (leaf: SectionNode) => void) => {
   if (!node.children || node.children.length === 0) {
     cb(node);
@@ -1997,6 +2010,7 @@ const dividerBadgesRef = useRef<
     id: string;
     leftId: string;
     rightId: string;
+    orientation: "vertical" | "horizontal";
   }[]
 >([]);
 
@@ -2367,7 +2381,7 @@ const dividerBadgesRef = useRef<
     return { rate: roundToTwo(calc.rate), result };
   };
 
-  const calculateCombinationRate = async () => {
+  const calculateCombinationRate = async (manualSectionRate?: number) => {
     const leaves = leafNodesForMode.filter((leaf) => leaf.systemType !== "Blank Area");
     if (!leaves.length) throw new Error("Combination has no priceable sub-items.");
     const inputs = leaves.map((leaf) => {
@@ -2400,13 +2414,20 @@ const dividerBadgesRef = useRef<
     }));
     const joinRequests = dividerBadgesRef.current.map((badge, index) => {
       const source = findNode(root, badge.leftId) || leaves[0];
+      const dividerValue = resolveDividerValue(
+        root,
+        badge.leftId,
+        badge.rightId,
+        badgeValues[badge.id]
+      );
       return {
         clientId: `__join__${index}`,
         itemType: "join" as const,
-        joinType: badgeValues[badge.id] === "M" ? "Mullion" as const : "Coupler" as const,
+        joinType: dividerValue === "M" ? "Mullion" as const : "Coupler" as const,
+        joinOrientation: badge.orientation,
         systemType: source.systemType,
         series: source.series || "",
-        description: badgeValues[badge.id] === "M" ? "Mullion" : "Coupler",
+        description: dividerValue === "M" ? "Mullion" : "Coupler",
         width: widthMm,
         height: heightMm,
         area: effectiveAreaSqft,
@@ -2437,11 +2458,18 @@ const dividerBadgesRef = useRef<
         meshPresent: leaf.mesh,
         meshType: leaf.mesh === "Yes" ? sectionMeta.meshType : "",
       }, descriptionsResp.descriptions, optionsResp, systemsQuery.data?.systems, louversRates, result.baseRate);
-      return { leaf, rate: roundToTwo(calc.rate), result };
+      const rate = manualSectionRate !== undefined
+        ? roundToTwo(manualSectionRate)
+        : roundToTwo(calc.rate);
+      return { leaf, area, rate, result };
     }));
     const joinMaterialValue = joinResults.reduce((sum, result) => sum + result.materialValue, 0);
+    const sectionMaterialValue = calculated.reduce(
+      (sum, entry) => sum + entry.rate * entry.area,
+      0
+    );
     const rate = roundToTwo(
-      calculated.reduce((sum, entry) => sum + entry.rate, 0) / calculated.length +
+      (effectiveAreaSqft > 0 ? sectionMaterialValue / effectiveAreaSqft : 0) +
       (effectiveAreaSqft > 0 ? joinMaterialValue / effectiveAreaSqft : 0)
     );
     const details = Object.fromEntries(
@@ -2454,7 +2482,11 @@ const dividerBadgesRef = useRef<
     const aggregate: RateCalculationResult = {
       ...first,
       clientId: "combination-parent",
-      baseRate: roundToTwo(calculated.reduce((sum, entry) => sum + entry.result.baseRate, 0) / calculated.length),
+      baseRate: roundToTwo(
+        effectiveAreaSqft > 0
+          ? calculated.reduce((sum, entry) => sum + entry.result.baseRate * entry.area, 0) / effectiveAreaSqft
+          : 0
+      ),
       materialValue: roundToTwo(calculated.reduce((sum, entry) => sum + entry.result.materialValue, 0) + joinMaterialValue),
       area: roundToTwo(calculated.reduce((sum, entry) => sum + entry.result.area, 0)),
       totalWeightKg: roundToTwo(calculated.reduce((sum, entry) => sum + entry.result.totalWeightKg, 0) + joinResults.reduce((sum, result) => sum + result.totalWeightKg, 0)),
@@ -2636,13 +2668,26 @@ const shutterCutAngle =
     const cuttingScheduleKey = getCuttingScheduleKey(frameCutAngle, shutterCutAngle);
     const calculatedRatesForSave: Record<string, number> = {};
     const calculatedDetailsForSave: Record<string, RateCalculationResult> = {};
+    let manualCombinationRateForSave = false;
     let calculatedSingleRateForSave: number | null = null;
     let calculatedSingleDetailsForSave: RateCalculationResult | null = null;
     let calculatedParentRateForSave: number | null = null;
     setIsSaving(true);
     try {
       setRateCalculationError("");
-      if (isCombinationDraft && (Number(meta.rate) || 0) <= 0) {
+      if (isCombinationDraft && isManualRate && (Number(meta.rate) || 0) > 0) {
+        const calculated = await calculateCombinationRate(Number(meta.rate));
+        Object.assign(calculatedRatesForSave, calculated.rates);
+        Object.assign(calculatedDetailsForSave, calculated.details);
+        calculatedParentRateForSave = calculated.rate;
+        calculatedSingleDetailsForSave = calculated.aggregate;
+        manualCombinationRateForSave = true;
+        setManualChildRates(calculated.rates);
+        setAutoChildRates({});
+        setChildRateCalculations(calculated.details);
+        setMeta((prev) => ({ ...prev, rate: calculated.rate }));
+        setSingleRateCalculation(calculated.aggregate);
+      } else if (isCombinationDraft && (Number(meta.rate) || 0) <= 0) {
         const calculated = await calculateCombinationRate();
         Object.assign(calculatedRatesForSave, calculated.rates);
         Object.assign(calculatedDetailsForSave, calculated.details);
@@ -2722,9 +2767,11 @@ const shutterCutAngle =
         console.log("DESCRIPTIONS", descriptions);
         const options = await getOptions(systemType);
         const calc = calculateRateForItem({ area: itemArea, description, systemType: leaf.systemType, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "" }, descriptions, options, systemsQuery.data?.systems, louversRates);
-        const resolvedRate = manualChildRates[leaf.id] ?? calculatedRatesForSave[leaf.id] ?? autoChildRates[leaf.id] ?? 0;
+        const resolvedRate = manualCombinationRateForSave
+          ? calculatedRatesForSave[leaf.id] ?? 0
+          : manualChildRates[leaf.id] ?? calculatedRatesForSave[leaf.id] ?? autoChildRates[leaf.id] ?? 0;
         const rateDetails = calculatedDetailsForSave[leaf.id] ?? childRateCalculations[leaf.id];
-        const hasManualRate = Object.prototype.hasOwnProperty.call(manualChildRates, leaf.id);
+        const hasManualRate = manualCombinationRateForSave || Object.prototype.hasOwnProperty.call(manualChildRates, leaf.id);
         const quantity = 1;
         return {
           // id: crypto.randomUUID(),
@@ -2873,7 +2920,12 @@ const shutterCutAngle =
          configuratorLayout: (() => {
           const layout = cloneTree(root) as SectionNode;
           layout.dividerTypes = dividerBadgesRef.current.reduce<Record<string, "C" | "M">>((acc, badge) => {
-            acc[badge.id] = badgeValues[badge.id] ?? "C";
+            acc[badge.id] = resolveDividerValue(
+              root,
+              badge.leftId,
+              badge.rightId,
+              badgeValues[badge.id]
+            );
             return acc;
           }, {});
           return layout as unknown as Record<string, unknown>;
@@ -2895,7 +2947,7 @@ const shutterCutAngle =
         joins: dividerBadgesRef.current.map((badge) => ({
   p1: badge.leftId,
   p2: badge.rightId,
-  type: badgeValues[badge.id] === "M"
+  type: resolveDividerValue(root, badge.leftId, badge.rightId, badgeValues[badge.id]) === "M"
     ? "Mullion"
     : "Coupler",
 })),
@@ -3031,6 +3083,7 @@ console.log("SUBITEMS:", nextItem.subItems);
       // leftSystem: SystemType;rightSystem: SystemType;
      leftId: string;
     rightId: string;
+    orientation: "vertical" | "horizontal";
     }[] = [];
     const drawParentDividers = (parent: SectionNode) => {
       if (!parent.children || parent.children.length < 2) return;
@@ -3057,6 +3110,7 @@ console.log("SUBITEMS:", nextItem.subItems);
             y: fy + (parent.y + parent.h / 2) * fh,
             leftId: a.id,
             rightId: b.id,
+            orientation: "vertical",
           });
         } else {
           const y = fy + boundary * fh;
@@ -3075,6 +3129,7 @@ console.log("SUBITEMS:", nextItem.subItems);
             y,
             leftId: a.id,
             rightId: b.id,
+            orientation: "horizontal",
           });
         }
       }
@@ -3263,9 +3318,6 @@ console.log("SUBITEMS:", nextItem.subItems);
 
    
 dividerBadges.forEach(({id, x, y,leftId,rightId }) => {
-   const leftSystem = getResolvedSystemType(root, leftId);
-  const rightSystem = getResolvedSystemType(root, rightId);
-
   const badgeGroup = new Konva.Group({
     listening: true,
   });
@@ -3284,11 +3336,7 @@ dividerBadges.forEach(({id, x, y,leftId,rightId }) => {
   //   : leftSystem === "Sliding" && rightSystem === "Sliding"
   //   ? "C"
   //   : badgeValues[id] ?? "C";
-  const displayValue =
-  badgeValues[id] ??
-  (leftSystem === "Casement" && rightSystem === "Casement"
-    ? "M"
-    : "C");
+  const displayValue = resolveDividerValue(root, leftId, rightId, badgeValues[id]);
 
   const text = new Konva.Text({
     x: x - 14,
@@ -3573,22 +3621,6 @@ console.dir(mapped.root.dividerTypes, { depth: null });
       ) : null}
     </>
   ) : null;
-  const leftSystem = selectedDivider
-  ? getResolvedSystemType(root, selectedDivider.leftId)
-  : null;
-
-const rightSystem = selectedDivider
-  ? getResolvedSystemType(root, selectedDivider.rightId)
-  : null;
-
-  const onlyMullion =
-  leftSystem === "Casement" &&
-  rightSystem === "Casement";
-
-const onlyCoupler =
-  leftSystem === "Sliding" &&
-  rightSystem === "Sliding";
-
 //  const dividerValue =
 //   onlyMullion
 //     ? "M"
@@ -3598,9 +3630,11 @@ const onlyCoupler =
 //       ? (badgeValues[selectedDivider.id] ?? "C")
 //       : "C";
 const dividerValue = selectedDivider
-  ? (
-      badgeValues[selectedDivider.id] ??
-      (onlyMullion ? "M" : "C")
+  ? resolveDividerValue(
+      root,
+      selectedDivider.leftId,
+      selectedDivider.rightId,
+      badgeValues[selectedDivider.id]
     )
   : "C";
 

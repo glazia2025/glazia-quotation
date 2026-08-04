@@ -23,6 +23,7 @@ export type RateCalculationItem = {
   hardwareOpeningType?: "hinges" | "frictionStay" | "";
   itemType?: "join";
   joinType?: "Mullion" | "Coupler";
+  joinOrientation?: "vertical" | "horizontal";
 };
 
 export type RateCalculationResult = {
