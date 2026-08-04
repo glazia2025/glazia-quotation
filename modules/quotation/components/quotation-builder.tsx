@@ -11,6 +11,7 @@ import {
   Plus,
   Ruler,
   Share2,
+  Upload
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,7 @@ import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-bui
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { getArea, getPerimeter } from "@/modules/quotation/utils/calculations";
 import { createEmptyQuotation } from "@/modules/quotation/utils/factory";
-import { bulkUpdateQuotationItems, createQuotationItem, deleteQuotationItem, getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationMetadata, getElevationPdfBlob, reorderQuotationItems } from "@/services/quotation-service";
+import { bulkUpdateQuotationItems, createQuotationItem, deleteQuotationItem, getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationMetadata, getElevationPdfBlob, reorderQuotationItems,getQuotationExcelBlob,getQuotation } from "@/services/quotation-service";
 import type { Quotation, QuotationItem } from "@/types/quotation";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { getQuotationPdfDownloadName } from "@/utils/quotationPdf";
@@ -99,12 +100,43 @@ function ItemCard({
   item: QuotationItem;
   configuratorBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
-  onDuplicateItem: (item: QuotationItem, refCode: string) => Promise<void>;
+  // onDuplicateItem: (item: QuotationItem, refCode: string) => Promise<void>;
+  onDuplicateItem: (
+  item: QuotationItem,
+  refCode: string,
+  dimensions?: {
+    parent: {
+      width: string;
+      height: string;
+    };
+    sections: {
+      width: string;
+      height: string;
+    }[];
+  }
+) => Promise<void>;
 }) {
+  console.log("CARD ITEM", item);
   const [showSections, setShowSections] = useState(false);
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [duplicateRefCode, setDuplicateRefCode] = useState("");
+  // const [duplicateRefCode, setDuplicateRefCode] = useState("");
+  const [duplicateStep, setDuplicateStep] = useState<1 | 2>(1);
+  const [duplicateCount, setDuplicateCount] = useState(1);
+  const [duplicateCountInput, setDuplicateCountInput] = useState("1");
+  const [duplicateRefCodes, setDuplicateRefCodes] = useState([""]);
+  const [duplicateWindows, setDuplicateWindows] = useState<
+  {
+    parent: {
+      width: string;
+      height: string;
+    };
+    sections: {
+      width: string;
+      height: string;
+    }[];
+  }[]
+>([]);
   const [duplicateError, setDuplicateError] = useState("");
   const [isMutating, setIsMutating] = useState(false);
   const systemLabel = item.systemType || item.series || item.openingType || "Not configured";
@@ -131,32 +163,70 @@ function ItemCard({
   };
 
   const handleDuplicate = () => {
-    setDuplicateRefCode("");
+    // setDuplicateRefCode("");
+    setDuplicateStep(1);
+    setDuplicateCount(1);
+    setDuplicateCountInput("1");
+    setDuplicateRefCodes([""]);
+    setDuplicateWindows([
+  {
+    parent: {
+      width: String(item.width),
+      height: String(item.height),
+    },
+    sections: (item.subItems ?? []).map((subItem) => ({
+      width: String(subItem.width),
+      height: String(subItem.height),
+    })),
+  },
+]);
     setDuplicateError("");
     setIsDuplicateModalOpen(true);
   };
 
+
   const confirmDuplicate = async () => {
-    const trimmedRefCode = duplicateRefCode.trim();
-    if (!trimmedRefCode) {
-      setDuplicateError("Ref Code is required to duplicate an item.");
-      return;
-    }
+  const refCodes = duplicateRefCodes.map((code) => code.trim());
 
-    setIsMutating(true);
-    try {
-      await onDuplicateItem(item, trimmedRefCode);
-      setIsDuplicateModalOpen(false);
-      setDuplicateRefCode("");
-      setDuplicateError("");
-    } catch (error) {
-      console.error("Failed to duplicate quotation item", error);
-      setDuplicateError("Failed to duplicate this item.");
-    } finally {
-      setIsMutating(false);
-    }
-  };
+  if (refCodes.some((code) => !code)) {
+    setDuplicateError("Please enter all Ref Codes.");
+    return;
+  }
 
+  const uniqueRefCodes = new Set(refCodes);
+
+  if (uniqueRefCodes.size !== refCodes.length) {
+    setDuplicateError("Ref Codes must be unique.");
+    return;
+  }
+
+  setIsMutating(true);
+
+  try {
+    // for (const refCode of refCodes) {
+    //   await onDuplicateItem(item, refCode);
+    // }
+    for (let index = 0; index < refCodes.length; index++) {
+  await onDuplicateItem(
+    item,
+    refCodes[index],
+    duplicateWindows[index]
+  );
+}
+
+    setIsDuplicateModalOpen(false);
+    setDuplicateStep(1);
+    setDuplicateCount(1);
+    setDuplicateCountInput("1");
+    setDuplicateRefCodes([""]);
+    setDuplicateError("");
+  } catch (error) {
+    console.error("Failed to duplicate quotation item", error);
+    setDuplicateError("Failed to duplicate this item.");
+  } finally {
+    setIsMutating(false);
+  }
+};
   return (
     <>
       <div className="self-start space-y-2 rounded-2xl border bg-white p-3 shadow-sm transition hover:shadow-md">
@@ -286,35 +356,311 @@ function ItemCard({
       ) : null}
       {isDuplicateModalOpen ? (
         <div className="fixed inset-0 z-[230] flex items-center justify-center bg-slate-950/60 p-4" onPointerDown={(event) => event.stopPropagation()}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+          {/* <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"> */}
+          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl">
+             <div className="overflow-y-auto p-6">
             <h3 className="text-lg font-semibold text-slate-900">Duplicate Item</h3>
             <p className="mt-1 text-sm text-slate-500">Enter a new ref code for {refCodeLabel}.</p>
+            {duplicateStep === 1 && (
             <label className="mt-5 block text-sm font-medium text-slate-700">
-              Ref Code
-              <input
-                value={duplicateRefCode}
-                onChange={(event) => {
-                  setDuplicateRefCode(event.target.value);
-                  setDuplicateError("");
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") confirmDuplicate();
-                  if (event.key === "Escape") setIsDuplicateModalOpen(false);
-                }}
-                autoFocus
-                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
-              />
-            </label>
+  Number of  Duplicate Windows you want to make?
+<input
+  type="number"
+  min={1}
+  max={100}
+  value={duplicateCountInput}
+  onFocus={(event) => event.target.select()}
+  onChange={(event) => {
+    const value = event.target.value;
+
+    // Input state update
+    setDuplicateCountInput(value);
+
+    // Empty hone do jab user delete kare
+    if (value === "") {
+      return;
+    }
+
+    const count = Math.max(
+      1,
+      Math.min(100, Number(value))
+    );
+
+    // Actual numeric state
+    setDuplicateCount(count);
+
+    setDuplicateRefCodes((prev) => {
+      const next = [...prev];
+
+      while (next.length < count) {
+        next.push("");
+      }
+
+      return next.slice(0, count);
+    });
+
+    setDuplicateError("");
+  }}
+  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+/>
+</label>
+)}
+            {duplicateStep === 2 && (
+
+            <div className="mt-5 space-y-4">
+
+  {duplicateRefCodes.map((refCode, index) => (
+  <div
+    key={index}
+    className="rounded-lg border border-slate-200 p-4"
+  >
+    <div className="grid grid-cols-3 gap-4">
+      <label className="text-sm font-medium text-slate-700">
+        Ref Code {index + 1}
+        <input
+          value={refCode}
+          onChange={(event) => {
+            const value = event.target.value;
+
+            setDuplicateRefCodes((prev) => {
+              const next = [...prev];
+              next[index] = value;
+              return next;
+            });
+
+            setDuplicateError("");
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") confirmDuplicate();
+            if (event.key === "Escape") setIsDuplicateModalOpen(false);
+          }}
+          autoFocus={index === 0}
+          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+        />
+      </label>
+
+      <label className="text-sm font-medium text-slate-700">
+        Parent Width
+        <input
+          type="number"
+          value={duplicateWindows[index]?.parent.width ?? ""}
+          onChange={(event) => {
+            const value = event.target.value;
+
+            setDuplicateWindows((prev) => {
+              const next = [...prev];
+
+              next[index] = {
+                ...next[index],
+                parent: {
+                  ...next[index].parent,
+                  width: value,
+                },
+              };
+
+              return [...next];
+            });
+          }}
+          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+        />
+      </label>
+
+      <label className="text-sm font-medium text-slate-700">
+        Parent Height
+        <input
+          type="number"
+          value={duplicateWindows[index]?.parent.height ?? ""}
+          onChange={(event) => {
+            const value = event.target.value;
+
+            setDuplicateWindows((prev) => {
+              const next = [...prev];
+
+              next[index] = {
+                ...next[index],
+                parent: {
+                  ...next[index].parent,
+                  height: value,
+                },
+              };
+
+              return [...next];
+            });
+          }}
+          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+        />
+      </label>
+    </div>
+
+    {duplicateWindows[index]?.sections.length ? (
+      <div className="mt-4 space-y-3">
+        {duplicateWindows[index].sections.map((section, sectionIndex) => (
+          <div
+            key={sectionIndex}
+            className="rounded-lg border border-slate-200 p-3"
+          >
+            <p className="mb-3 text-sm font-semibold text-slate-700">
+              Window {sectionIndex + 1}
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-sm font-medium text-slate-700">
+                Width
+                <input
+                  type="number"
+                  value={section.width}
+                  onChange={(event) => {
+                    const value = event.target.value;
+
+                    setDuplicateWindows((prev) => {
+                      const next = [...prev];
+
+                      next[index].sections[sectionIndex] = {
+                        ...next[index].sections[sectionIndex],
+                        width: value,
+                      };
+
+                      return [...next];
+                    });
+                  }}
+                  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+                />
+              </label>
+
+              <label className="text-sm font-medium text-slate-700">
+                Height
+                <input
+                  type="number"
+                  value={section.height}
+                  onChange={(event) => {
+                    const value = event.target.value;
+
+                    setDuplicateWindows((prev) => {
+                      const next = [...prev];
+
+                      next[index].sections[sectionIndex] = {
+                        ...next[index].sections[sectionIndex],
+                        height: value,
+                      };
+
+                      return [...next];
+                    });
+                  }}
+                  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+                />
+              </label>
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : null}
+  </div>
+))}
+</div>
+            )}
             {duplicateError ? <p className="mt-2 text-sm text-red-600">{duplicateError}</p> : null}
-            <div className="mt-6 flex justify-end gap-2">
+            </div>
+            {/* <div className="mt-6 flex justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => { setIsDuplicateModalOpen(false); setDuplicateError(""); }}>
                 Cancel
               </Button>
               <Button size="sm" onClick={confirmDuplicate} disabled={isMutating} className="bg-[#124657] hover:bg-[#0b3642]">
                 {isMutating ? "Saving..." : "Duplicate"}
               </Button>
-            </div>
+            </div> */}
+            <div className="border-t p-6">
+            <div className="mt-6 flex justify-end gap-2">
+  <Button
+    variant="outline"
+    size="sm"
+    onClick={() => {
+      if (duplicateStep === 2) {
+        setDuplicateStep(1);
+        setDuplicateError("");
+        return;
+      }
+
+      setIsDuplicateModalOpen(false);
+      setDuplicateError("");
+    }}
+  >
+    {duplicateStep === 2 ? "Back" : "Cancel"}
+  </Button>
+
+  {duplicateStep === 1 ? (
+    <Button
+      size="sm"
+      className="bg-[#124657] hover:bg-[#0b3642]"
+      // onClick={() => {
+      //   setDuplicateStep(2);
+      // }}
+
+      onClick={() => {
+  const count = Number(duplicateCountInput);
+
+  if (!duplicateCountInput.trim()) {
+    setDuplicateError("Please enter the number of windows.");
+    return;
+  }
+
+  if (Number.isNaN(count) || count < 1 || count > 100) {
+    setDuplicateError("Number of windows must be between 1 and 100.");
+    return;
+  }
+
+  setDuplicateCount(count);
+
+  setDuplicateRefCodes((prev) => {
+    const next = [...prev];
+
+    while (next.length < count) {
+      next.push("");
+    }
+
+    return next.slice(0, count);
+  });
+  setDuplicateWindows((prev) => {
+  const template =
+    prev[0] ?? {
+      parent: {
+        width: String(item.width),
+        height: String(item.height),
+      },
+      sections: (item.subItems ?? []).map((subItem) => ({
+        width: String(subItem.width),
+        height: String(subItem.height),
+      })),
+    };
+
+  return Array.from({ length: count }, () => ({
+    parent: {
+      ...template.parent,
+    },
+    sections: template.sections.map((section) => ({
+      ...section,
+    })),
+  }));
+});
+
+  setDuplicateError("");
+  setDuplicateStep(2);
+}}
+    >
+      Next
+    </Button>
+  ) : (
+    <Button
+      size="sm"
+      onClick={confirmDuplicate}
+      disabled={isMutating}
+      className="bg-[#124657] hover:bg-[#0b3642]"
+    >
+      {isMutating ? "Saving..." : "Duplicate"}
+    </Button>
+  )}
+</div>
           </div>
+        </div>
         </div>
       ) : null}
     </>
@@ -331,7 +677,21 @@ function SortableItem({
   item: QuotationItem;
   configuratorBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
-  onDuplicateItem: (item: QuotationItem, refCode: string) => Promise<void>;
+  // onDuplicateItem: (item: QuotationItem, refCode: string) => Promise<void>;
+  onDuplicateItem: (
+  item: QuotationItem,
+  refCode: string,
+  dimensions?: {
+    parent: {
+      width: string;
+      height: string;
+    };
+    sections: {
+      width: string;
+      height: string;
+    }[];
+  }
+) => Promise<void>;
 }) {
   const {
     attributes,
@@ -418,7 +778,21 @@ function ItemTab({
 }: {
   quotationBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
-  onDuplicateItem: (item: QuotationItem, refCode: string) => Promise<void>;
+  // onDuplicateItem: (item: QuotationItem, refCode: string) => Promise<void>;
+  onDuplicateItem: (
+  item: QuotationItem,
+  refCode: string,
+  dimensions?: {
+    parent: {
+      width: string;
+      height: string;
+    };
+    sections: {
+      width: string;
+      height: string;
+    }[];
+  }
+) => Promise<void>;
   onReorderItems: (startIndex: number, endIndex: number) => Promise<void>;
   onSavePricing: () => Promise<void>;
   isSavingMetadata: boolean;
@@ -1295,8 +1669,6 @@ export function QuotationBuilder({
     router.push(`${configuratorBasePath}/${newItem._id}`);
   };
 
-
-
   useEffect(() => {
     const fetchData = async () => {
       const data = await loadGlobalConfig();
@@ -1335,6 +1707,8 @@ export function QuotationBuilder({
   const [isGeneratingCuttingSchedule, setIsGeneratingCuttingSchedule] = useState(false);
   const [isGeneratingBom, setIsGeneratingBom] = useState(false);
   const [isGeneratingElevation, setIsGeneratingElevation] = useState(false);
+  const [isGeneratingExcel, setIsGeneratingExcel] = useState(false);
+  const [isExcelExportModalOpen, setIsExcelExportModalOpen] = useState(false);
   const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState("Quotation PDF Preview");
@@ -1342,6 +1716,7 @@ export function QuotationBuilder({
   const [globalConfig, setGlobalConfig] = useState(createBuilderGlobalConfig);
   const hydratedQuotationKeyRef = useRef<string | null>(null);
   const hydratedGlobalConfigKeyRef = useRef<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     return () => {
       if (pdfPreviewUrl) {
@@ -1480,12 +1855,28 @@ export function QuotationBuilder({
     [ensureParentQuotation, markSaved, runItemMutation]
   );
 
+  // const persistDuplicateItem = useCallback(
+  //   (item: QuotationItem, refCode: string) =>
   const persistDuplicateItem = useCallback(
-    (item: QuotationItem, refCode: string) =>
+  (
+    item: QuotationItem,
+    refCode: string,
+    dimensions?: {
+      parent: {
+        width: string;
+        height: string;
+      };
+      sections: {
+        width: string;
+        height: string;
+      }[];
+    }
+  ) =>
       runItemMutation(async () => {
         const sourceId = getQuotationItemIdentity(item);
         const store = useQuotationBuilderStore.getState();
-        store.duplicateItem(sourceId, refCode);
+        // store.duplicateItem(sourceId, refCode);
+        store.duplicateItem(sourceId, refCode, dimensions);
         const items = useQuotationBuilderStore.getState().quotation.items;
         const sourceIndex = items.findIndex(
           (entry) => getQuotationItemIdentity(entry) === sourceId
@@ -1498,6 +1889,38 @@ export function QuotationBuilder({
           const savedItem = await createQuotationItem(quotationId, duplicate);
           useQuotationBuilderStore.getState().replaceItem(duplicateLocalId, savedItem);
           markSaved();
+//           await createQuotationItem(quotationId, duplicate);
+
+// const latestQuotation = await getQuotation(quotationId);
+
+// if (!latestQuotation) {
+//   throw new Error("Failed to reload quotation.");
+// }
+
+// useQuotationBuilderStore
+//   .getState()
+//   .setQuotation(latestQuotation);
+
+// markSaved();
+const latestQuotation = await getQuotation(quotationId);
+
+console.log("LATEST QUOTATION", latestQuotation);
+console.log(
+  latestQuotation?.items.map((item) => ({
+    refCode: item.refCode,
+    rate: item.rate,
+    amount: item.amount,
+    refImage: item.refImage,
+    area: item.area,
+  }))
+);
+
+console.log({
+  savedRate: savedItem.rate,
+  savedImage: savedItem.refImage,
+  savedArea: savedItem.area,
+});
+console.log("SAVED ITEM", savedItem);
         } catch (error) {
           useQuotationBuilderStore.getState().removeItem(duplicateLocalId);
           throw error;
@@ -1529,7 +1952,7 @@ export function QuotationBuilder({
       }),
     [ensureParentQuotation, markSaved, runItemMutation]
   );
-
+   
   const persistBulkUpdate = useCallback(
     async (field: BulkUpdateField, from: string, to: string) => {
       let updatedCount = 0;
@@ -1671,6 +2094,97 @@ export function QuotationBuilder({
       setIsGeneratingPdf(false);
     }
   };
+const exportExcel = async (includeAmount: boolean) => {
+  try {
+    setIsGeneratingExcel(true);
+
+    const savedQuotation = await getPersistedQuotation();
+
+    const quotationId =
+      savedQuotation?._id ??
+      quotationWithGlobalConfig._id ??
+      savedQuotation?.quotationDetails.id ??
+      quotationWithGlobalConfig.quotationDetails.id;
+
+    if (!quotationId) {
+      throw new Error("Failed to resolve quotation id before Excel generation.");
+    }
+
+    const blob = await getQuotationExcelBlob(quotationId,includeAmount);
+
+    const quoteNo =
+      savedQuotation?.generatedId ||
+      savedQuotation?.quotationDetails.id ||
+      quotationWithGlobalConfig.generatedId ||
+      quotationWithGlobalConfig.quotationDetails.id ||
+      "quotation";
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${quoteNo}.xlsx`;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error("Failed to export Excel", error);
+    alert("Failed to generate Excel.");
+  } finally {
+    setIsGeneratingExcel(false);
+  }
+};
+// const handleExcelUpload = async (
+//   e: React.ChangeEvent<HTMLInputElement>
+// ) => {
+//   const file = e.target.files?.[0];
+
+//   if (!file || !quotationId) return;
+
+//   try {
+//     const res = await uploadQuotationExcel(quotationId, file);
+
+//     console.log(res);
+//   } catch (err) {
+//     console.error(err);
+//   } finally {
+//     e.target.value = "";
+//   }
+// };
+// const handleExcelUpload = async (
+//   e: React.ChangeEvent<HTMLInputElement>
+// ) => {
+//   const file = e.target.files?.[0];
+
+//   if (!file) return;
+
+//   try {
+//     const savedQuotation = await getPersistedQuotation();
+
+//     const quotationId =
+//       savedQuotation?._id ??
+//       quotationWithGlobalConfig._id ??
+//       savedQuotation?.quotationDetails.id ??
+//       quotationWithGlobalConfig.quotationDetails.id;
+
+//     if (!quotationId) {
+//       throw new Error("Failed to resolve quotation id before Excel upload.");
+//     }
+
+//     const res = await uploadQuotationExcel(quotationId, file);
+
+//     console.log(res);
+//   } catch (err) {
+//     console.error(err);
+//   } finally {
+//     e.target.value = "";
+//   }
+// };
+
   const exportElevationPdf = async () => {
     try {
       setIsGeneratingElevation(true);
@@ -1801,7 +2315,8 @@ export function QuotationBuilder({
     isGeneratingPdf ||
     isGeneratingCuttingSchedule ||
     isGeneratingBom ||
-    isGeneratingElevation;
+    isGeneratingElevation||
+    isGeneratingExcel;
 
   return (
     <PageShell
@@ -1842,11 +2357,36 @@ export function QuotationBuilder({
             <Download className="h-4 w-4" />
             {isGeneratingElevation ? "Generating..." : "Elevation"}
           </Button>
+          <Button
+  variant="outline"
+  // onClick={exportExcel}
+  onClick={() => setIsExcelExportModalOpen(true)}
+  disabled={isSaveBlockingExports || isAnyExportInProgress}
+>
+  <Download className="h-4 w-4" />
+  {isGeneratingExcel ? "Generating..." : " Download Excel"}
+</Button>
+{/* <Button
+  variant="outline"
+  onClick={() => fileInputRef.current?.click()}
+>
+  <Upload className="h-4 w-4" />
+  Upload Excel
+</Button> */}
+{/* <input
+      ref={fileInputRef}
+      type="file"
+      accept=".xlsx"
+      hidden
+      onChange={handleExcelUpload}
+    /> */}
+
           <Button variant="outline" disabled={isSaveBlockingExports || isAnyExportInProgress}>
             <Share2 className="h-4 w-4" />
             Share
           </Button>
         </>
+        
       }
     >
       <div id="quotation-pdf-root" className="space-y-6">
@@ -1959,6 +2499,44 @@ export function QuotationBuilder({
           </div>
         ) : null}
       </div>
+       {isExcelExportModalOpen ? (
+  <div
+    className="fixed inset-0 z-[230] flex items-center justify-center bg-slate-950/60 p-4"
+    onPointerDown={(event) => event.stopPropagation()}
+  >
+    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+      <h3 className="text-lg font-semibold text-slate-900">
+        Export Excel
+      </h3>
+
+      <p className="mt-2 text-sm text-slate-600">
+        Do you want to export Amount in the Excel?
+      </p>
+
+      <div className="mt-6 flex justify-end gap-2">
+        <Button
+          variant="outline"
+          onClick={() => {
+            setIsExcelExportModalOpen(false);
+            exportExcel(false);
+          }}
+        >
+          No
+        </Button>
+
+        <Button
+          className="bg-[#124657] hover:bg-[#0b3642]"
+          onClick={() => {
+            setIsExcelExportModalOpen(false);
+            exportExcel(true);
+          }}
+        >
+          Yes
+        </Button>
+      </div>
+    </div>
+  </div>
+) : null}
     </PageShell>
   );
 }

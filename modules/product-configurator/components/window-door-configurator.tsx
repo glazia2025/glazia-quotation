@@ -1981,11 +1981,21 @@ const dividerBadgesRef = useRef<
   const [autoChildRates, setAutoChildRates] = useState<Record<string, number>>({});
   const [childSectionMeta, setChildSectionMeta] = useState<Record<string, SectionOptionMeta>>({});
   const [isManualRate, setIsManualRate] = useState(false);
+  const previousSystemTypeRef = useRef<SystemType>(DEFAULT_META.systemType as SystemType);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [stageSize, setStageSize] = useState({ w: 1200, h: 780 });
   const { past, future, present, push, setDirect, undo, redo, reset } = useHistory(buildPreset(DEFAULT_META.systemType as SystemType, "Yes", "No"));
   const root = present;
   const selectedNode = (selectedId ? findNode(root, selectedId) : null) ?? root;
+  const selectedNodeIsPureCasement = useMemo(() => {
+  const systems = new Set<SystemType>();
+
+  mapLeafNodes(selectedNode, (leaf) => {
+    systems.add(leaf.systemType);
+  });
+
+  return systems.size === 1 && systems.has("Casement");
+}, [selectedNode]);
   const selectedSystemSupportsCatalog = isCatalogSystem(selectedNode.systemType);
   const canInsertExhaustFan = selectedNode.systemType === "Casement" && selectedNode.description === "Fix" && !selectedNode.children?.length;
   const hasAdjustableExhaustFan = !selectedNode.children?.length && (selectedNode.systemType === "Exhaust Fan" || Boolean(selectedNode.hasExhaustFan));
@@ -2005,6 +2015,35 @@ const dividerBadgesRef = useRef<
     queryFn: fetchLouversRates,
     enabled: true,
   });
+
+//   useEffect(() => {
+//   if (meta.systemType === "Casement") {
+//     setMeta((prev) => ({
+//       ...prev,
+//       frameCutAngle: "45",
+//       shutterCutAngle: "45",
+//     }));
+//   }
+// }, [meta.systemType]);
+// useEffect(() => {
+//   setMeta((prev) => ({
+//     ...prev,
+//     frameCutAngle: meta.systemType === "Casement" ? "45" : "90",
+//     shutterCutAngle: meta.systemType === "Casement" ? "45" : "90",
+//   }));
+// }, [meta.systemType]);
+// useEffect(() => {
+//   setMeta((prev) => ({
+//     ...prev,
+//     frameCutAngle:
+//       selectedNode.systemType === "Casement" ? "45" : "90",
+//     shutterCutAngle:
+//       selectedNode.systemType === "Casement" ? "45" : "90",
+//   }));
+// }, [selectedNode.systemType]);
+
+
+
 
   useEffect(() => {
     if (
@@ -2324,13 +2363,110 @@ const dividerBadgesRef = useRef<
     return () => { isActive = false; };
   }, [getLeafSectionMeta, heightMm, isCombinationDraft, leafNodesForMode, meta.productType, root, widthMm]);
 
+
+   useEffect(() => {
+    if (isCombinationDraft) return;
+    if (isManualRate) return;
+    const run = async () => {
+      const systemType = selectedNode.systemType;
+      const series = selectedNode.series || "";
+
+      const description =
+        selectedNode.description ||
+        getDefaultLeafDescription(
+          systemType,
+          meta.productType,
+          selectedNode.hasExhaustFan
+        );
+      if (
+        !systemType ||
+        !description ||
+        (isCatalogSystem(systemType) && !series)
+      ) {
+        return;
+      }
+      const [descriptionsResp, optionsResp] = await Promise.all([
+        isCatalogSystem(systemType)
+          ? fetchDescriptions(systemType, series)
+          : Promise.resolve({ descriptions: [] }),
+
+        fetchOptions(systemType),
+      ]);
+      const calc = calculateRateForItem(
+        {
+          area: effectiveAreaSqft,
+          systemType: selectedNode.systemType,
+          description,
+          colorFinish: selectedSectionMeta.colorFinish,
+          glassSpec:
+            selectedNode.glass === "Yes"
+              ? (selectedSectionMeta.glassSpec || "Yes")
+              : "",
+          handleType: selectedSectionMeta.handleType,
+          handleColor: selectedSectionMeta.handleColor,
+          meshPresent: selectedNode.mesh,
+          meshType:
+            selectedNode.mesh === "Yes"
+              ? selectedSectionMeta.meshType
+              : "",
+        },
+        descriptionsResp.descriptions,
+        optionsResp,
+        systemsQuery.data?.systems,
+        louversRates
+      );
+      setMeta((prev) => {
+        if (prev.rate === calc.rate) return prev;
+
+        return {
+          ...prev,
+          rate: calc.rate,
+        };
+      });
+
+    };
+
+    void run();
+
+  }, [
+    isCombinationDraft,
+    isManualRate,
+    effectiveAreaSqft,
+
+    selectedNode.systemType,
+    selectedNode.series,
+    selectedNode.description,
+    selectedNode.glass,
+    selectedNode.mesh,
+    selectedNode.hasExhaustFan,
+
+    selectedSectionMeta.colorFinish,
+    selectedSectionMeta.glassSpec,
+    selectedSectionMeta.handleType,
+    selectedSectionMeta.handleColor,
+    selectedSectionMeta.meshType,
+
+    meta.productType,
+    systemsQuery.data?.systems,
+    louversRates,
+  ]);
+
   const handleSaveItem = async () => {
     if (isSaving) return;
     if (!areAllDescriptionsFilled(root)) { alert("Please fill description for all windows"); return; }
     const trimmedRefCode = meta.refCode.trim();
     if (!trimmedRefCode) { alert("Ref Code is required."); return; }
-    const frameCutAngle = normalizeCutAngle(meta.frameCutAngle);
-    const shutterCutAngle = normalizeCutAngle(meta.shutterCutAngle);
+    // const frameCutAngle = normalizeCutAngle(meta.frameCutAngle);
+    // const shutterCutAngle = normalizeCutAngle(meta.shutterCutAngle);
+    const frameCutAngle =
+  selectedNode.systemType === "Casement"
+    ? "45"
+    : normalizeCutAngle(meta.frameCutAngle);
+
+const shutterCutAngle =
+  selectedNode.systemType === "Casement"
+    ? "45"
+    : normalizeCutAngle(meta.shutterCutAngle);
     const cuttingScheduleKey = getCuttingScheduleKey(frameCutAngle, shutterCutAngle);
     setIsSaving(true);
     try {
@@ -3302,8 +3438,67 @@ const dividerValue = selectedDivider
                     <label className="text-xs text-gray-600">System<input value={COMBINATION_SYSTEM} readOnly className="mt-1 w-full rounded-md border border-gray-400 bg-gray-50 px-2 py-2 text-sm text-gray-600" /></label>
                     {archControls}
                     <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
-                    <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
-                    <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
+                    {/* <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
+                    <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label> */}
+                    <label className="text-xs text-gray-600">
+  Frame Cut Angle
+
+  {/* {meta.systemType === "Casement" ? ( */}
+  {/* {selectedNode.systemType === "Casement" ? ( */}
+  {selectedNodeIsPureCasement ? (
+    <input
+      type="text"
+      value="45°"
+      disabled
+      className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
+    />
+  ) : (
+    <select
+      value={meta.frameCutAngle}
+      onChange={(e) =>
+        setMeta((prev) => ({
+          ...prev,
+          frameCutAngle: e.target.value as CutAngle,
+        }))
+      }
+      className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+    >
+      <option value="45">45°</option>
+      <option value="90">90°</option>
+    </select>
+  )}
+</label>
+
+<label className="text-xs text-gray-600">
+  Shutter Cut Angle
+
+  {/* {meta.systemType === "Casement" ? ( */}
+  {/* {selectedNode.systemType === "Casement" ? ( */}
+  {selectedNodeIsPureCasement ? (
+    <input
+      type="text"
+      value="45°"
+      disabled
+      className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
+    />
+  ) : (
+    <select
+      value={meta.shutterCutAngle}
+      onChange={(e) =>
+        setMeta((prev) => ({
+          ...prev,
+          shutterCutAngle: e.target.value as CutAngle,
+        }))
+      }
+      className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+    >
+      <option value="45">45°</option>
+      <option value="90">90°</option>
+    </select>
+  )}
+</label>
+
+
                     <label className="text-xs text-gray-600">Rate (Auto)<input value={parentCombinationRate} readOnly className="mt-1 w-full rounded-md border border-gray-400 bg-gray-50 px-2 py-2 text-sm text-gray-600" /></label>
                     <label className="text-xs text-gray-600">Remarks<textarea value={meta.remarks} onChange={(e) => setMeta((prev) => ({ ...prev, remarks: e.target.value }))} rows={2} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657] resize-none" /></label>
                   </>
@@ -3378,6 +3573,11 @@ const dividerValue = selectedDivider
                                   target.sash = "fixed";
                                 }
                               });
+//                               setMeta((prev) => ({
+//   ...prev,
+//   frameCutAngle: nextSystem === "Casement" ? "45" : "90",
+//   shutterCutAngle: nextSystem === "Casement" ? "45" : "90",
+// }));
                             }}
                             className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
                           >
@@ -3431,8 +3631,66 @@ const dividerValue = selectedDivider
                         ) : (
                           <>
                             <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
-                            <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
-                            <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label> 
+                            {/* <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
+                            <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>  */}
+                            
+                            <label className="text-xs text-gray-600">
+  Frame Cut Angle
+
+  {/* {meta.systemType === "Casement" ? ( */}
+  {/* {selectedNode.systemType === "Casement" ? ( */}
+  {selectedNodeIsPureCasement ? (
+    <input
+      type="text"
+      value="45°"
+      disabled
+      className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
+    />
+  ) : (
+    <select
+      value={meta.frameCutAngle}
+      onChange={(e) =>
+        setMeta((prev) => ({
+          ...prev,
+          frameCutAngle: e.target.value as CutAngle,
+        }))
+      }
+      className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+    >
+      <option value="45">45°</option>
+      <option value="90">90°</option>
+    </select>
+  )}
+</label>
+
+<label className="text-xs text-gray-600">
+  Shutter Cut Angle
+
+  {/* {meta.systemType === "Casement" ? ( */}
+  {/* {selectedNode.systemType === "Casement" ? ( */}
+  {selectedNodeIsPureCasement ? (
+    <input
+      type="text"
+      value="45°"
+      disabled
+      className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
+    />
+  ) : (
+    <select
+      value={meta.shutterCutAngle}
+      onChange={(e) =>
+        setMeta((prev) => ({
+          ...prev,
+          shutterCutAngle: e.target.value as CutAngle,
+        }))
+      }
+      className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+    >
+      <option value="45">45°</option>
+      <option value="90">90°</option>
+    </select>
+  )}
+</label>
                             {selectedNode.systemType !== "Blank Area" && (
                               <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={meta.rate} onChange={(e) => { setIsManualRate(true); setMeta((prev) => ({ ...prev, rate: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>)}
                             <label className="text-xs text-gray-600">Remarks<textarea value={meta.remarks} onChange={(e) => setMeta((prev) => ({ ...prev, remarks: e.target.value }))} rows={2} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657] resize-none" /></label>

@@ -26,23 +26,76 @@ const cloneNested = <T>(value: T): T => {
   if (typeof structuredClone === "function") return structuredClone(value);
   return JSON.parse(JSON.stringify(value)) as T;
 };
+const recalculateArea = (width: number | string | undefined, height: number | string | undefined) => {
+  const safeWidth = Number(width) || 0;
+  const safeHeight = Number(height) || 0;
+  return Number(((safeWidth * safeHeight) / 92903.04).toFixed(2));
+};
+const recalculateAmount = (item: { area?: number | string; rate?: number | string; quantity?: number | string }) => {
+  const safeArea = Number(item.area) || 0;
+  const safeRate = Number(item.rate) || 0;
+  const safeQuantity = Math.max(1, Number(item.quantity) || 1);
+  return Number((safeArea * safeRate * safeQuantity).toFixed(2));
+};
 
-const duplicateQuotationItem = (item: QuotationItem, refCode: string): QuotationItem => {
+// const duplicateQuotationItem = (item: QuotationItem, refCode: string): QuotationItem => {
+const duplicateQuotationItem = (
+  item: QuotationItem,
+  refCode: string,
+  dimensions?: {
+    parent: {
+      width: string;
+      height: string;
+    };
+    sections: {
+      width: string;
+      height: string;
+    }[];
+  }
+): QuotationItem => {
   const { _id: _itemBackendId, ...itemWithoutBackendId } = item as QuotationItem & { _id?: string };
 
+   const duplicate = cloneNested(itemWithoutBackendId);
+
+if (dimensions) {
+  duplicate.width = Number(dimensions.parent.width);
+  duplicate.height = Number(dimensions.parent.height);
+  duplicate.area = recalculateArea(duplicate.width, duplicate.height);
+}
+
+
   return {
-    ...cloneNested(itemWithoutBackendId),
+    // ...cloneNested(itemWithoutBackendId),
+    ...duplicate,
     id: crypto.randomUUID(),
     refCode,
-    subItems: item.subItems?.map((subItem, index) => {
-      const { _id: _subItemBackendId, ...subItemWithoutBackendId } = subItem as typeof subItem & { _id?: string };
+    // subItems: item.subItems?.map((subItem, index) => {
+    //   const { _id: _subItemBackendId, ...subItemWithoutBackendId } = subItem as typeof subItem & { _id?: string };
 
-      return {
-        ...cloneNested(subItemWithoutBackendId),
-        id: crypto.randomUUID(),
-        refCode: `${refCode}-${indexToAlphaLower(index)}`,
-      };
-    }),
+    //   return {
+    //     ...cloneNested(subItemWithoutBackendId),
+    //     id: crypto.randomUUID(),
+    //     refCode: `${refCode}-${indexToAlphaLower(index)}`,
+    //   };
+    // }),
+    subItems: item.subItems?.map((subItem, index) => {
+  const { _id: _subItemBackendId, ...subItemWithoutBackendId } =
+    subItem as typeof subItem & { _id?: string };
+
+  const duplicateSubItem = cloneNested(subItemWithoutBackendId);
+
+  if (dimensions?.sections[index]) {
+    duplicateSubItem.width = Number(dimensions.sections[index].width);
+    duplicateSubItem.height = Number(dimensions.sections[index].height);
+    duplicateSubItem.area = recalculateArea(duplicateSubItem.width, duplicateSubItem.height);
+  }
+
+  return {
+    ...duplicateSubItem,
+    id: crypto.randomUUID(),
+    refCode: `${refCode}-${indexToAlphaLower(index)}`,
+  };
+}),
   };
 };
 
@@ -62,7 +115,21 @@ interface QuotationBuilderState {
   replaceItem: (itemId: string, item: QuotationItem) => void;
   addItem: (itemId?: string) => string;
   ensureItem: (itemId: string) => void;
-  duplicateItem: (itemId: string, refCode: string) => void;
+  // duplicateItem: (itemId: string, refCode: string) => void;
+  duplicateItem: (
+  itemId: string,
+  refCode: string,
+  dimensions?: {
+    parent: {
+      width: string;
+      height: string;
+    };
+    sections: {
+      width: string;
+      height: string;
+    }[];
+  }
+) => void;
   removeItem: (itemId: string) => void;
   selectItem: (itemId: string) => void;
   setPricingMeta: (taxPercent: number, globalDiscount: number) => void;
@@ -225,12 +292,12 @@ export const useQuotationBuilderStore = create<QuotationBuilderState>()((set, ge
         selectedItemId: itemId
       };
     }),
-  duplicateItem: (itemId, refCode) =>
+  duplicateItem: (itemId, refCode,dimensions) =>
     set((state) => {
       const sourceIndex = state.quotation.items.findIndex((entry) => getQuotationItemIdentity(entry) === itemId);
       const item = state.quotation.items[sourceIndex];
       if (!item) return state;
-      const duplicate = duplicateQuotationItem(item, refCode);
+      const duplicate = duplicateQuotationItem(item, refCode,dimensions);
       const items = [...state.quotation.items];
       items.splice(sourceIndex + 1, 0, duplicate);
 
