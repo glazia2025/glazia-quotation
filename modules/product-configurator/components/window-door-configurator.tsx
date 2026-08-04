@@ -2010,6 +2010,7 @@ const dividerBadgesRef = useRef<
     id: string;
     leftId: string;
     rightId: string;
+    orientation: "vertical" | "horizontal";
   }[]
 >([]);
 
@@ -2341,7 +2342,7 @@ const dividerBadgesRef = useRef<
     return { rate: roundToTwo(calc.rate), result };
   };
 
-  const calculateCombinationRate = async () => {
+  const calculateCombinationRate = async (manualSectionRate?: number) => {
     const leaves = leafNodesForMode.filter((leaf) => leaf.systemType !== "Blank Area");
     if (!leaves.length) throw new Error("Combination has no priceable sub-items.");
     const inputs = leaves.map((leaf) => {
@@ -2384,6 +2385,7 @@ const dividerBadgesRef = useRef<
         clientId: `__join__${index}`,
         itemType: "join" as const,
         joinType: dividerValue === "M" ? "Mullion" as const : "Coupler" as const,
+        joinOrientation: badge.orientation,
         systemType: source.systemType,
         series: source.series || "",
         description: dividerValue === "M" ? "Mullion" : "Coupler",
@@ -2417,11 +2419,18 @@ const dividerBadgesRef = useRef<
         meshPresent: leaf.mesh,
         meshType: leaf.mesh === "Yes" ? sectionMeta.meshType : "",
       }, descriptionsResp.descriptions, optionsResp, systemsQuery.data?.systems, louversRates, result.baseRate);
-      return { leaf, rate: roundToTwo(calc.rate), result };
+      const rate = manualSectionRate !== undefined
+        ? roundToTwo(manualSectionRate)
+        : roundToTwo(calc.rate);
+      return { leaf, area, rate, result };
     }));
     const joinMaterialValue = joinResults.reduce((sum, result) => sum + result.materialValue, 0);
+    const sectionMaterialValue = calculated.reduce(
+      (sum, entry) => sum + entry.rate * entry.area,
+      0
+    );
     const rate = roundToTwo(
-      calculated.reduce((sum, entry) => sum + entry.rate, 0) / calculated.length +
+      (effectiveAreaSqft > 0 ? sectionMaterialValue / effectiveAreaSqft : 0) +
       (effectiveAreaSqft > 0 ? joinMaterialValue / effectiveAreaSqft : 0)
     );
     const details = Object.fromEntries(
@@ -2434,7 +2443,11 @@ const dividerBadgesRef = useRef<
     const aggregate: RateCalculationResult = {
       ...first,
       clientId: "combination-parent",
-      baseRate: roundToTwo(calculated.reduce((sum, entry) => sum + entry.result.baseRate, 0) / calculated.length),
+      baseRate: roundToTwo(
+        effectiveAreaSqft > 0
+          ? calculated.reduce((sum, entry) => sum + entry.result.baseRate * entry.area, 0) / effectiveAreaSqft
+          : 0
+      ),
       materialValue: roundToTwo(calculated.reduce((sum, entry) => sum + entry.result.materialValue, 0) + joinMaterialValue),
       area: roundToTwo(calculated.reduce((sum, entry) => sum + entry.result.area, 0)),
       totalWeightKg: roundToTwo(calculated.reduce((sum, entry) => sum + entry.result.totalWeightKg, 0) + joinResults.reduce((sum, result) => sum + result.totalWeightKg, 0)),
@@ -2519,13 +2532,26 @@ const dividerBadgesRef = useRef<
     const cuttingScheduleKey = getCuttingScheduleKey(frameCutAngle, shutterCutAngle);
     const calculatedRatesForSave: Record<string, number> = {};
     const calculatedDetailsForSave: Record<string, RateCalculationResult> = {};
+    let manualCombinationRateForSave = false;
     let calculatedSingleRateForSave: number | null = null;
     let calculatedSingleDetailsForSave: RateCalculationResult | null = null;
     let calculatedParentRateForSave: number | null = null;
     setIsSaving(true);
     try {
       setRateCalculationError("");
-      if (isCombinationDraft && (Number(meta.rate) || 0) <= 0) {
+      if (isCombinationDraft && isManualRate && (Number(meta.rate) || 0) > 0) {
+        const calculated = await calculateCombinationRate(Number(meta.rate));
+        Object.assign(calculatedRatesForSave, calculated.rates);
+        Object.assign(calculatedDetailsForSave, calculated.details);
+        calculatedParentRateForSave = calculated.rate;
+        calculatedSingleDetailsForSave = calculated.aggregate;
+        manualCombinationRateForSave = true;
+        setManualChildRates(calculated.rates);
+        setAutoChildRates({});
+        setChildRateCalculations(calculated.details);
+        setMeta((prev) => ({ ...prev, rate: calculated.rate }));
+        setSingleRateCalculation(calculated.aggregate);
+      } else if (isCombinationDraft && (Number(meta.rate) || 0) <= 0) {
         const calculated = await calculateCombinationRate();
         Object.assign(calculatedRatesForSave, calculated.rates);
         Object.assign(calculatedDetailsForSave, calculated.details);
@@ -2605,9 +2631,11 @@ const dividerBadgesRef = useRef<
         console.log("DESCRIPTIONS", descriptions);
         const options = await getOptions(systemType);
         const calc = calculateRateForItem({ area: itemArea, description, systemType: leaf.systemType, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "" }, descriptions, options, systemsQuery.data?.systems, louversRates);
-        const resolvedRate = manualChildRates[leaf.id] ?? calculatedRatesForSave[leaf.id] ?? autoChildRates[leaf.id] ?? 0;
+        const resolvedRate = manualCombinationRateForSave
+          ? calculatedRatesForSave[leaf.id] ?? 0
+          : manualChildRates[leaf.id] ?? calculatedRatesForSave[leaf.id] ?? autoChildRates[leaf.id] ?? 0;
         const rateDetails = calculatedDetailsForSave[leaf.id] ?? childRateCalculations[leaf.id];
-        const hasManualRate = Object.prototype.hasOwnProperty.call(manualChildRates, leaf.id);
+        const hasManualRate = manualCombinationRateForSave || Object.prototype.hasOwnProperty.call(manualChildRates, leaf.id);
         const quantity = 1;
         return {
           // id: crypto.randomUUID(),
@@ -2919,6 +2947,7 @@ console.log("SUBITEMS:", nextItem.subItems);
       // leftSystem: SystemType;rightSystem: SystemType;
      leftId: string;
     rightId: string;
+    orientation: "vertical" | "horizontal";
     }[] = [];
     const drawParentDividers = (parent: SectionNode) => {
       if (!parent.children || parent.children.length < 2) return;
@@ -2945,6 +2974,7 @@ console.log("SUBITEMS:", nextItem.subItems);
             y: fy + (parent.y + parent.h / 2) * fh,
             leftId: a.id,
             rightId: b.id,
+            orientation: "vertical",
           });
         } else {
           const y = fy + boundary * fh;
@@ -2963,6 +2993,7 @@ console.log("SUBITEMS:", nextItem.subItems);
             y,
             leftId: a.id,
             rightId: b.id,
+            orientation: "horizontal",
           });
         }
       }
