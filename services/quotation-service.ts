@@ -8,6 +8,36 @@ import { extractBackendQuotation, extractBackendQuotationItem } from "@/modules/
 
 export type BackendQuotationRecord = Quotation;
 
+export type RateCalculationItem = {
+  clientId: string;
+  systemType: string;
+  series: string;
+  description: string;
+  width: number;
+  height: number;
+  area: number;
+  frameCutAngle: "45" | "90";
+  shutterCutAngle: "45" | "90";
+  cuttingScheduleKey: string;
+  glassSpec?: string;
+  hardwareOpeningType?: "hinges" | "frictionStay" | "";
+  itemType?: "join";
+  joinType?: "Mullion" | "Coupler";
+};
+
+export type RateCalculationResult = {
+  clientId: string;
+  baseRate: number;
+  materialValue: number;
+  area: number;
+  totalWeightKg: number;
+  nalcoPrice: number;
+  nalcoRatePerKg: number;
+  calculatedAt: string;
+  calculationVersion: number;
+  warnings: string[];
+};
+
 function getAuthHeaders() {
   const token = useAuthStore.getState().token ?? getAuthToken();
 
@@ -18,6 +48,15 @@ function getAuthHeaders() {
   return {
     Authorization: `Bearer ${token}`
   };
+}
+
+export async function calculateQuotationRates(items: RateCalculationItem[]) {
+  const response = await axios.post<{ items: RateCalculationResult[] }>(
+    `${QUOTATION_API_BASE_URL}/api/quotations/calculate-rate`,
+    { items },
+    { headers: getAuthHeaders(), withCredentials: true }
+  );
+  return response.data.items;
 }
 
 type ApiQuotationListResponse = {
@@ -88,6 +127,7 @@ function toBackendSubItem(subItem: QuotationSubItem) {
     description: subItem.description || "",
     colorFinish: subItem.colorFinish || "",
     glassSpec: subItem.glassSpec || "",
+    hardwareOpeningType: subItem.hardwareOpeningType || "",
     handleType,
     handleColor: handleType ? subItem.handleColor || "" : "",
     handleCount: Number(subItem.handleCount) || 0,
@@ -111,6 +151,15 @@ function toBackendSubItem(subItem: QuotationSubItem) {
     archHeightRatio: typeof subItem.archHeightRatio === "number" ? subItem.archHeightRatio : undefined,
     baseRate: Number(subItem.baseRate) || 0,
     areaSlabIndex: Number(subItem.areaSlabIndex) || 0,
+    rateSource: subItem.rateSource || "legacy",
+    calculatedBaseRate: subItem.calculatedBaseRate,
+    calculatedFinalRate: subItem.calculatedFinalRate,
+    nalcoPriceUsed: subItem.nalcoPriceUsed,
+    nalcoRatePerKg: subItem.nalcoRatePerKg,
+    profileWeightKg: subItem.profileWeightKg,
+    profileMaterialValue: subItem.profileMaterialValue,
+    rateCalculatedAt: subItem.rateCalculatedAt,
+    rateCalculationVersion: subItem.rateCalculationVersion,
   };
 }
 
@@ -133,6 +182,7 @@ export function toBackendItem(item: Quotation["items"][number]) {
     description: item.description || "",
     colorFinish: item.colorFinish || "",
     glassSpec: item.glassSpec || "",
+    hardwareOpeningType: item.hardwareOpeningType || "",
     handleType,
     handleColor: handleType ? item.handleColor || "" : "",
     handleCount: Number(item.handleCount) || 0,
@@ -156,6 +206,15 @@ export function toBackendItem(item: Quotation["items"][number]) {
     archHeightRatio: typeof item.archHeightRatio === "number" ? item.archHeightRatio : undefined,
     baseRate: Number(item.baseRate) || 0,
     areaSlabIndex: Number(item.areaSlabIndex) || 0,
+    rateSource: item.rateSource || "legacy",
+    calculatedBaseRate: item.calculatedBaseRate,
+    calculatedFinalRate: item.calculatedFinalRate,
+    nalcoPriceUsed: item.nalcoPriceUsed,
+    nalcoRatePerKg: item.nalcoRatePerKg,
+    profileWeightKg: item.profileWeightKg,
+    profileMaterialValue: item.profileMaterialValue,
+    rateCalculatedAt: item.rateCalculatedAt,
+    rateCalculationVersion: item.rateCalculationVersion,
     subItems: Array.isArray(item.subItems) ? item.subItems.map(toBackendSubItem) : [],
     joins: Array.isArray(item.joins)
   ? item.joins.map((join) => ({
@@ -318,6 +377,56 @@ export async function getBomPdfBlob(quotationId: string): Promise<Blob> {
   return response.data;
 }
 
+
+// export async function getQuotationExcelBlob(
+//   quotationId: string,
+//   includeAmount: boolean
+// ): Promise<Blob> {
+//   const response = await axios.get(
+//     `${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/export-excel`,
+//     {
+//       headers: getAuthHeaders(),
+//       withCredentials: true,
+//       responseType: "blob",
+//        params: {
+//         includeAmount,
+//       },
+export type BomOrderRow = {
+  type: string;
+  system: string;
+  series: string;
+  description: string;
+  itemCode: string;
+  quantity: number;
+  unit: string;
+  rate: number;
+  amount: number;
+};
+
+export type BomOrderData = {
+  project: string;
+  projectCode: string;
+  customer: {
+    name?: string;
+    city?: string;
+    phone?: string;
+  };
+  rows: BomOrderRow[];
+  totals: Record<string, number> & { grand: number };
+  notes: string[];
+};
+
+export async function getBomOrderData(quotationId: string): Promise<BomOrderData> {
+  const response = await axios.get<BomOrderData>(
+    `${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/bom-data`,
+    {
+      headers: getAuthHeaders(),
+      withCredentials: true,
+    }
+  );
+
+  return response.data;
+}
 export async function getQuotationExcelBlob(
   quotationId: string,
   includeAmount: boolean
@@ -328,7 +437,7 @@ export async function getQuotationExcelBlob(
       headers: getAuthHeaders(),
       withCredentials: true,
       responseType: "blob",
-       params: {
+      params: {
         includeAmount,
       },
     }
@@ -358,6 +467,17 @@ export async function getQuotationExcelBlob(
 
 //   return response.data;
 // }
+export async function getOptimizedFinal(quotationId: string) {
+  const response = await axios.get<{
+    optimizedFinal: number;
+    nalcoPrice: number;
+    calculatedAt: string;
+  }>(`${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/optimized-final`, {
+    headers: getAuthHeaders(),
+    withCredentials: true,
+  });
+  return response.data;
+}
 
 export async function saveQuotationDraft(quotation: Quotation): Promise<BackendQuotationRecord | null> {
   const headers = getAuthHeaders();

@@ -47,6 +47,7 @@ export interface QuotationItem {
   quantity: number;
   glassType: string;
   glassSpec?: string;
+  hardwareOpeningType?: "hinges" | "frictionStay" | "";
   accessories: string[];
   colorFinish: string;
   specialNotes: string;
@@ -73,6 +74,15 @@ export interface QuotationItem {
   archHeightRatio?: number;
   baseRate?: number;
   areaSlabIndex?: number;
+  rateSource?: "calculated" | "manual" | "legacy";
+  calculatedBaseRate?: number;
+  calculatedFinalRate?: number;
+  nalcoPriceUsed?: number;
+  nalcoRatePerKg?: number;
+  profileWeightKg?: number;
+  profileMaterialValue?: number;
+  rateCalculatedAt?: string;
+  rateCalculationVersion?: number;
   subItems?: QuotationSubItem[];
   joins?: QuotationJoin[];
   configuratorLayout?: Record<string, unknown>;
@@ -101,6 +111,7 @@ export interface QuotationSubItem {
   description: string;
   colorFinish: string;
   glassSpec: string;
+  hardwareOpeningType?: "hinges" | "frictionStay" | "";
   handleType: string;
   handleColor: string;
   handleCount: number;
@@ -124,6 +135,15 @@ export interface QuotationSubItem {
   archHeightRatio?: number;
   baseRate?: number;
   areaSlabIndex?: number;
+  rateSource?: "calculated" | "manual" | "legacy";
+  calculatedBaseRate?: number;
+  calculatedFinalRate?: number;
+  nalcoPriceUsed?: number;
+  nalcoRatePerKg?: number;
+  profileWeightKg?: number;
+  profileMaterialValue?: number;
+  rateCalculatedAt?: string;
+  rateCalculationVersion?: number;
 }
 
 export interface QuotationTotals {

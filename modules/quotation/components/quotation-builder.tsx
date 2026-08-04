@@ -11,7 +11,8 @@ import {
   Plus,
   Ruler,
   Share2,
-  Upload
+  Upload,
+  ShoppingCart,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -23,13 +24,35 @@ import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-bui
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { getArea, getPerimeter } from "@/modules/quotation/utils/calculations";
 import { createEmptyQuotation } from "@/modules/quotation/utils/factory";
-import { bulkUpdateQuotationItems, createQuotationItem, deleteQuotationItem, getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationMetadata, getElevationPdfBlob, reorderQuotationItems,getQuotationExcelBlob,getQuotation } from "@/services/quotation-service";
+
+// import { bulkUpdateQuotationItems, createQuotationItem, deleteQuotationItem, getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationMetadata, getElevationPdfBlob, reorderQuotationItems,getQuotationExcelBlob,getQuotation } from "@/services/quotation-service";
+// import { bulkUpdateQuotationItems, createQuotationItem, deleteQuotationItem, getBomOrderData, getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationMetadata, getElevationPdfBlob, getOptimizedFinal, reorderQuotationItems } from "@/services/quotation-service";
+import {
+  bulkUpdateQuotationItems,
+  createQuotationItem,
+  deleteQuotationItem,
+  getBomOrderData,
+  getBomPdfBlob,
+  getCuttingSchedulePdfBlob,
+  getQuotationPdfBlob,
+  saveQuotationMetadata,
+  getElevationPdfBlob,
+  getOptimizedFinal,
+  reorderQuotationItems,
+  getQuotationExcelBlob,
+  getQuotation,
+  calculateQuotationRates,
+} from "@/services/quotation-service";
+import type { BomOrderData } from "@/services/quotation-service";
+import { BomOrderPlacement } from "@/modules/quotation/components/bom-order-placement";
+
 import type { Quotation, QuotationItem } from "@/types/quotation";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { getQuotationPdfDownloadName } from "@/utils/quotationPdf";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loadGlobalConfig } from "../../../utils/globalConfig";
-import { fetchOptions } from "@/lib/quotations/api";
+// import { fetchOptions } from "@/lib/quotations/api";
+import { fetchDescriptions, fetchOptions } from "@/lib/quotations/api";
 import {
   DndContext,
   closestCenter,
@@ -117,6 +140,15 @@ function ItemCard({
 ) => Promise<void>;
 }) {
   console.log("CARD ITEM", item);
+  console.log(
+  "CONFIG LAYOUT",
+  item.configuratorLayout
+);
+  console.log("hardwareOpeningType:", item.hardwareOpeningType);
+console.log("openingType:", item.openingType);
+console.log("series:", item.series);
+console.log("systemType:", item.systemType);
+console.log("shutterCutAngle:", item.shutterCutAngle);
   const [showSections, setShowSections] = useState(false);
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -809,6 +841,9 @@ const currentItems = items.slice(startIndex, endIndex);
   const router = useRouter();
   const profit = Number(quotation.breakdown?.profitPercentage) || 0;
   const configuratorBasePath = `${quotationBasePath}/configurator`;
+  const [optimizedFinal, setOptimizedFinal] = useState<number | null>(null);
+  const [isCalculatingOptimizedFinal, setIsCalculatingOptimizedFinal] = useState(false);
+  const [optimizedFinalError, setOptimizedFinalError] = useState("");
 
   const totalQuantity = items.reduce((sum, item) => sum + Math.max(1, item.quantity || 1), 0);
   const totalArea = items.reduce((sum, item) => 
@@ -829,7 +864,31 @@ const currentItems = items.slice(startIndex, endIndex);
     return sum + amount;
   }, 0);
   const finalAmount = totalAmount + (totalAmount * profit) / 100;
-  const finalWithGST = finalAmount + (finalAmount * 18) / 100;
+  const finalWithGSTBase = optimizedFinal ?? finalAmount;
+  const finalWithGST = finalWithGSTBase + (finalWithGSTBase * 18) / 100;
+  useEffect(() => {
+    setOptimizedFinal(null);
+    setOptimizedFinalError("");
+  }, [items, profit]);
+
+  const calculateOptimizedFinal = async () => {
+    const quotationId = getQuotationIdentity(quotation);
+    if (!quotationId) {
+      setOptimizedFinalError("Save the quotation before calculating the optimized final.");
+      return;
+    }
+    setIsCalculatingOptimizedFinal(true);
+    setOptimizedFinalError("");
+    try {
+      const result = await getOptimizedFinal(quotationId);
+      setOptimizedFinal(Number(result.optimizedFinal) || 0);
+    } catch (error) {
+      console.error("Failed to calculate optimized final", error);
+      setOptimizedFinalError("Unable to calculate optimized final.");
+    } finally {
+      setIsCalculatingOptimizedFinal(false);
+    }
+  };
   const updateProfit = (nextProfit: number) => {
     const safeProfit = Number.isFinite(nextProfit) ? nextProfit : 0;
     const nextFinalAmount = totalAmount + (totalAmount * safeProfit) / 100;
@@ -873,11 +932,7 @@ const currentItems = items.slice(startIndex, endIndex);
     <div className="space-y-4">
       <div className="rounded-2xl border bg-slate-950 px-5 py-4 text-white">
         <div className="flex flex-wrap items-start gap-5">
-          <div className="min-w-[180px]">
-            <h2 className="text-lg font-semibold">Configured Items</h2>
-            <p className="text-sm text-slate-300">{items.length} item{items.length === 1 ? "" : "s"} in this quotation</p>
-          </div>
-          <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+          <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-7">
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Quantity</div>
               <div className="mt-1 text-xl font-bold">{totalQuantity}</div>
@@ -902,6 +957,22 @@ const currentItems = items.slice(startIndex, endIndex);
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Final</div>
               <div className="mt-1 text-xl font-bold">{formatCurrency(finalAmount)}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Optimized Final</div>
+              {optimizedFinal === null ? (
+                <button
+                  type="button"
+                  onClick={() => void calculateOptimizedFinal()}
+                  disabled={isCalculatingOptimizedFinal}
+                  className="mt-1 rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                >
+                  {isCalculatingOptimizedFinal ? "Calculating…" : "Calculate"}
+                </button>
+              ) : (
+                <div className="mt-1 text-xl font-bold">{formatCurrency(optimizedFinal)}</div>
+              )}
+              {optimizedFinalError && <div className="mt-1 text-[11px] text-red-300">{optimizedFinalError}</div>}
             </div>
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Final + GST</div>
@@ -1713,6 +1784,8 @@ export function QuotationBuilder({
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState("Quotation PDF Preview");
   const [pdfDownloadName, setPdfDownloadName] = useState("");
+  const [bomOrderData, setBomOrderData] = useState<BomOrderData | null>(null);
+  const [isOrderPlacementOpen, setIsOrderPlacementOpen] = useState(false);
   const [globalConfig, setGlobalConfig] = useState(createBuilderGlobalConfig);
   const hydratedQuotationKeyRef = useRef<string | null>(null);
   const hydratedGlobalConfigKeyRef = useRef<string | null>(null);
@@ -1882,10 +1955,140 @@ export function QuotationBuilder({
           (entry) => getQuotationItemIdentity(entry) === sourceId
         );
         const duplicate = items[sourceIndex + 1];
+        console.log("===== DUPLICATE ITEM =====");
+        console.dir(duplicate, { depth: null });
+        console.log("duplicate.frameCutAngle =", duplicate.frameCutAngle);
+console.log("duplicate.shutterCutAngle =", duplicate.shutterCutAngle);
+console.log("duplicate.cuttingScheduleKey =", duplicate.cuttingScheduleKey);
+console.log("duplicate.systemType =", duplicate.systemType);
         if (!duplicate) throw new Error("Failed to create the local duplicate");
+        console.log("duplicate", duplicate);
+console.log(" check frameCutAngle", duplicate.frameCutAngle);
+console.log(" check shutterCutAngle", duplicate.shutterCutAngle);
+        const layout = duplicate.configuratorLayout as {
+  frameCutAngle?: "45" | "90";
+  shutterCutAngle?: "45" | "90";
+};
         const duplicateLocalId = getQuotationItemIdentity(duplicate);
         try {
           const quotationId = await ensureParentQuotation();
+          const [rateResult] = await calculateQuotationRates([
+  {
+    clientId: duplicate.id,
+
+   systemType: duplicate.systemType || "",
+
+    series: duplicate.series || "",
+
+    description: duplicate.description || "",
+
+    width: Number(duplicate.width),
+
+    height: Number(duplicate.height),
+
+    area: Number(duplicate.area),
+
+    // frameCutAngle: duplicate.frameCutAngle,
+
+    // shutterCutAngle: duplicate.shutterCutAngle,
+   frameCutAngle: layout.frameCutAngle ?? "45",
+
+shutterCutAngle: layout.shutterCutAngle ?? "45",
+
+    cuttingScheduleKey: String(duplicate.cuttingScheduleKey),
+
+    glassSpec: duplicate.glassSpec || "",
+
+    hardwareOpeningType: "",
+  },
+]);
+
+console.log("RATE RESULT", rateResult);
+const [descriptions, options] = await Promise.all([
+  fetchDescriptions(duplicate.systemType || "", duplicate.series || ""),
+  fetchOptions(duplicate.systemType || ""),
+]);
+
+let desc: any = null;
+
+if (
+  duplicate.systemType !== "Louvers" &&
+  duplicate.description !== "Louvers"
+) {
+  // desc = descriptions?.find(
+  //   (d: any) => d.name === duplicate.description
+  // );
+  const desc = descriptions.descriptions.find(
+  (d: any) => d.name === duplicate.description
+);
+}
+
+const colorRate =
+  options?.colorFinishes.find(
+    (c: any) => c.name === duplicate.colorFinish
+  )?.rate ?? 0;
+
+// const meshRate =
+//   duplicate.meshPresent === "Yes"
+//     ? options?.meshTypes.find(
+//         (m: any) => m.name === duplicate.meshType
+//       )?.rate ?? 0
+//     : 0;
+const meshRate =
+  duplicate.meshPresent
+    ? options?.meshTypes.find(
+        (m: any) => m.name === duplicate.meshType
+      )?.rate ?? 0
+    : 0;
+
+const glassRate =
+  options?.glassSpecs.find(
+    (g: any) => g.name === duplicate.glassSpec
+  )?.rate ?? 0;
+
+const handleOpt = options?.handleOptions.find(
+  (h: any) => h.name === duplicate.handleType
+);
+
+const handleCount = desc?.defaultHandleCount ?? 0;
+
+const handleUnitRate =
+  handleOpt?.colors.find(
+    (c: any) => c.name === duplicate.handleColor
+  )?.rate ?? 0;
+
+const handleRate =
+  handleCount > 0
+    ? (handleCount * handleUnitRate) /
+      (Number(duplicate.area) || 1)
+    : 0;
+
+duplicate.rate =
+  (rateResult.baseRate ?? 0) +
+  colorRate +
+  meshRate +
+  glassRate +
+  handleRate;
+
+duplicate.rate = Number(duplicate.rate.toFixed(2));
+
+duplicate.amount = Number(
+  (
+    duplicate.rate *
+    Number(duplicate.area) *
+    Number(duplicate.quantity || 1)
+  ).toFixed(2)
+);
+
+console.log("FINAL DUPLICATE RATE", {
+  baseRate: rateResult.baseRate,
+  colorRate,
+  meshRate,
+  glassRate,
+  handleRate,
+  finalRate: duplicate.rate,
+  amount: duplicate.amount,
+});
           const savedItem = await createQuotationItem(quotationId, duplicate);
           useQuotationBuilderStore.getState().replaceItem(duplicateLocalId, savedItem);
           markSaved();
@@ -2138,52 +2341,6 @@ const exportExcel = async (includeAmount: boolean) => {
     setIsGeneratingExcel(false);
   }
 };
-// const handleExcelUpload = async (
-//   e: React.ChangeEvent<HTMLInputElement>
-// ) => {
-//   const file = e.target.files?.[0];
-
-//   if (!file || !quotationId) return;
-
-//   try {
-//     const res = await uploadQuotationExcel(quotationId, file);
-
-//     console.log(res);
-//   } catch (err) {
-//     console.error(err);
-//   } finally {
-//     e.target.value = "";
-//   }
-// };
-// const handleExcelUpload = async (
-//   e: React.ChangeEvent<HTMLInputElement>
-// ) => {
-//   const file = e.target.files?.[0];
-
-//   if (!file) return;
-
-//   try {
-//     const savedQuotation = await getPersistedQuotation();
-
-//     const quotationId =
-//       savedQuotation?._id ??
-//       quotationWithGlobalConfig._id ??
-//       savedQuotation?.quotationDetails.id ??
-//       quotationWithGlobalConfig.quotationDetails.id;
-
-//     if (!quotationId) {
-//       throw new Error("Failed to resolve quotation id before Excel upload.");
-//     }
-
-//     const res = await uploadQuotationExcel(quotationId, file);
-
-//     console.log(res);
-//   } catch (err) {
-//     console.error(err);
-//   } finally {
-//     e.target.value = "";
-//   }
-// };
 
   const exportElevationPdf = async () => {
     try {
@@ -2270,7 +2427,10 @@ const exportExcel = async (includeAmount: boolean) => {
         throw new Error("Failed to resolve quotation id before BOM generation.");
       }
 
-      const blob = await getBomPdfBlob(pdfQuotationId);
+      const [blob, orderData] = await Promise.all([
+        getBomPdfBlob(pdfQuotationId),
+        getBomOrderData(pdfQuotationId),
+      ]);
       const nextPdfPreviewUrl = URL.createObjectURL(blob);
       const quoteNo =
         savedQuotation?.generatedId ||
@@ -2280,6 +2440,7 @@ const exportExcel = async (includeAmount: boolean) => {
         "quotation";
       setPdfPreviewTitle("BOM PDF Preview");
       setPdfDownloadName(`${quoteNo}-bom.pdf`);
+      setBomOrderData(orderData);
       setPdfPreviewUrl((currentUrl) => {
         if (currentUrl) {
           URL.revokeObjectURL(currentUrl);
@@ -2479,6 +2640,12 @@ const exportExcel = async (includeAmount: boolean) => {
                   <div className="text-sm text-slate-500">{pdfDownloadName || getQuotationPdfDownloadName({ ...quotation, globalConfig })}</div>
                 </div>
                 <div className="flex items-center gap-3">
+                  {pdfPreviewTitle === "BOM PDF Preview" && bomOrderData ? (
+                    <Button onClick={() => setIsOrderPlacementOpen(true)}>
+                      <ShoppingCart className="h-4 w-4" />
+                      Place Order
+                    </Button>
+                  ) : null}
                   <Button variant="outline" onClick={downloadPreviewedPdf}>
                     <Download className="h-4 w-4" />
                     Download
@@ -2497,6 +2664,13 @@ const exportExcel = async (includeAmount: boolean) => {
               </div>
             </div>
           </div>
+        ) : null}
+        {isOrderPlacementOpen && bomOrderData ? (
+          <BomOrderPlacement
+            bom={bomOrderData}
+            onClose={() => setIsOrderPlacementOpen(false)}
+            onSuccess={() => undefined}
+          />
         ) : null}
       </div>
        {isExcelExportModalOpen ? (

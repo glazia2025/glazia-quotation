@@ -81,6 +81,15 @@ const normalizeSubItem = (value: unknown): QuotationSubItem => {
     archHeightRatio: typeof source.archHeightRatio !== "undefined" ? toNumberValue(source.archHeightRatio, 0.25) : undefined,
     baseRate: toNumberValue(source.baseRate),
     areaSlabIndex: toNumberValue(source.areaSlabIndex),
+    rateSource: source.rateSource === "calculated" || source.rateSource === "manual" ? source.rateSource : "legacy",
+    calculatedBaseRate: toNumberValue(source.calculatedBaseRate),
+    calculatedFinalRate: toNumberValue(source.calculatedFinalRate),
+    nalcoPriceUsed: toNumberValue(source.nalcoPriceUsed),
+    nalcoRatePerKg: toNumberValue(source.nalcoRatePerKg),
+    profileWeightKg: toNumberValue(source.profileWeightKg),
+    profileMaterialValue: toNumberValue(source.profileMaterialValue),
+    rateCalculatedAt: toStringValue(source.rateCalculatedAt),
+    rateCalculationVersion: toNumberValue(source.rateCalculationVersion),
   };
 };
 const normalizeJoin = (value: unknown): QuotationJoin => {
@@ -149,6 +158,15 @@ export const extractBackendQuotationItem = (value: unknown): QuotationItem => {
     archHeightRatio: typeof source.archHeightRatio !== "undefined" ? toNumberValue(source.archHeightRatio, 0.25) : undefined,
     baseRate: toNumberValue(source.baseRate),
     areaSlabIndex: toNumberValue(source.areaSlabIndex),
+    rateSource: source.rateSource === "calculated" || source.rateSource === "manual" ? source.rateSource : "legacy",
+    calculatedBaseRate: toNumberValue(source.calculatedBaseRate),
+    calculatedFinalRate: toNumberValue(source.calculatedFinalRate),
+    nalcoPriceUsed: toNumberValue(source.nalcoPriceUsed),
+    nalcoRatePerKg: toNumberValue(source.nalcoRatePerKg),
+    profileWeightKg: toNumberValue(source.profileWeightKg),
+    profileMaterialValue: toNumberValue(source.profileMaterialValue),
+    rateCalculatedAt: toStringValue(source.rateCalculatedAt),
+    rateCalculationVersion: toNumberValue(source.rateCalculationVersion),
     subItems: Array.isArray(source.subItems) ? source.subItems.map(normalizeSubItem) : [],
     joins: Array.isArray(source.joins)
   ? source.joins.map(normalizeJoin)
