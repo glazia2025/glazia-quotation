@@ -57,7 +57,7 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: "quotation", label: "Quotation Details" },
   { key: "global", label: "Global Config" },
   { key: "item", label: "Item List" },
-  { key: "bulk", label: "Bulk Update" },
+  { key: "bulk", label: "Global Edit" },
 ];
 const isTabKey = (value: string | null): value is TabKey =>
   value === "customer" || value === "quotation" || value === "global" || value === "item" || value === "bulk";
@@ -416,15 +416,11 @@ function ItemTab({
   onDeleteItem,
   onDuplicateItem,
   onReorderItems,
-  onSavePricing,
-  isSavingMetadata,
 }: {
   quotationBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
   onDuplicateItem: (item: QuotationItem, refCode: string) => Promise<void>;
   onReorderItems: (startIndex: number, endIndex: number) => Promise<void>;
-  onSavePricing: () => Promise<void>;
-  isSavingMetadata: boolean;
 }) {
   const quotation = useQuotationBuilderStore((state) => state.quotation);
   const items = quotation.items;
@@ -463,6 +459,7 @@ const currentItems = items.slice(startIndex, endIndex);
   const finalAmount = totalAmount + (totalAmount * profit) / 100;
   const finalWithGSTBase = optimizedFinal ?? finalAmount;
   const finalWithGST = finalWithGSTBase + (finalWithGSTBase * 18) / 100;
+  const ratePerSqft = totalArea > 0 ? finalWithGST / totalArea : 0;
   useEffect(() => {
     setOptimizedFinal(null);
     setOptimizedFinalError("");
@@ -535,11 +532,11 @@ const currentItems = items.slice(startIndex, endIndex);
               <div className="mt-1 text-xl font-bold">{totalQuantity}</div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Area</div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Area (sqft.)</div>
               <div className="mt-1 text-xl font-bold">{formatNumber(totalArea)}</div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Amount</div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Total Cost</div>
               <div className="mt-1 text-xl font-bold">{formatCurrency(totalAmount)}</div>
             </div>
             <div>
@@ -552,39 +549,18 @@ const currentItems = items.slice(startIndex, endIndex);
               />
             </div>
             <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Final</div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Selling Price<br />(Cost + Profit %)</div>
               <div className="mt-1 text-xl font-bold">{formatCurrency(finalAmount)}</div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Optimized Final</div>
-              {optimizedFinal === null ? (
-                <button
-                  type="button"
-                  onClick={() => void calculateOptimizedFinal()}
-                  disabled={isCalculatingOptimizedFinal}
-                  className="mt-1 rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
-                >
-                  {isCalculatingOptimizedFinal ? "Calculating…" : "Calculate"}
-                </button>
-              ) : (
-                <div className="mt-1 text-xl font-bold">{formatCurrency(optimizedFinal)}</div>
-              )}
-              {optimizedFinalError && <div className="mt-1 text-[11px] text-red-300">{optimizedFinalError}</div>}
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Final + GST</div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Customer Price<br />(Selling Price + GST)</div>
               <div className="mt-1 text-xl font-bold">{formatCurrency(finalWithGST)}</div>
             </div>
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Rate per sqft.</div>
+              <div className="mt-1 text-xl font-bold">{formatCurrency(ratePerSqft)}</div>
+            </div>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void onSavePricing()}
-            disabled={isSavingMetadata}
-            className="border-slate-600 bg-slate-900 text-white hover:bg-slate-800"
-          >
-            {isSavingMetadata ? "Saving..." : "Save Pricing"}
-          </Button>
         </div>
       </div>
 
@@ -1327,14 +1303,7 @@ export function QuotationBuilder({
   const router = useRouter();
   const configuratorBasePath = `${quotationBasePath}/configurator`;
   const handleAddItem = () => {
-    const newItem = {
-      _id: crypto.randomUUID(),
-    } as QuotationItem;
-    setQuotation({
-      ...quotation,
-      items: [...quotation.items, newItem]
-    });
-    router.push(`${configuratorBasePath}/${newItem._id}`);
+    router.push(`${configuratorBasePath}/${crypto.randomUUID()}?mode=create`);
   };
 
 
@@ -1964,8 +1933,6 @@ export function QuotationBuilder({
                 onDeleteItem={persistDeleteItem}
                 onDuplicateItem={persistDuplicateItem}
                 onReorderItems={persistReorderedItems}
-                onSavePricing={saveCurrentMetadata}
-                isSavingMetadata={metadataSaveStatus === "saving"}
               />
             )}
             {activeTab === "bulk" && (
