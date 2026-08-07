@@ -111,8 +111,8 @@ const DEFAULT_META: ProductMeta = {
   refCode: "",
   remarks: "",
   rate: 0,
-  frameCutAngle: "90",
-  shutterCutAngle: "90",
+  frameCutAngle: "45",
+  shutterCutAngle: "45",
 };
 
 const DEFAULT_SECTION_OPTION_META: SectionOptionMeta = {
@@ -2050,6 +2050,15 @@ const dividerBadgesRef = useRef<
 
   return systems.size === 1 && systems.has("Casement");
 }, [selectedNode]);
+useEffect(() => {
+  if (selectedNodeIsPureCasement) {
+    setMeta((prev) => ({
+      ...prev,
+      frameCutAngle: "45",
+      shutterCutAngle: "45",
+    }));
+  }
+}, [selectedNodeIsPureCasement]);
   const selectedSystemSupportsCatalog = isCatalogSystem(selectedNode.systemType);
   const canInsertExhaustFan = selectedNode.systemType === "Casement" && selectedNode.description === "Fix" && !selectedNode.children?.length;
   const hasAdjustableExhaustFan = !selectedNode.children?.length && (selectedNode.systemType === "Exhaust Fan" || Boolean(selectedNode.hasExhaustFan));
@@ -3730,7 +3739,7 @@ const dividerValue = selectedDivider
                     {archControls}
                     <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
 
-<label className="text-xs text-gray-600">
+{/* <label className="text-xs text-gray-600">
   Frame Cut Angle
 
   {selectedNodeIsPureCasement ? (
@@ -3782,7 +3791,10 @@ const dividerValue = selectedDivider
       <option value="90">90°</option>
     </select>
   )}
-</label>
+</label> */}
+
+ <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
+                    <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
 
 <label className="text-xs text-gray-600">
   Colour Finish
@@ -3961,7 +3973,7 @@ const dividerValue = selectedDivider
                           <>
                             <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
 
-                            <label className="text-xs text-gray-600">
+                            {/* <label className="text-xs text-gray-600">
   Frame Cut Angle
   {selectedNodeIsPureCasement ? (
     <input
@@ -4011,7 +4023,10 @@ const dividerValue = selectedDivider
       <option value="90">90°</option>
     </select>
   )}
-</label>
+</label> */}
+
+ <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
+                    <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
                             {selectedNode.systemType !== "Blank Area" && (
                               <>
                                 <RateCalculationAction
