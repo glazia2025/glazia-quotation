@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
@@ -31,6 +31,8 @@ export function FullPageConfigurator({
   quotationQueryKey?: string;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isCreateItem = searchParams.get("mode") === "create";
   const queryClient = useQueryClient();
   const initialSyncKeyRef = useRef("");
   const returnPathRef = useRef(returnPath);
@@ -129,7 +131,7 @@ export function FullPageConfigurator({
   return (
     <div className="fixed inset-0 z-[200] bg-[linear-gradient(180deg,#e2e8f0_0%,#f8fafc_100%)]">
       <div className="h-full w-full">
-        {activeItem || !initialQuotation ? (
+        {activeItem || isCreateItem || !initialQuotation ? (
           <WindowDoorConfigurator
             initialItem={activeItem ?? null}
             profitPercentage={0}

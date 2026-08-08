@@ -32,7 +32,7 @@ type PathContext = {
 };
 
 type SplitDirection = "none" | "vertical" | "horizontal";
-type SystemType = "Casement" | "Sliding" | "Slide N Fold" | "Louvers" | "Exhaust Fan" | "Blank Area";
+type SystemType = "Casement" | "Sliding" | "Slide N Fold" | "Louvers" | "Blank Area";
 type SashType = "fixed" | "left" | "right" | "double" | "top" | "bottom";
 type YesNo = "Yes" | "No";
 type CutAngle = "45" | "90";
@@ -155,7 +155,6 @@ const isCatalogSystem = (systemType: string): systemType is Extract<SystemType, 
   CATALOG_SYSTEMS.has(systemType as SystemType);
 
 const isLouverSystem = (systemType: string) => systemType === "Louvers";
-const isExhaustSystem = (systemType: string) => systemType === "Exhaust Fan";
 
 const isBlankSystem = (systemType: string) => systemType === "Blank Area";
 const getDefaultLeafDescription = (
@@ -164,9 +163,8 @@ const getDefaultLeafDescription = (
   hasExhaustFan = false
 ) => {
   if (isLouverSystem(systemType)) return "Louvers";
-  if (isExhaustSystem(systemType)) return "Exhaust Fan";
   if (isBlankSystem(systemType)) return "Blank Area";
-  if (hasExhaustFan && systemType === "Casement") return "Fix + Exhaust Fan";
+  if (hasExhaustFan && systemType === "Casement") return "Fix";
   return `${systemType} ${productType}`;
 };
 
@@ -176,6 +174,7 @@ const getSectionLabel = (leaf: SectionNode, productType: ProductMeta["productTyp
 const DEFAULT_EXHAUST_FAN_X = 0.5;
 const DEFAULT_EXHAUST_FAN_Y = 0.5;
 const DEFAULT_EXHAUST_FAN_SIZE = 0.48;
+const EXHAUST_FAN_RATE_SURCHARGE = 10;
 const DEFAULT_ARCH_HEIGHT_RATIO = 0.25;
 const clampValue = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const normalizeArchType = (value: unknown): ArchType =>
@@ -208,8 +207,8 @@ const createRoot = (baseSystem: SystemType): SectionNode => ({
   sash: "fixed",
   systemType: baseSystem,
   series: "",
-  description: isLouverSystem(baseSystem) ? "Louvers" : isExhaustSystem(baseSystem) ? "Exhaust Fan" : isBlankSystem(baseSystem) ? "Blank Area" : "",
-  hasExhaustFan: isExhaustSystem(baseSystem),
+  description: isLouverSystem(baseSystem) ? "Louvers" : isBlankSystem(baseSystem) ? "Blank Area" : "",
+  hasExhaustFan: false,
   exhaustFanX: DEFAULT_EXHAUST_FAN_X,
   exhaustFanY: DEFAULT_EXHAUST_FAN_Y,
   exhaustFanSize: DEFAULT_EXHAUST_FAN_SIZE,
@@ -239,8 +238,8 @@ const createLeaf = (
   sash,
   systemType,
   series: "",
-  description: isLouverSystem(systemType) ? "Louvers" : isExhaustSystem(systemType) ? "Exhaust Fan" : "",
-  hasExhaustFan: isExhaustSystem(systemType),
+  description: isLouverSystem(systemType) ? "Louvers" : "",
+  hasExhaustFan: false,
   exhaustFanX: DEFAULT_EXHAUST_FAN_X,
   exhaustFanY: DEFAULT_EXHAUST_FAN_Y,
   exhaustFanSize: DEFAULT_EXHAUST_FAN_SIZE,
@@ -272,15 +271,6 @@ const buildPreset = (systemType: SystemType, glass: YesNo, mesh: YesNo): Section
 
   if (systemType === "Louvers") {
     root.description = "Louvers";
-    root.glass = "Yes";
-    root.mesh = "No";
-    root.sash = "fixed";
-    return root;
-  }
-
-  if (systemType === "Exhaust Fan") {
-    root.description = "Exhaust Fan";
-    root.hasExhaustFan = true;
     root.glass = "Yes";
     root.mesh = "No";
     root.sash = "fixed";
@@ -475,12 +465,12 @@ const getEffectiveLeafHeightRatio = (root: SectionNode, leaf: SectionNode) => {
 };
 
 const normalizeSystemType = (value?: string): SystemType => {
+  if (value === "Exhaust Fan") return "Casement";
   if (
     value === "Sliding" ||
     value === "Slide N Fold" ||
     value === "Casement" ||
     value === "Louvers" ||
-    value === "Exhaust Fan" ||
     value === "Blank Area"
   ) {
     return value;
@@ -529,11 +519,11 @@ const normalizeStoredSectionNode = (value: unknown, fallbackSystemType: SystemTy
       .map((value) => normalizeSashType(value, "fixed"))
       .filter(Boolean)
     : undefined;
-    const dividerTypes =
+  const dividerTypes =
     typeof source.dividerTypes === "object" && source.dividerTypes !== null
       ? Object.fromEntries(
-          Object.entries(source.dividerTypes as Record<string, unknown>).map(([key, value]) => [key, value === "M" ? "M" : "C"] as const)
-        ) as Record<string, "C" | "M">
+        Object.entries(source.dividerTypes as Record<string, unknown>).map(([key, value]) => [key, value === "M" ? "M" : "C"] as const)
+      ) as Record<string, "C" | "M">
       : undefined;
 
   return {
@@ -577,6 +567,7 @@ const calculateRateForItem = (
     handleColor: string;
     meshPresent: string;
     meshType: string;
+    hasExhaustFan?: boolean;
   },
   descriptions: Description[] | undefined,
   options: OptionsResponse | undefined,
@@ -615,7 +606,7 @@ const calculateRateForItem = (
   const handleRate = handleCount > 0 ? (handleCount * handleUnitRate) / (next.area || 1) : 0;
 
   return {
-    rate: baseRate + colorRate + meshRate + glassRate + handleRate,
+    rate: baseRate + colorRate + meshRate + glassRate + handleRate + (next.hasExhaustFan ? EXHAUST_FAN_RATE_SURCHARGE : 0),
     handleCount,
     baseRate,
     areaSlabIndex: slab?.index ?? 0,
@@ -688,7 +679,6 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
 
   const normalizeLeafDescription = (systemType: SystemType, description: string, hasExhaustFan?: boolean) => {
     if (isLouverSystem(systemType)) return "Louvers";
-    if (isExhaustSystem(systemType)) return "Exhaust Fan";
     if (hasExhaustFan && systemType === "Casement") return "Fix";
     return description;
   };
@@ -742,7 +732,7 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
             ? ((sub.sash as SashType | undefined) ?? (idx % 2 === 0 ? "left" : "right"))
             : "fixed",
           normalizedSystemType,
-          normalizedSystemType === "Exhaust Fan" ? "Yes" : yesNoFromValue(sub.glassSpec),
+          childHasExhaustFan ? "Yes" : yesNoFromValue(sub.glassSpec),
           yesNoFromValue(sub.meshPresent)
         );
         child.series = sub.series || "";
@@ -791,7 +781,7 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
             ? ((sub.sash as SashType | undefined) ?? (idx % 2 === 0 ? "left" : "right"))
             : "fixed",
           normalizedSystemType,
-          normalizedSystemType === "Exhaust Fan" ? "Yes" : yesNoFromValue(sub.glassSpec),
+          childHasExhaustFan ? "Yes" : yesNoFromValue(sub.glassSpec),
           yesNoFromValue(sub.meshPresent)
         );
         child.series = sub.series || "";
@@ -1832,13 +1822,13 @@ const useHistory = (initial: SectionNode) => {
 };
 
 const COLORS = {
-  bg: "#F8FAFC",
+  bg: "#FFFFFF",
   grid: "#E2E8F0",
   frameDark: "#5B2200",
   frameMid: "#7C2D12",
   frameLight: "#A16207",
-  glass: "#22C1E6",
-  glassStroke: "#0E7490",
+  glass: "#D9F2FF",
+  glassStroke: "#67AFC4",
   labelStroke: "#111827",
   labelFill: "#FFFFFF",
   mesh: "#CBD5E1",
@@ -1951,12 +1941,33 @@ function addHandleIcon(layer: KonvaLayer | KonvaGroup, x: number, y: number, sid
   layer.add(g);
 }
 
-function addDimensionLine(layer: KonvaLayer | KonvaGroup, x1: number, y1: number, x2: number, y2: number, label: string) {
+function addDimensionLine(layer: KonvaLayer | KonvaGroup, x1: number, y1: number, x2: number, y2: number, label: string, showLabel = true) {
   const midX = (x1 + x2) / 2;
   const midY = (y1 + y2) / 2;
-  layer.add(new Konva.Arrow({ points: [x1, y1, x2, y2], stroke: "#6B7280", fill: "#6B7280", strokeWidth: 1.5, pointerLength: 6, pointerWidth: 6, listening: false }));
-  layer.add(new Konva.Rect({ x: midX - 44, y: midY - 14, width: 88, height: 28, fill: "#FFFFFF", stroke: "#CBD5E1", strokeWidth: 1, cornerRadius: 2, listening: false }));
-  layer.add(new Konva.Text({ x: midX - 44, y: midY - 10, width: 88, align: "center", text: label, fontSize: 16, fill: "#111827", listening: false }));
+  const arrowStyle = { stroke: "#111827", fill: "#111827", strokeWidth: 2.5, pointerLength: 10, pointerWidth: 10, listening: false };
+  const isHorizontal = Math.abs(x2 - x1) >= Math.abs(y2 - y1);
+  if (isHorizontal) {
+    const gapHalf = Math.min(95, Math.abs(x2 - x1) * 0.4);
+    layer.add(new Konva.Arrow({ points: [midX - gapHalf, midY, x1, y1], ...arrowStyle }));
+    layer.add(new Konva.Arrow({ points: [midX + gapHalf, midY, x2, y2], ...arrowStyle }));
+  } else {
+    const gapHalf = Math.min(36, Math.abs(y2 - y1) * 0.3);
+    layer.add(new Konva.Arrow({ points: [midX, midY - gapHalf, x1, y1], ...arrowStyle }));
+    layer.add(new Konva.Arrow({ points: [midX, midY + gapHalf, x2, y2], ...arrowStyle }));
+  }
+  if (showLabel) {
+    layer.add(new Konva.Text({
+      x: isHorizontal ? midX - 70 : midX - 98,
+      y: midY - 18,
+      width: isHorizontal ? 140 : 80,
+      align: isHorizontal ? "center" : "right",
+      text: label,
+      fontSize: 32,
+      fontStyle: "normal",
+      fill: "#111827",
+      listening: false,
+    }));
+  }
 }
 
 function drawMeshTriangle(group: KonvaGroup, x: number, y: number, size: number) {
@@ -1987,7 +1998,16 @@ export function WindowDoorConfigurator({
   profitPercentage: number;
 }) {
   const persistedItem = initialItem ?? null;
-  const editingItem = persistedItem && persistedItem.configuratorStep !== "draft" ? persistedItem : null;
+  const isBlankAddItem = Boolean(
+    persistedItem &&
+    !persistedItem.refCode &&
+    !persistedItem.systemType &&
+    !persistedItem.description &&
+    !persistedItem.configuratorLayout
+  );
+  const editingItem = persistedItem && !isBlankAddItem && persistedItem.configuratorStep !== "draft"
+    ? persistedItem
+    : null;
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<KonvaStage | null>(null);
@@ -1998,21 +2018,22 @@ export function WindowDoorConfigurator({
   const panOriginRef = useRef({ x: 0, y: 0 });
   const { data: systems } = useSystemsQuery();
   console.log("SYSTEMS", systems);
-const [selectedDivider, setSelectedDivider] = useState<{
-    id: string;
-   leftId: string;
-  rightId: string;
-} | null>(null);
-
-const [badgeValues, setBadgeValues] = useState<Record<string, "C" | "M">>({});
-const dividerBadgesRef = useRef<
-  {
+  const [selectedDivider, setSelectedDivider] = useState<{
     id: string;
     leftId: string;
     rightId: string;
-    orientation: "vertical" | "horizontal";
-  }[]
->([]);
+  } | null>(null);
+
+  const [badgeValues, setBadgeValues] = useState<Record<string, "C" | "M">>({});
+  const dividerBadgesRef = useRef<
+    {
+      id: string;
+      leftId: string;
+      rightId: string;
+      orientation: "vertical" | "horizontal";
+    }[]
+  >([]);
+  const [editingDimensions, setEditingDimensions] = useState<Record<string, string>>({});
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSlidingPanelIndex, setSelectedSlidingPanelIndex] = useState<number | null>(null);
@@ -2042,26 +2063,26 @@ const dividerBadgesRef = useRef<
   const root = present;
   const selectedNode = (selectedId ? findNode(root, selectedId) : null) ?? root;
   const selectedNodeIsPureCasement = useMemo(() => {
-  const systems = new Set<SystemType>();
+    const systems = new Set<SystemType>();
 
-  mapLeafNodes(selectedNode, (leaf) => {
-    systems.add(leaf.systemType);
-  });
+    mapLeafNodes(selectedNode, (leaf) => {
+      systems.add(leaf.systemType);
+    });
 
-  return systems.size === 1 && systems.has("Casement");
-}, [selectedNode]);
-useEffect(() => {
-  if (selectedNodeIsPureCasement) {
-    setMeta((prev) => ({
-      ...prev,
-      frameCutAngle: "45",
-      shutterCutAngle: "45",
-    }));
-  }
-}, [selectedNodeIsPureCasement]);
+    return systems.size === 1 && systems.has("Casement");
+  }, [selectedNode]);
+  useEffect(() => {
+    if (selectedNodeIsPureCasement) {
+      setMeta((prev) => ({
+        ...prev,
+        frameCutAngle: "45",
+        shutterCutAngle: "45",
+      }));
+    }
+  }, [selectedNodeIsPureCasement]);
   const selectedSystemSupportsCatalog = isCatalogSystem(selectedNode.systemType);
   const canInsertExhaustFan = selectedNode.systemType === "Casement" && selectedNode.description === "Fix" && !selectedNode.children?.length;
-  const hasAdjustableExhaustFan = !selectedNode.children?.length && (selectedNode.systemType === "Exhaust Fan" || Boolean(selectedNode.hasExhaustFan));
+  const hasAdjustableExhaustFan = !selectedNode.children?.length && Boolean(selectedNode.hasExhaustFan);
   const isSlidingPanelSelection = selectedNode.systemType === "Sliding" && !selectedNode.children?.length && (selectedNode.panelFractions?.length ?? 0) > 1 && selectedSlidingPanelIndex !== null && selectedSlidingPanelIndex >= 0 && selectedSlidingPanelIndex < (selectedNode.panelFractions?.length ?? 0);
   const showSummaryPopup = selectedId !== null || selectedDivider !== null;
   const systemsQuery = useSystemsQuery();
@@ -2070,8 +2091,8 @@ useEffect(() => {
   const optionsSystemType = selectedSystemSupportsCatalog ? selectedNode.systemType || baseSystemType : "";
   const metaOptionsQuery = useOptionsQuery(optionsSystemType);
   const combinationOptionsQuery = useOptionsQuery(baseSystemType);
-  const systemOptions = Array.from(new Set([...(systemsQuery.data?.systems ?? ["Casement", "Sliding", "Slide N Fold"]), "Louvers", "Exhaust Fan"]));
-  const selectableSystemOptions = systemOptions.filter((sys): sys is SystemType => sys === "Casement" || sys === "Sliding" || sys === "Slide N Fold" || sys === "Louvers" || sys === "Exhaust Fan");
+  const systemOptions = Array.from(new Set([...(systemsQuery.data?.systems ?? ["Casement", "Sliding", "Slide N Fold"]).filter((sys) => sys !== "Exhaust Fan"), "Louvers"]));
+  const selectableSystemOptions = systemOptions.filter((sys): sys is SystemType => sys === "Casement" || sys === "Sliding" || sys === "Slide N Fold" || sys === "Louvers");
   const seriesOptions = selectedSeriesQuery.data?.series ?? [];
   const descriptionOptions = selectedDescriptionsQuery.data?.descriptions ?? [];
   const { data: louversRates } = useQuery({
@@ -2080,31 +2101,31 @@ useEffect(() => {
     enabled: true,
   });
 
-//   useEffect(() => {
-//   if (meta.systemType === "Casement") {
-//     setMeta((prev) => ({
-//       ...prev,
-//       frameCutAngle: "45",
-//       shutterCutAngle: "45",
-//     }));
-//   }
-// }, [meta.systemType]);
-// useEffect(() => {
-//   setMeta((prev) => ({
-//     ...prev,
-//     frameCutAngle: meta.systemType === "Casement" ? "45" : "90",
-//     shutterCutAngle: meta.systemType === "Casement" ? "45" : "90",
-//   }));
-// }, [meta.systemType]);
-// useEffect(() => {
-//   setMeta((prev) => ({
-//     ...prev,
-//     frameCutAngle:
-//       selectedNode.systemType === "Casement" ? "45" : "90",
-//     shutterCutAngle:
-//       selectedNode.systemType === "Casement" ? "45" : "90",
-//   }));
-// }, [selectedNode.systemType]);
+  //   useEffect(() => {
+  //   if (meta.systemType === "Casement") {
+  //     setMeta((prev) => ({
+  //       ...prev,
+  //       frameCutAngle: "45",
+  //       shutterCutAngle: "45",
+  //     }));
+  //   }
+  // }, [meta.systemType]);
+  // useEffect(() => {
+  //   setMeta((prev) => ({
+  //     ...prev,
+  //     frameCutAngle: meta.systemType === "Casement" ? "45" : "90",
+  //     shutterCutAngle: meta.systemType === "Casement" ? "45" : "90",
+  //   }));
+  // }, [meta.systemType]);
+  // useEffect(() => {
+  //   setMeta((prev) => ({
+  //     ...prev,
+  //     frameCutAngle:
+  //       selectedNode.systemType === "Casement" ? "45" : "90",
+  //     shutterCutAngle:
+  //       selectedNode.systemType === "Casement" ? "45" : "90",
+  //   }));
+  // }, [selectedNode.systemType]);
 
 
 
@@ -2353,39 +2374,41 @@ useEffect(() => {
     height: number,
     area: number
   ) => {
-    const series = leaf.series || "";
-    const description = leaf.description || getDefaultLeafDescription(leaf.systemType, meta.productType, leaf.hasExhaustFan);
-    if (!series || !description) {
+    const louver = isLouverSystem(leaf.systemType);
+    const series = louver ? "" : leaf.series || "";
+    const description = louver ? "" : leaf.description || getDefaultLeafDescription(leaf.systemType, meta.productType, leaf.hasExhaustFan);
+    if (!louver && (!series || !description)) {
       throw new Error("Select a series and description before calculating the rate.");
     }
     const [result] = await calculateQuotationRates([{
-        clientId: leaf.id,
-        systemType: leaf.systemType,
-        series,
-        description,
-        width,
-        height,
-        area,
-        frameCutAngle: normalizeCutAngle(meta.frameCutAngle),
-        shutterCutAngle: normalizeCutAngle(meta.shutterCutAngle),
-        cuttingScheduleKey: String(getCuttingScheduleKey(normalizeCutAngle(meta.frameCutAngle), normalizeCutAngle(meta.shutterCutAngle))),
-        glassSpec: leaf.glass === "Yes" ? (sectionMeta.glassSpec || "Yes") : "",
-        hardwareOpeningType: leaf.systemType === "Casement" ? sectionMeta.hardwareOpeningType : "",
+      clientId: leaf.id,
+      systemType: leaf.systemType,
+      series,
+      description,
+      width,
+      height,
+      area,
+      frameCutAngle: normalizeCutAngle(meta.frameCutAngle),
+      shutterCutAngle: normalizeCutAngle(meta.shutterCutAngle),
+      cuttingScheduleKey: String(getCuttingScheduleKey(normalizeCutAngle(meta.frameCutAngle), normalizeCutAngle(meta.shutterCutAngle))),
+      glassSpec: leaf.glass === "Yes" ? (sectionMeta.glassSpec || "Yes") : "",
+      hardwareOpeningType: leaf.systemType === "Casement" ? sectionMeta.hardwareOpeningType : "",
     }]);
     const [descriptionsResp, optionsResp] = await Promise.all([
-      fetchDescriptions(leaf.systemType, series),
+      fetchDescriptions(leaf.systemType, louver ? "_" : series),
       fetchOptions(leaf.systemType),
     ]);
     const calc = calculateRateForItem({
-        area,
-        systemType: leaf.systemType,
-        description,
-        colorFinish: meta.colorFinish,
-        glassSpec: leaf.glass === "Yes" ? (sectionMeta.glassSpec || "Yes") : "",
-        handleType: sectionMeta.handleType,
-        handleColor: sectionMeta.handleColor,
-        meshPresent: leaf.mesh,
-        meshType: leaf.mesh === "Yes" ? sectionMeta.meshType : "",
+      area,
+      systemType: leaf.systemType,
+      description,
+      colorFinish: meta.colorFinish,
+      glassSpec: leaf.glass === "Yes" ? (sectionMeta.glassSpec || "Yes") : "",
+      handleType: sectionMeta.handleType,
+      handleColor: sectionMeta.handleColor,
+      meshPresent: leaf.mesh,
+      meshType: leaf.mesh === "Yes" ? sectionMeta.meshType : "",
+      hasExhaustFan: Boolean(leaf.hasExhaustFan),
     }, descriptionsResp.descriptions, optionsResp, systemsQuery.data?.systems, louversRates, result.baseRate);
     return { rate: roundToTwo(calc.rate), result };
   };
@@ -2396,9 +2419,10 @@ useEffect(() => {
     const inputs = leaves.map((leaf) => {
       const height = getEffectiveLeafHeightRatio(root, leaf) * heightMm;
       const area = mmToSqft(leaf.w * widthMm, height);
-      const series = leaf.series || "";
-      const description = leaf.description || getDefaultLeafDescription(leaf.systemType, meta.productType, leaf.hasExhaustFan);
-      if (!series || !description) throw new Error("Select a series and description for every sub-item before calculating the rate.");
+      const louver = isLouverSystem(leaf.systemType);
+      const series = louver ? "" : leaf.series || "";
+      const description = louver ? "" : leaf.description || getDefaultLeafDescription(leaf.systemType, meta.productType, leaf.hasExhaustFan);
+      if (!louver && (!series || !description)) throw new Error("Select a series and description for every sub-item before calculating the rate.");
       return {
         leaf,
         height,
@@ -2453,7 +2477,7 @@ useEffect(() => {
       if (!result) throw new Error(`Rate calculation returned no result for ${description}.`);
       const sectionMeta = getLeafSectionMeta(leaf.id);
       const [descriptionsResp, optionsResp] = await Promise.all([
-        fetchDescriptions(leaf.systemType, series),
+        fetchDescriptions(leaf.systemType, isLouverSystem(leaf.systemType) ? "_" : series),
         fetchOptions(leaf.systemType),
       ]);
       const calc = calculateRateForItem({
@@ -2466,6 +2490,7 @@ useEffect(() => {
         handleColor: sectionMeta.handleColor,
         meshPresent: leaf.mesh,
         meshType: leaf.mesh === "Yes" ? sectionMeta.meshType : "",
+        hasExhaustFan: Boolean(leaf.hasExhaustFan),
       }, descriptionsResp.descriptions, optionsResp, systemsQuery.data?.systems, louversRates, result.baseRate);
       const rate = manualSectionRate !== undefined
         ? roundToTwo(manualSectionRate)
@@ -2571,7 +2596,7 @@ useEffect(() => {
   }, [widthMm, heightMm, root, meta.frameCutAngle, meta.shutterCutAngle, meta.colorFinish, meta.glassSpec, meta.hardwareOpeningType, meta.handleType, meta.handleColor, meta.meshType, childSectionMeta]);
 
 
-   useEffect(() => {
+  useEffect(() => {
     if (isCombinationDraft) return;
     if (isManualRate) return;
     const run = async () => {
@@ -2666,14 +2691,14 @@ useEffect(() => {
     // const frameCutAngle = normalizeCutAngle(meta.frameCutAngle);
     // const shutterCutAngle = normalizeCutAngle(meta.shutterCutAngle);
     const frameCutAngle =
-  selectedNode.systemType === "Casement"
-    ? "45"
-    : normalizeCutAngle(meta.frameCutAngle);
+      selectedNode.systemType === "Casement"
+        ? "45"
+        : normalizeCutAngle(meta.frameCutAngle);
 
-const shutterCutAngle =
-  selectedNode.systemType === "Casement"
-    ? "45"
-    : normalizeCutAngle(meta.shutterCutAngle);
+    const shutterCutAngle =
+      selectedNode.systemType === "Casement"
+        ? "45"
+        : normalizeCutAngle(meta.shutterCutAngle);
     const cuttingScheduleKey = getCuttingScheduleKey(frameCutAngle, shutterCutAngle);
     const calculatedRatesForSave: Record<string, number> = {};
     const calculatedDetailsForSave: Record<string, RateCalculationResult> = {};
@@ -2729,13 +2754,16 @@ const shutterCutAngle =
       await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       gridGroupRef.current?.visible(false);
       layerRef.current?.draw();
-      const cropPadding = 10;
+      const cropLeft = Math.max(0, view.offsetX - 140);
+      const cropTop = Math.max(0, view.offsetY - 10);
+      const cropRight = Math.min(stageSize.w, view.offsetX + view.drawW + 10);
+      const cropBottom = Math.min(stageSize.h, view.offsetY + view.drawH + 75);
       const dataUrl = stageRef.current?.toDataURL({
-        x: view.offsetX - cropPadding,
-        y: view.offsetY - cropPadding,
-        width: view.drawW + cropPadding * 2,
-        height: view.drawH + cropPadding * 2,
-        pixelRatio: 2
+        x: cropLeft,
+        y: cropTop,
+        width: Math.max(1, cropRight - cropLeft),
+        height: Math.max(1, cropBottom - cropTop),
+        pixelRatio: 3
       }) ?? "";
       gridGroupRef.current?.visible(true);
       layerRef.current?.draw();
@@ -2755,9 +2783,9 @@ const shutterCutAngle =
       };
       const getDescriptions = async (systemType: string, series: string) => {
         const key = `${systemType}::${series}`;
-        if (!systemType || !series) return [];
+        if (!systemType || (!series && !isLouverSystem(systemType))) return [];
         if (!descriptionsCache.has(key)) {
-          try { descriptionsCache.set(key, (await fetchDescriptions(systemType, series)).descriptions ?? []); }
+          try { descriptionsCache.set(key, (await fetchDescriptions(systemType, isLouverSystem(systemType) ? "_" : series)).descriptions ?? []); }
           catch { descriptionsCache.set(key, []); }
         }
         return descriptionsCache.get(key) ?? [];
@@ -2775,7 +2803,7 @@ const shutterCutAngle =
         const descriptions = await getDescriptions(systemType, series);
         console.log("DESCRIPTIONS", descriptions);
         const options = await getOptions(systemType);
-        const calc = calculateRateForItem({ area: itemArea, description, systemType: leaf.systemType, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "" }, descriptions, options, systemsQuery.data?.systems, louversRates);
+        const calc = calculateRateForItem({ area: itemArea, description, systemType: leaf.systemType, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "", hasExhaustFan: Boolean(leaf.hasExhaustFan) }, descriptions, options, systemsQuery.data?.systems, louversRates);
         const resolvedRate = manualCombinationRateForSave
           ? calculatedRatesForSave[leaf.id] ?? 0
           : manualChildRates[leaf.id] ?? calculatedRatesForSave[leaf.id] ?? autoChildRates[leaf.id] ?? 0;
@@ -2845,7 +2873,7 @@ const shutterCutAngle =
         const description = singleLeaf.description || getDefaultLeafDescription(systemType, meta.productType, singleLeaf.hasExhaustFan);
         const descriptions = await getDescriptions(systemType, series);
         const options = await getOptions(systemType);
-        const calc = calculateRateForItem({ area: effectiveAreaSqft, description, systemType: meta.systemType, colorFinish: meta.colorFinish, glassSpec: singleLeaf.glass === "Yes" ? (meta.glassSpec || "Yes") : "", handleType: meta.handleType, handleColor: meta.handleColor, meshPresent: singleLeaf.mesh, meshType: singleLeaf.mesh === "Yes" ? meta.meshType : "" }, descriptions, options, systemsQuery.data?.systems, louversRates);
+        const calc = calculateRateForItem({ area: effectiveAreaSqft, description, systemType: meta.systemType, colorFinish: meta.colorFinish, glassSpec: singleLeaf.glass === "Yes" ? (meta.glassSpec || "Yes") : "", handleType: meta.handleType, handleColor: meta.handleColor, meshPresent: singleLeaf.mesh, meshType: singleLeaf.mesh === "Yes" ? meta.meshType : "", hasExhaustFan: Boolean(singleLeaf.hasExhaustFan) }, descriptions, options, systemsQuery.data?.systems, louversRates);
         baseRate = calculatedSingleDetailsForSave?.baseRate ?? singleRateCalculation?.baseRate ?? 0;
         areaSlabIndex = calc.areaSlabIndex;
         handleCount = calc.handleCount;
@@ -2856,15 +2884,7 @@ const shutterCutAngle =
         rate = calculatedParentRateForSave ?? meta.rate;
         amount = roundToTwo(effectiveAreaSqft * rate * parentQuantity);
       }
-      setHideSelectionForExport(true);
-      stageRef.current?.batchDraw();
-
-      await new Promise((res) => setTimeout(res, 500));
-      gridGroupRef.current?.hide();
-      const image = stageRef.current?.toDataURL({
-        pixelRatio: 2
-      });
-      gridGroupRef.current?.show();
+      const image = dataUrl;
       if (!image) {
         throw new Error("Could not capture the quotation item image");
       }
@@ -2901,7 +2921,6 @@ const shutterCutAngle =
         amount,
         sash: isCombination ? undefined : singleLeaf?.sash,
         panelSashes: isCombination ? undefined : singleLeaf?.panelSashes,
-        // refImage: dataUrl,
         refImage: image,
         remarks: meta.remarks || "",
         frameCutAngle,
@@ -2926,7 +2945,7 @@ const shutterCutAngle =
         rateCalculationVersion: (calculatedSingleDetailsForSave ?? singleRateCalculation)?.calculationVersion,
         subItems: isCombination ? subItems : [],
         // configuratorLayout: cloneTree(root) as unknown as Record<string, unknown>,
-         configuratorLayout: (() => {
+        configuratorLayout: (() => {
           const layout = cloneTree(root) as SectionNode;
           layout.dividerTypes = dividerBadgesRef.current.reduce<Record<string, "C" | "M">>((acc, badge) => {
             acc[badge.id] = resolveDividerValue(
@@ -2939,56 +2958,56 @@ const shutterCutAngle =
           }, {});
           return layout as unknown as Record<string, unknown>;
         })(),
-//         joins: dividerBadgesRef.current.map((badge) => ({
-//   p1: badge.leftId,
-//   p2: badge.rightId,
-//   type:
-//     getResolvedSystemType(root, badge.leftId) === "Casement" &&
-//     getResolvedSystemType(root, badge.rightId) === "Casement"
-//       ? "Mullion"
-//       : getResolvedSystemType(root, badge.leftId) === "Sliding" &&
-//         getResolvedSystemType(root, badge.rightId) === "Sliding"
-//       ? "Coupler"
-//       : badgeValues[badge.id] === "M"
-//       ? "Mullion"
-//       : "Coupler",
-// })),
+        //         joins: dividerBadgesRef.current.map((badge) => ({
+        //   p1: badge.leftId,
+        //   p2: badge.rightId,
+        //   type:
+        //     getResolvedSystemType(root, badge.leftId) === "Casement" &&
+        //     getResolvedSystemType(root, badge.rightId) === "Casement"
+        //       ? "Mullion"
+        //       : getResolvedSystemType(root, badge.leftId) === "Sliding" &&
+        //         getResolvedSystemType(root, badge.rightId) === "Sliding"
+        //       ? "Coupler"
+        //       : badgeValues[badge.id] === "M"
+        //       ? "Mullion"
+        //       : "Coupler",
+        // })),
         joins: dividerBadgesRef.current.map((badge) => ({
-  p1: badge.leftId,
-  p2: badge.rightId,
-  type: resolveDividerValue(root, badge.leftId, badge.rightId, badgeValues[badge.id]) === "M"
-    ? "Mullion"
-    : "Coupler",
-})),
+          p1: badge.leftId,
+          p2: badge.rightId,
+          type: resolveDividerValue(root, badge.leftId, badge.rightId, badgeValues[badge.id]) === "M"
+            ? "Mullion"
+            : "Coupler",
+        })),
 
-laborRate: persistedItem?.laborRate ?? 0,
+        laborRate: persistedItem?.laborRate ?? 0,
         transportRate: persistedItem?.transportRate ?? 0,
         discountPercent: persistedItem?.discountPercent ?? 0,
         previewPanels: persistedItem?.previewPanels ?? 1,
       };
       console.log(
-  "LEAF IDS",
-  leafNodes.map((l) => ({
-    leafId: l.id,
-    system: l.systemType,
-  }))
-);
+        "LEAF IDS",
+        leafNodes.map((l) => ({
+          leafId: l.id,
+          system: l.systemType,
+        }))
+      );
 
-console.log(
-  "SUBITEM IDS",
-  subItems.map((s) => ({
-    subItemId: s.id,
-    refCode: s.refCode,
-  }))
-);
+      console.log(
+        "SUBITEM IDS",
+        subItems.map((s) => ({
+          subItemId: s.id,
+          refCode: s.refCode,
+        }))
+      );
 
-console.log(
-  "DIVIDER BADGES",
-  dividerBadgesRef.current
-);
+      console.log(
+        "DIVIDER BADGES",
+        dividerBadgesRef.current
+      );
       console.log("JOINS:", nextItem.joins);
-console.log("ITEM:", nextItem);
-console.log("SUBITEMS:", nextItem.subItems);
+      console.log("ITEM:", nextItem);
+      console.log("SUBITEMS:", nextItem.subItems);
 
       await onSaveItem(nextItem);
       onClose();
@@ -3071,7 +3090,7 @@ console.log("SUBITEMS:", nextItem.subItems);
     const rootArchHeightRatio = normalizeArchHeightRatio(root.archHeightRatio);
     addProfileRect(layer, fx, fy, fw, fh, selectedForRender === "root", rootArchType, rootArchHeightRatio);
     const rootHit = new Konva.Rect({ x: fx, y: fy, width: fw, height: fh, fill: "transparent" });
-    rootHit.on("mousedown touchstart", () => {  setSelectedDivider(null); setSelectedId("root"); setSelectedSlidingPanelIndex(null); });
+    rootHit.on("mousedown touchstart", () => { setSelectedDivider(null); setSelectedId("root"); setSelectedSlidingPanelIndex(null); });
     layer.add(rootHit);
     const contentGroup = new Konva.Group({
       clipFunc: (ctx) => {
@@ -3088,11 +3107,12 @@ console.log("SUBITEMS:", nextItem.subItems);
       },
     });
     layer.add(contentGroup);
-    const dividerBadges: { id: string; x: number; y: number;
+    const dividerBadges: {
+      id: string; x: number; y: number;
       // leftSystem: SystemType;rightSystem: SystemType;
-     leftId: string;
-    rightId: string;
-    orientation: "vertical" | "horizontal";
+      leftId: string;
+      rightId: string;
+      orientation: "vertical" | "horizontal";
     }[] = [];
     const drawParentDividers = (parent: SectionNode) => {
       if (!parent.children || parent.children.length < 2) return;
@@ -3184,7 +3204,7 @@ console.log("SUBITEMS:", nextItem.subItems);
             DEFAULT_ARCH_HEIGHT_RATIO,
             leaf.glass === "Yes" ? COLORS.glass : "#FFFFFF",
             COLORS.glassStroke,
-            leaf.glass === "Yes" ? 1 : 0.6
+            leaf.glass === "Yes" ? 0.85 : 0.6
           );
         const drawPanels = (fractions: number[], sashTypes?: SashType[], meshCount = 0) => {
           const isPanelizedSliding = leaf.systemType === "Sliding" && fractions.length > 1;
@@ -3215,15 +3235,15 @@ console.log("SUBITEMS:", nextItem.subItems);
         };
         const isOneOf = (...variants: string[]) => variants.includes(desc);
         if (leaf.systemType === "Louvers" || desc === "Louvers") { fixedPanel(innerX, innerY, innerW, innerH); drawLouversGuide(g, innerX, innerY, innerW, innerH); return true; }
-        if (leaf.systemType === "Exhaust Fan" || leaf.hasExhaustFan || desc === "Exhaust Fan" || desc === "Fix + Exhaust Fan") { fixedPanel(innerX, innerY, innerW, innerH); drawExhaustFanGuide(g, innerX, innerY, innerW, innerH, leaf.exhaustFanX, leaf.exhaustFanY, leaf.exhaustFanSize); return true; }
+        if (leaf.hasExhaustFan) { fixedPanel(innerX, innerY, innerW, innerH); drawExhaustFanGuide(g, innerX, innerY, innerW, innerH, leaf.exhaustFanX, leaf.exhaustFanY, leaf.exhaustFanSize); return true; }
         if (isBlankSystem(leaf.systemType ||
           desc === "Blank Area")) {
           drawBlankArea(g, x, y, w, h);
           return true;
         }
         if (desc === "Fix") { fixedPanel(innerX, innerY, innerW, innerH); return true; }
-        if (isOneOf("Left Openable", "Left Openable Door-Window", "Left Openable Window", "Left Openable Door","Outward Window L","Outward Door L","Inward Door L","Inward Window L")) { fixedPanel(innerX, innerY, innerW, innerH); drawCasementSwingGuide(g, innerX, innerY, innerW, innerH, "left"); return true; }
-        if (isOneOf("Right Openable", "Right Openable Door-Window", "Right Openable Window", "Right Openable Door","Outward Window R","Outward Door R","Inward Door R","Inward Window R")) { fixedPanel(innerX, innerY, innerW, innerH); drawCasementSwingGuide(g, innerX, innerY, innerW, innerH, "right"); return true; }
+        if (isOneOf("Left Openable", "Left Openable Door-Window", "Left Openable Window", "Left Openable Door", "Outward Window L", "Outward Door L", "Inward Door L", "Inward Window L")) { fixedPanel(innerX, innerY, innerW, innerH); drawCasementSwingGuide(g, innerX, innerY, innerW, innerH, "left"); return true; }
+        if (isOneOf("Right Openable", "Right Openable Door-Window", "Right Openable Window", "Right Openable Door", "Outward Window R", "Outward Door R", "Inward Door R", "Inward Window R")) { fixedPanel(innerX, innerY, innerW, innerH); drawCasementSwingGuide(g, innerX, innerY, innerW, innerH, "right"); return true; }
         if (desc === "Top Hung Window") { fixedPanel(innerX, innerY, innerW, innerH); drawTopHungGuide(g, innerX, innerY, innerW, innerH); return true; }
         if (desc === "Bottom Hung Window") { fixedPanel(innerX, innerY, innerW, innerH); drawBottomHungGuide(g, innerX, innerY, innerW, innerH); return true; }
         if (desc === "Parallel Window") { fixedPanel(innerX, innerY, innerW, innerH); drawSashGlyph(g, innerX, innerY, innerW, innerH, "double", COLORS.frameDark); return true; }
@@ -3263,7 +3283,7 @@ console.log("SUBITEMS:", nextItem.subItems);
           DEFAULT_ARCH_HEIGHT_RATIO,
           leaf.glass === "Yes" ? COLORS.glass : "#FFFFFF",
           COLORS.glassStroke,
-          leaf.glass === "Yes" ? 1 : 0.6
+          leaf.glass === "Yes" ? 0.85 : 0.6
         );
       }
       const parsedPattern = parsePanelPattern(leaf.description || "");
@@ -3274,7 +3294,7 @@ console.log("SUBITEMS:", nextItem.subItems);
       const hasSlidingPanels = isSliding && (leaf.panelFractions?.length ?? 0) > 1;
       const isSlideFold = leaf.systemType === "Slide N Fold";
       const isLouver = leaf.systemType === "Louvers";
-      const isExhaust = leaf.systemType === "Exhaust Fan" || Boolean(leaf.hasExhaustFan);
+      const isExhaust = Boolean(leaf.hasExhaustFan);
       const isCustomSlideNFoldPattern = isSlideFold && (isSlideNFoldTwoPanelOnePlusOne(leaf.description || "") || isSlideNFoldThreePanelOnePlusTwo(leaf.description || "") || isSlideNFoldFourPanelOnePlusThree(leaf.description || "") || isSlideNFoldFivePanelOnePlusFour(leaf.description || "") || isSlideNFoldSixPanelOnePlusFive(leaf.description || ""));
       const isOpenable = !isSliding && !isSlideFold && !isLouver && !isExhaust && leaf.sash !== "fixed";
       const isSlidingMove = isSliding && (leaf.sash === "left" || leaf.sash === "right" || leaf.sash === "double");
@@ -3325,55 +3345,55 @@ console.log("SUBITEMS:", nextItem.subItems);
       contentGroup.add(g);
     });
 
-   
-dividerBadges.forEach(({id, x, y,leftId,rightId }) => {
-  const badgeGroup = new Konva.Group({
-    listening: true,
-  });
 
-  const circle = new Konva.Circle({
-    x,
-    y,
-    radius: 14,
-    fill: "#111111",
-    stroke: "#FFD700",
-    strokeWidth: 2,
-  });
-  // const displayValue =
-  // leftSystem === "Casement" && rightSystem === "Casement"
-  //   ? "M"
-  //   : leftSystem === "Sliding" && rightSystem === "Sliding"
-  //   ? "C"
-  //   : badgeValues[id] ?? "C";
-  const displayValue = resolveDividerValue(root, leftId, rightId, badgeValues[id]);
+    dividerBadges.forEach(({ id, x, y, leftId, rightId }) => {
+      const badgeGroup = new Konva.Group({
+        listening: true,
+      });
 
-  const text = new Konva.Text({
-    x: x - 14,
-    y: y - 8,
-    width: 28,
-    align: "center",
-    text: displayValue,
-    fontSize: 13,
-    fontStyle: "bold",
-    fill: "#FFFFFF",
-  });
+      const circle = new Konva.Circle({
+        x,
+        y,
+        radius: 14,
+        fill: "#111111",
+        stroke: "#FFD700",
+        strokeWidth: 2,
+      });
+      // const displayValue =
+      // leftSystem === "Casement" && rightSystem === "Casement"
+      //   ? "M"
+      //   : leftSystem === "Sliding" && rightSystem === "Sliding"
+      //   ? "C"
+      //   : badgeValues[id] ?? "C";
+      const displayValue = resolveDividerValue(root, leftId, rightId, badgeValues[id]);
 
-  badgeGroup.add(circle);
-  badgeGroup.add(text);
+      const text = new Konva.Text({
+        x: x - 14,
+        y: y - 8,
+        width: 28,
+        align: "center",
+        text: displayValue,
+        fontSize: 13,
+        fontStyle: "bold",
+        fill: "#FFFFFF",
+      });
 
-badgeGroup.on("mousedown touchstart", (e) => {
-   e.cancelBubble = true;
-    setSelectedId(null);
-    setSelectedSlidingPanelIndex(null);
-    setSelectedDivider({
-        id,
-     leftId,
-    rightId,
+      badgeGroup.add(circle);
+      badgeGroup.add(text);
+
+      badgeGroup.on("mousedown touchstart", (e) => {
+        e.cancelBubble = true;
+        setSelectedId(null);
+        setSelectedSlidingPanelIndex(null);
+        setSelectedDivider({
+          id,
+          leftId,
+          rightId,
+        });
+      });
+      contentGroup.add(badgeGroup);
+
     });
-});
-  contentGroup.add(badgeGroup);
-
-});
 
     // A dimension label can select a split group rather than an individual leaf.
     // Draw its selection last and outside the clipped content group so edges that
@@ -3404,7 +3424,7 @@ badgeGroup.on("mousedown touchstart", (e) => {
       }
     }
 
-const splitDepths: Array<{ split: SplitDirection; depth: number }> = [];
+    const splitDepths: Array<{ split: SplitDirection; depth: number }> = [];
     const collectSplitDepths = (node: SectionNode, depth = 0) => {
       if (node.children && node.children.length >= 2 && node.split !== "none") splitDepths.push({ split: node.split, depth });
       node.children?.forEach((child) => collectSplitDepths(child, depth + 1));
@@ -3422,20 +3442,24 @@ const splitDepths: Array<{ split: SplitDirection; depth: number }> = [];
     const sideTopRatio = rootArchType !== "none" ? getArchTopRatioAtX(root.archType, root.archHeightRatio, 0) : 0;
     const sideTopY = fy + sideTopRatio * fh;
     const effectiveSideHeight = Math.round(heightMm * (1 - sideTopRatio));
-    const mainHeightGuideX = fx - horizontalGuideBase - (maxHorizontalLevel >= 0 ? (maxHorizontalLevel + 1) * hierarchyOffset : 26);
-    const mainWidthGuideY = fy + fh + verticalGuideBase + (maxVerticalLevel >= 0 ? (maxVerticalLevel + 1) * hierarchyOffset : 26);
+    const mainHeightGuideX = hideSelectionForExport
+      ? fx - 35
+      : fx - horizontalGuideBase - (maxHorizontalLevel >= 0 ? (maxHorizontalLevel + 1) * hierarchyOffset : 26);
+    const mainWidthGuideY = hideSelectionForExport
+      ? fy + fh + 35
+      : fy + fh + verticalGuideBase + (maxVerticalLevel >= 0 ? (maxVerticalLevel + 1) * hierarchyOffset : 26);
 
-    addDimensionLine(layer, mainHeightGuideX, sideTopY, mainHeightGuideX, fy + fh, `${rootArchType !== "none" ? effectiveSideHeight : heightMm} `);
-    addDimensionLine(layer, fx, mainWidthGuideY, fx + fw, mainWidthGuideY, `${widthMm} `);
+    addDimensionLine(layer, mainHeightGuideX, sideTopY, mainHeightGuideX, fy + fh, `${rootArchType !== "none" ? effectiveSideHeight : heightMm} `, hideSelectionForExport);
+    addDimensionLine(layer, fx, mainWidthGuideY, fx + fw, mainWidthGuideY, `${widthMm} `, hideSelectionForExport);
     if (!hideSelectionForExport) {
 
       if (root.split === "vertical" && (root.children?.length ?? 0) >= 2) {
         const y2 = fy + fh + verticalGuideBase;
-        root.children!.forEach((c) => addDimensionLine(layer, fx + c.x * fw, y2, fx + (c.x + c.w) * fw, y2, `${Math.round(c.w * widthMm)}`));
+        root.children!.forEach((c) => addDimensionLine(layer, fx + c.x * fw, y2, fx + (c.x + c.w) * fw, y2, `${Math.round(c.w * widthMm)}`, false));
       }
       if (root.split === "horizontal" && (root.children?.length ?? 0) >= 2) {
         const x2 = fx - horizontalGuideBase;
-        root.children!.forEach((c) => addDimensionLine(layer, x2, fy + c.y * fh, x2, fy + (c.y + c.h) * fh, `${Math.round(heightMm * c.h)}`));
+        root.children!.forEach((c) => addDimensionLine(layer, x2, fy + c.y * fh, x2, fy + (c.y + c.h) * fh, `${Math.round(heightMm * c.h)}`, false));
       }
     }
     const leaves2: SectionNode[] = [];
@@ -3443,7 +3467,7 @@ const splitDepths: Array<{ split: SplitDirection; depth: number }> = [];
     const rightMost = [...leaves2].sort((a, b) => (b.x + b.w) - (a.x + a.w) || (b.y + b.h) - (a.y + a.h))[0];
     if (rightMost) addTag(contentGroup, fx + rightMost.x * fw + rightMost.w * fw - 54, fy + rightMost.y * fh + rightMost.h * fh - 54, "F1");
     layer.draw();
-  }, [heightMm, hideSelectionForExport, panOffset, root, selectedId, selectedSlidingPanelIndex, stageSize.h, stageSize.w, view, widthMm,badgeValues]);
+  }, [heightMm, hideSelectionForExport, panOffset, root, selectedId, selectedSlidingPanelIndex, stageSize.h, stageSize.w, view, widthMm, badgeValues]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -3499,7 +3523,7 @@ const splitDepths: Array<{ split: SplitDirection; depth: number }> = [];
     if (!editingItem) return;
     const mapped = mapItemToConfiguratorState(editingItem);
     console.log("EDITING ITEM JOINS");
-console.dir(editingItem.joins, { depth: null });
+    console.dir(editingItem.joins, { depth: null });
     setWidthMm(mapped.width);
     setHeightMm(mapped.height);
     setBaseSystemType(mapped.baseSystemType);
@@ -3507,8 +3531,8 @@ console.dir(editingItem.joins, { depth: null });
     setBaseMesh(mapped.baseMesh);
     setMeta(mapped.meta);
     reset(mapped.root);
- console.log("ROOT DIVIDER TYPES");
-console.dir(mapped.root.dividerTypes, { depth: null });
+    console.log("ROOT DIVIDER TYPES");
+    console.dir(mapped.root.dividerTypes, { depth: null });
     const mappedLeaves: SectionNode[] = [];
     mapLeafNodes(mapped.root, (leaf) => mappedLeaves.push(leaf));
     setSelectedId(mappedLeaves.length > 1 ? mappedLeaves[0].id : "root");
@@ -3518,17 +3542,17 @@ console.dir(mapped.root.dividerTypes, { depth: null });
     setSingleRateCalculation(
       editingItem.rateSource === "calculated" && editingItem.calculatedBaseRate !== undefined
         ? {
-            clientId: editingItem.id,
-            baseRate: editingItem.calculatedBaseRate,
-            materialValue: editingItem.profileMaterialValue || 0,
-            area: editingItem.area || 0,
-            totalWeightKg: editingItem.profileWeightKg || 0,
-            nalcoPrice: editingItem.nalcoPriceUsed || 0,
-            nalcoRatePerKg: editingItem.nalcoRatePerKg || 0,
-            calculatedAt: editingItem.rateCalculatedAt || "",
-            calculationVersion: editingItem.rateCalculationVersion || 1,
-            warnings: [],
-          }
+          clientId: editingItem.id,
+          baseRate: editingItem.calculatedBaseRate,
+          materialValue: editingItem.profileMaterialValue || 0,
+          area: editingItem.area || 0,
+          totalWeightKg: editingItem.profileWeightKg || 0,
+          nalcoPrice: editingItem.nalcoPriceUsed || 0,
+          nalcoRatePerKg: editingItem.nalcoRatePerKg || 0,
+          calculatedAt: editingItem.rateCalculatedAt || "",
+          calculationVersion: editingItem.rateCalculationVersion || 1,
+          warnings: [],
+        }
         : null
     );
     const leaves: SectionNode[] = [];
@@ -3630,22 +3654,22 @@ console.dir(mapped.root.dividerTypes, { depth: null });
       ) : null}
     </>
   ) : null;
-//  const dividerValue =
-//   onlyMullion
-//     ? "M"
-//     : onlyCoupler
-//     ? "C"
-//     : selectedDivider
-//       ? (badgeValues[selectedDivider.id] ?? "C")
-//       : "C";
-const dividerValue = selectedDivider
-  ? resolveDividerValue(
+  //  const dividerValue =
+  //   onlyMullion
+  //     ? "M"
+  //     : onlyCoupler
+  //     ? "C"
+  //     : selectedDivider
+  //       ? (badgeValues[selectedDivider.id] ?? "C")
+  //       : "C";
+  const dividerValue = selectedDivider
+    ? resolveDividerValue(
       root,
       selectedDivider.leftId,
       selectedDivider.rightId,
       badgeValues[selectedDivider.id]
     )
-  : "C";
+    : "C";
 
   return (
     <div className="relative h-full w-full overflow-hidden border border-slate-300 bg-white shadow-2xl">
@@ -3667,8 +3691,48 @@ const dividerValue = selectedDivider
                 <div key={label.id} className="pointer-events-auto absolute w-[88px]" style={{ left: label.x, top: label.y }}>
                   <input
                     type="number"
-                    value={label.value}
-                    onChange={(e) => label.onChange(Number(e.target.value))}
+                      value={label.value}
+                    // value={editingDimensions[label.id] ?? String(label.value)}
+                     onChange={(e) => label.onChange(Number(e.target.value))}
+                    // onChange={(e) => {
+                    //   const value = e.target.value;
+
+                    //   if (/^\d*$/.test(value)) {
+                    //     setEditingDimensions((prev) => ({
+                    //       ...prev,
+                    //       [label.id]: value,
+                    //     }));
+                    //   }
+                    // }}
+//                     onBlur={() => {
+//   const value = editingDimensions[label.id];
+
+//   if (value !== undefined) {
+//     const num = Number(value);
+
+//     if (!Number.isNaN(num)) {
+//       label.onChange(num);
+//     }
+
+//     setEditingDimensions((prev) => {
+//       const next = { ...prev };
+//       delete next[label.id];
+//       return next;
+//     });
+//   }
+// }}
+                    // // onChange={(e) => {
+                    ////   const value = e.target.value;
+                    //   //   if (value === "") return;
+                    //   //   label.onChange(Number(value));
+                    //   // }}
+                    //  onChange={(e) => {
+                    //   const value = parseInt(e.target.value, 10);
+
+                    //   if (Number.isNaN(value)) return;
+
+                    //   label.onChange(value);
+                    // }}
                     onFocus={(e) => {
                       setSelectedId(label.selectId);
                       setSelectedSlidingPanelIndex(label.panelIndex ?? null);
@@ -3708,38 +3772,38 @@ const dividerValue = selectedDivider
             <div className="mb-5 rounded-lg border border-gray-200 p-3">
               <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Quotation Fields</div>
               <div className="grid grid-cols-1 gap-3 text-sm">
-                
-{selectedDivider && (
-  <label className="text-xs text-gray-600">
-    Divider Type
 
-    <select
-      value={dividerValue}
-      onChange={(e) => {
-        const value = e.target.value as "C" | "M";
+                {selectedDivider && (
+                  <label className="text-xs text-gray-600">
+                    Divider Type
 
-        setBadgeValues((prev) => ({
-          ...prev,
-          [selectedDivider.id]: value,
-        }));
-      }}
-      className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm"
-    >
-      <option value="C">Coupler</option>
-      <option value="M">Mullion</option>
-    </select>
-  </label>
-)}
-{!selectedDivider && (
-                isCombinationParentSelection ? (
-                  <>
-                    <label className="text-xs text-gray-600">Ref Code<input value={meta.refCode} onChange={(e) => setMeta((prev) => ({ ...prev, refCode: e.target.value }))} required className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
-                    <label className="text-xs text-gray-600">Location<input value={meta.location} placeholder="Living Room" onChange={(e) => setMeta((prev) => ({ ...prev, location: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
-                    <label className="text-xs text-gray-600">System<input value={COMBINATION_SYSTEM} readOnly className="mt-1 w-full rounded-md border border-gray-400 bg-gray-50 px-2 py-2 text-sm text-gray-600" /></label>
-                    {archControls}
-                    <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                    <select
+                      value={dividerValue}
+                      onChange={(e) => {
+                        const value = e.target.value as "C" | "M";
 
-{/* <label className="text-xs text-gray-600">
+                        setBadgeValues((prev) => ({
+                          ...prev,
+                          [selectedDivider.id]: value,
+                        }));
+                      }}
+                      className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm"
+                    >
+                      <option value="C">Coupler</option>
+                      <option value="M">Mullion</option>
+                    </select>
+                  </label>
+                )}
+                {!selectedDivider && (
+                  isCombinationParentSelection ? (
+                    <>
+                      <label className="text-xs text-gray-600">Ref Code<input value={meta.refCode} onChange={(e) => setMeta((prev) => ({ ...prev, refCode: e.target.value }))} required className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                      <label className="text-xs text-gray-600">Location<input value={meta.location} placeholder="Living Room" onChange={(e) => setMeta((prev) => ({ ...prev, location: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                      <label className="text-xs text-gray-600">System<input value={COMBINATION_SYSTEM} readOnly className="mt-1 w-full rounded-md border border-gray-400 bg-gray-50 px-2 py-2 text-sm text-gray-600" /></label>
+                      {archControls}
+                      <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+
+                      {/* <label className="text-xs text-gray-600">
   Frame Cut Angle
 
   {selectedNodeIsPureCasement ? (
@@ -3793,187 +3857,198 @@ const dividerValue = selectedDivider
   )}
 </label> */}
 
- <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
-                    <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
+                      <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
+                      <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
 
-<label className="text-xs text-gray-600">
-  Colour Finish
-  <select
-    value={meta.colorFinish}
-    onChange={(e) =>
-      setMeta((prev) => ({
-        ...prev,
-        colorFinish: e.target.value,
-      }))
-    }
-    className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
-  >
-    <option value="">Select</option>
-    {combinationOptionsQuery.data?.colorFinishes.map(
-      (opt: OptionWithRate) => (
-        <option key={opt.name} value={opt.name}>
-          {opt.name}
-        </option>
-      )
-    )}
-  </select>
-</label>
 
-<RateCalculationAction
+                      <label className="text-xs text-gray-600">
+                        Colour Finish
+                        <select
+                          value={meta.colorFinish}
+                          onChange={(e) =>
+                            setMeta((prev) => ({
+                              ...prev,
+                              colorFinish: e.target.value,
+                            }))
+                          }
+                          className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+                        >
+                          <option value="">Select</option>
+                          {combinationOptionsQuery.data?.colorFinishes.map(
+                            (opt: OptionWithRate) => (
+                              <option key={opt.name} value={opt.name}>
+                                {opt.name}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </label>
+
+                      {/* <RateCalculationAction
   isCalculating={isCalculatingRate}
   error={rateCalculationError}
   isStale={rateIsStale}
   result={singleRateCalculation}
   onCalculate={handleCalculateRate}
-/>
+/> */}
 
-<label className="text-xs text-gray-600">
-  Rate
-  <input
-    type="number"
-    min={0}
-    value={meta.rate}
-    onChange={(e) => {
-      setIsManualRate(true);
-      setMeta((prev) => ({
-        ...prev,
-        rate: Number(e.target.value) || 0,
-      }));
-    }}
-    className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
-  />
-</label>
-                    <label className="text-xs text-gray-600">Remarks<textarea value={meta.remarks} onChange={(e) => setMeta((prev) => ({ ...prev, remarks: e.target.value }))} rows={2} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657] resize-none" /></label>
-                  </>
-                ) : (
-                  <>
-                    {isCombinationChildSelection ? (
-                      <label className="text-xs text-gray-600">Ref Code (Auto)<input value={childAutoRef || "Will be generated from parent ref"} readOnly className="mt-1 w-full rounded-md border border-gray-400 bg-gray-50 px-2 py-2 text-sm text-gray-600" /></label>
-                    ) : (
-                      <>
-                        <label className="text-xs text-gray-600">Ref Code<input value={meta.refCode} onChange={(e) => setMeta((prev) => ({ ...prev, refCode: e.target.value }))} required className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
-                        <label className="text-xs text-gray-600">Location<input value={meta.location} placeholder="Living Room" onChange={(e) => setMeta((prev) => ({ ...prev, location: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
-                      </>
-                    )}
-                    {isSlidingPanelSelection ? (
-                      <label className="text-xs text-gray-600">Sliding Movement<select value={selectedNode.panelSashes && selectedNode.panelSashes.length === (selectedNode.panelFractions?.length ?? 0) && selectedSlidingPanelIndex !== null ? (selectedNode.panelSashes[selectedSlidingPanelIndex] ?? "fixed") : "fixed"} onChange={(e) => { const sash = e.target.value as SashType; if (selectedSlidingPanelIndex === null) return; updateSelectedNode((target) => { const panelCount = target.panelFractions?.length ?? 0; if (panelCount < 2) return; const nextSashes = target.panelSashes && target.panelSashes.length === panelCount ? [...target.panelSashes] : buildDefaultSlidingPanelSashes(panelCount); nextSashes[selectedSlidingPanelIndex] = sash; target.panelSashes = nextSashes; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="left">Left Sliding</option><option value="right">Right Sliding</option><option value="double">Both Ways</option><option value="fixed">Fixed</option></select></label>
-                    ) : (
-                      <>
+                      <label className="text-xs text-gray-600">
+                        Rate
+                        <input
+                          type="number"
+                          min={0}
+                          value={meta.rate}
+                          onChange={(e) => {
+                            setIsManualRate(true);
+                            setMeta((prev) => ({
+                              ...prev,
+                              rate: Number(e.target.value) || 0,
+                            }));
+                          }}
+                          className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+                        />
+                      </label>
+                      <label className="text-xs text-gray-600">Colour Finish<select value={meta.colorFinish} onChange={(e) => setMeta((prev) => ({ ...prev, colorFinish: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{combinationOptionsQuery.data?.colorFinishes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
+                      {editingItem && (
+                        <>
+                          <RateCalculationAction
+                            isCalculating={isCalculatingRate}
+                            error={rateCalculationError}
+                            isStale={rateIsStale}
+                            result={singleRateCalculation}
+                            onCalculate={handleCalculateRate}
+                          />
+                          <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={meta.rate} onChange={(e) => { setIsManualRate(true); setMeta((prev) => ({ ...prev, rate: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                        </>
+                      )}
+                      <label className="text-xs text-gray-600">Remarks<textarea value={meta.remarks} onChange={(e) => setMeta((prev) => ({ ...prev, remarks: e.target.value }))} rows={2} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657] resize-none" /></label>
+                    </>
+                  ) : (
+                    <>
+                      {isCombinationChildSelection ? (
+                        <label className="text-xs text-gray-600">Ref Code (Auto)<input value={childAutoRef || "Will be generated from parent ref"} readOnly className="mt-1 w-full rounded-md border border-gray-400 bg-gray-50 px-2 py-2 text-sm text-gray-600" /></label>
+                      ) : (
+                        <>
+                          <label className="text-xs text-gray-600">Ref Code<input value={meta.refCode} onChange={(e) => setMeta((prev) => ({ ...prev, refCode: e.target.value }))} required className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                          <label className="text-xs text-gray-600">Location<input value={meta.location} placeholder="Living Room" onChange={(e) => setMeta((prev) => ({ ...prev, location: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                        </>
+                      )}
+                      {isSlidingPanelSelection ? (
+                        <label className="text-xs text-gray-600">Sliding Movement<select value={selectedNode.panelSashes && selectedNode.panelSashes.length === (selectedNode.panelFractions?.length ?? 0) && selectedSlidingPanelIndex !== null ? (selectedNode.panelSashes[selectedSlidingPanelIndex] ?? "fixed") : "fixed"} onChange={(e) => { const sash = e.target.value as SashType; if (selectedSlidingPanelIndex === null) return; updateSelectedNode((target) => { const panelCount = target.panelFractions?.length ?? 0; if (panelCount < 2) return; const nextSashes = target.panelSashes && target.panelSashes.length === panelCount ? [...target.panelSashes] : buildDefaultSlidingPanelSashes(panelCount); nextSashes[selectedSlidingPanelIndex] = sash; target.panelSashes = nextSashes; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="left">Left Sliding</option><option value="right">Right Sliding</option><option value="double">Both Ways</option><option value="fixed">Fixed</option></select></label>
+                      ) : (
+                        <>
 
-                        <label className="text-xs text-gray-600">
-                          Section System
-                          <select
-                            value={selectedNode.systemType}
-                            onChange={(e) => {
-                              const nextSystem = e.target.value as SystemType;
-                              updateSelectedLeaves((target) => {
-                                target.systemType = nextSystem;
-                                if (nextSystem === "Louvers") {
-                                  target.description = "Louvers";
-                                } else if (nextSystem === "Exhaust Fan") {
-                                  target.description = "Exhaust Fan";
-                                }
-                                else if (nextSystem === "Blank Area") {
-                                  target.description = "Blank Area";
-                                }
-                                else {
-                                  target.description = "";
-                                }
+                          <label className="text-xs text-gray-600">
+                            Section System
+                            <select
+                              value={selectedNode.systemType}
+                              onChange={(e) => {
+                                const nextSystem = e.target.value as SystemType;
+                                updateSelectedLeaves((target) => {
+                                  target.systemType = nextSystem;
+                                  if (nextSystem === "Louvers") {
+                                    target.description = "Louvers";
+                                  }
+                                  else if (nextSystem === "Blank Area") {
+                                    target.description = "Blank Area";
+                                  }
+                                  else {
+                                    target.description = "";
+                                  }
 
-                                target.series = "";
-                                target.hasExhaustFan = isExhaustSystem(nextSystem);
+                                  target.series = "";
+                                  target.hasExhaustFan = false;
 
-                                target.panelSashes = undefined;
-                                target.panelFractions = undefined;
-                                target.panelMeshCount = undefined;
-                                target.archType =
-                                  nextSystem === "Casement"
-                                    ? normalizeArchType(target.archType)
-                                    : "none";
+                                  target.panelSashes = undefined;
+                                  target.panelFractions = undefined;
+                                  target.panelMeshCount = undefined;
+                                  target.archType =
+                                    nextSystem === "Casement"
+                                      ? normalizeArchType(target.archType)
+                                      : "none";
 
-                                target.archHeightRatio = DEFAULT_ARCH_HEIGHT_RATIO;
+                                  target.archHeightRatio = DEFAULT_ARCH_HEIGHT_RATIO;
 
-                                target.mesh =
-                                  isLouverSystem(nextSystem) || isExhaustSystem(nextSystem)
-                                    ? "No"
-                                    : target.mesh;
+                                  target.mesh =
+                                    isLouverSystem(nextSystem)
+                                      ? "No"
+                                      : target.mesh;
 
-                                target.glass =
-                                  isExhaustSystem(nextSystem) || isLouverSystem(nextSystem)
-                                    ? "Yes"
-                                    : target.glass;
+                                  target.glass =
+                                    isLouverSystem(nextSystem)
+                                      ? "Yes"
+                                      : target.glass;
 
-                                target.exhaustFanX = DEFAULT_EXHAUST_FAN_X;
-                                target.exhaustFanY = DEFAULT_EXHAUST_FAN_Y;
-                                target.exhaustFanSize = DEFAULT_EXHAUST_FAN_SIZE;
+                                  target.exhaustFanX = DEFAULT_EXHAUST_FAN_X;
+                                  target.exhaustFanY = DEFAULT_EXHAUST_FAN_Y;
+                                  target.exhaustFanSize = DEFAULT_EXHAUST_FAN_SIZE;
 
-                                if (
-                                  nextSystem !== "Sliding" &&
-                                  (target.sash === "left" ||
-                                    target.sash === "right" ||
-                                    target.sash === "double")
-                                ) {
-                                  target.sash = "fixed";
-                                }
-                              });
-//                               setMeta((prev) => ({
-//   ...prev,
-//   frameCutAngle: nextSystem === "Casement" ? "45" : "90",
-//   shutterCutAngle: nextSystem === "Casement" ? "45" : "90",
-// }));
-                            }}
-                            className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
-                          >
-                            {[
-                              ...(systems?.systems || []),
-                              "Exhaust Fan",
-                              ...(isCombinationChildSelection ? ["Blank Area"] : []),
+                                  if (
+                                    nextSystem !== "Sliding" &&
+                                    (target.sash === "left" ||
+                                      target.sash === "right" ||
+                                      target.sash === "double")
+                                  ) {
+                                    target.sash = "fixed";
+                                  }
+                                });
+                                //                               setMeta((prev) => ({
+                                //   ...prev,
+                                //   frameCutAngle: nextSystem === "Casement" ? "45" : "90",
+                                //   shutterCutAngle: nextSystem === "Casement" ? "45" : "90",
+                                // }));
+                              }}
+                              className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+                            >
+                              {[
+                                ...(systems?.systems || []).filter((sys) => sys !== "Exhaust Fan"),
+                                ...(isCombinationChildSelection ? ["Blank Area"] : []),
 
-                            ].map((sys) => (
-                              <option key={sys} value={sys}>
-                                {sys}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        {selectedSystemSupportsCatalog && (
-                          <>
-                            <label className="text-xs text-gray-600">Section Series<select value={selectedNode.series} onChange={(e) => { const nextSeries = e.target.value; updateSelectedLeaves((target) => { target.series = nextSeries; target.description = ""; target.hasExhaustFan = false; target.panelFractions = undefined; target.panelMeshCount = undefined; target.panelSashes = undefined; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{seriesOptions.map((series) => <option key={series} value={series}>{series}</option>)}</select></label>
-                            <label className="text-xs text-gray-600">Section Description<select value={selectedNode.description} onChange={(e) => { const nextDescription = e.target.value; updateSelectedSectionMeta({ meshType: "" }); if (selectedNode.systemType === "Sliding") { updateSelectedNode((target) => { target.description = nextDescription; target.hasExhaustFan = false; target.split = "none"; target.children = undefined; const pattern = parsePanelPattern(nextDescription); if (pattern) { target.panelFractions = pattern.fractions; target.panelMeshCount = pattern.meshCount; target.mesh = (pattern.meshCount ?? 0) > 0 ? "Yes" : "No"; target.panelSashes = target.panelSashes && target.panelSashes.length === pattern.fractions.length ? target.panelSashes : buildDefaultSlidingPanelSashes(pattern.fractions.length); } else { target.panelFractions = undefined; target.panelMeshCount = undefined; target.mesh = "No"; target.panelSashes = undefined; } }); return; } updateSelectedLeaves((target) => { target.description = nextDescription; target.hasExhaustFan = false; const pattern = parsePanelPattern(nextDescription); if (pattern) { target.panelFractions = pattern.fractions; target.panelMeshCount = pattern.meshCount; target.panelSashes = undefined; } else { target.panelFractions = undefined; target.panelMeshCount = undefined; target.panelSashes = undefined; } }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{descriptionOptions.map((desc: Description) => <option key={desc.name} value={desc.name}>{desc.name}</option>)}</select></label>
-                            <label className="text-xs text-gray-600">Section Glass<select value={selectedNode.glass} onChange={(e) => { const value = e.target.value as YesNo; updateSelectedLeaves((target) => { target.glass = value; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="Yes">Yes</option><option value="No">No</option></select></label>
-                            <label className="text-xs text-gray-600">Section Mesh<select value={selectedNode.mesh} onChange={(e) => { if (selectedNode.systemType === "Sliding") return; const value = e.target.value as YesNo; updateSelectedLeaves((target) => { target.mesh = value; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" disabled={selectedNode.systemType === "Sliding"}><option value="No">No</option><option value="Yes">Yes</option></select></label>
-                            {archControls}
-                          </>
-                        )}
-                        {canInsertExhaustFan && <label className="text-xs text-gray-600">Exhaust Fan Insert<select value={selectedNode.hasExhaustFan ? "Yes" : "No"} onChange={(e) => { const shouldInsert = e.target.value === "Yes"; updateSelectedLeaves((target) => { target.hasExhaustFan = shouldInsert; target.glass = "Yes"; target.mesh = "No"; target.exhaustFanX = DEFAULT_EXHAUST_FAN_X; target.exhaustFanY = DEFAULT_EXHAUST_FAN_Y; target.exhaustFanSize = DEFAULT_EXHAUST_FAN_SIZE; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="No">No</option><option value="Yes">Yes</option></select><div className="mt-1 text-[11px] text-gray-500">Fixed glass section will include the exhaust fan cut-out.</div></label>}
-                        {hasAdjustableExhaustFan && (
-                          <>
-                            <label className="text-xs text-gray-600">Fan Horizontal Position<input type="range" min={18} max={82} step={1} value={Math.round((selectedNode.exhaustFanX ?? DEFAULT_EXHAUST_FAN_X) * 100)} onChange={(e) => { const value = Number(e.target.value) / 100; updateSelectedNode((target) => { target.exhaustFanX = clampValue(value, 0.18, 0.82); }); }} className="mt-2 w-full" /><div className="mt-1 text-[11px] text-gray-500">{Math.round((selectedNode.exhaustFanX ?? DEFAULT_EXHAUST_FAN_X) * 100)}%</div></label>
-                            <label className="text-xs text-gray-600">Fan Vertical Position<input type="range" min={18} max={82} step={1} value={Math.round((selectedNode.exhaustFanY ?? DEFAULT_EXHAUST_FAN_Y) * 100)} onChange={(e) => { const value = Number(e.target.value) / 100; updateSelectedNode((target) => { target.exhaustFanY = clampValue(value, 0.18, 0.82); }); }} className="mt-2 w-full" /><div className="mt-1 text-[11px] text-gray-500">{Math.round((selectedNode.exhaustFanY ?? DEFAULT_EXHAUST_FAN_Y) * 100)}%</div></label>
-                            <label className="text-xs text-gray-600">Fan Size<input type="range" min={20} max={90} step={1} value={Math.round((selectedNode.exhaustFanSize ?? DEFAULT_EXHAUST_FAN_SIZE) * 100)} onChange={(e) => { const value = Number(e.target.value) / 100; updateSelectedNode((target) => { target.exhaustFanSize = clampValue(value, 0.2, 0.9); }); }} className="mt-2 w-full" /><div className="mt-1 text-[11px] text-gray-500">{Math.round((selectedNode.exhaustFanSize ?? DEFAULT_EXHAUST_FAN_SIZE) * 100)}%</div></label>
-                          </>
-                        )}
-                        {selectedSystemSupportsCatalog && (
-                          <>
-                            {!isCombinationChildSelection && <label className="text-xs text-gray-600">Color Finish<select value={selectedSectionMeta.colorFinish} onChange={(e) => updateSelectedSectionMeta({ colorFinish: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.colorFinishes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>}
-                            <label className="text-xs text-gray-600">Glass Spec<select value={selectedSectionMeta.glassSpec} onChange={(e) => updateSelectedSectionMeta({ glassSpec: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.glassSpecs.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
-                            {selectedNode.systemType === "Casement" && <label className="text-xs text-gray-600">Shutter Hardware<select value={selectedSectionMeta.hardwareOpeningType} onChange={(e) => updateSelectedSectionMeta({ hardwareOpeningType: e.target.value as "hinges" | "frictionStay" })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="hinges">Hinges</option><option value="frictionStay">Friction Stay</option></select></label>}
-                            <label className="text-xs text-gray-600">Handle Type<select value={selectedSectionMeta.handleType} onChange={(e) => updateSelectedSectionMeta({ handleType: e.target.value, handleColor: DEFAULT_HANDLE_COLOR })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.handleOptions.map((opt: HandleOption) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
-                            <label className="text-xs text-gray-600">Handle Color<select value={selectedSectionMeta.handleColor} onChange={(e) => updateSelectedSectionMeta({ handleColor: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{(metaHandleOption?.colors ?? []).map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
-                          </>
-                        )}
-                        {selectedSystemSupportsCatalog && (!isCombinationChildSelection || selectedNode.systemType === "Sliding") && <label className="text-xs text-gray-600">Mesh Type<select value={selectedSectionMeta.meshType} onChange={(e) => updateSelectedSectionMeta({ meshType: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" disabled={selectedNode.mesh !== "Yes"}><option value="">Select</option>{metaOptionsQuery.data?.meshTypes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>}
-                        {isCombinationChildSelection ? (
-                          <>
-                            {selectedNode.systemType !== "Blank Area" && <div className="text-[11px] text-gray-500">Rate is calculated and edited at the combination parent level.</div>}
-                            <div className="mt-1 text-[11px] text-gray-500">Section area: {selectedLeafAreaSqft.toFixed(2)} sqft</div>
-                          </>
+                              ].map((sys) => (
+                                <option key={sys} value={sys}>
+                                  {sys}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          {selectedSystemSupportsCatalog && (
+                            <>
+                              <label className="text-xs text-gray-600">Section Series<select value={selectedNode.series} onChange={(e) => { const nextSeries = e.target.value; updateSelectedLeaves((target) => { target.series = nextSeries; target.description = ""; target.hasExhaustFan = false; target.panelFractions = undefined; target.panelMeshCount = undefined; target.panelSashes = undefined; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{seriesOptions.map((series) => <option key={series} value={series}>{series}</option>)}</select></label>
+                              <label className="text-xs text-gray-600">Section Description<select value={selectedNode.description} onChange={(e) => { const nextDescription = e.target.value; updateSelectedSectionMeta({ meshType: "" }); if (selectedNode.systemType === "Sliding") { updateSelectedNode((target) => { target.description = nextDescription; target.hasExhaustFan = false; target.split = "none"; target.children = undefined; const pattern = parsePanelPattern(nextDescription); if (pattern) { target.panelFractions = pattern.fractions; target.panelMeshCount = pattern.meshCount; target.mesh = (pattern.meshCount ?? 0) > 0 ? "Yes" : "No"; target.panelSashes = target.panelSashes && target.panelSashes.length === pattern.fractions.length ? target.panelSashes : buildDefaultSlidingPanelSashes(pattern.fractions.length); } else { target.panelFractions = undefined; target.panelMeshCount = undefined; target.mesh = "No"; target.panelSashes = undefined; } }); return; } updateSelectedLeaves((target) => { target.description = nextDescription; target.hasExhaustFan = false; const pattern = parsePanelPattern(nextDescription); if (pattern) { target.panelFractions = pattern.fractions; target.panelMeshCount = pattern.meshCount; target.panelSashes = undefined; } else { target.panelFractions = undefined; target.panelMeshCount = undefined; target.panelSashes = undefined; } }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{descriptionOptions.map((desc: Description) => <option key={desc.name} value={desc.name}>{desc.name}</option>)}</select></label>
+                              <label className="text-xs text-gray-600">Section Glass<select value={selectedNode.glass} onChange={(e) => { const value = e.target.value as YesNo; updateSelectedLeaves((target) => { target.glass = value; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="Yes">Yes</option><option value="No">No</option></select></label>
+                              <label className="text-xs text-gray-600">Section Mesh<select value={selectedNode.mesh} onChange={(e) => { if (selectedNode.systemType === "Sliding") return; const value = e.target.value as YesNo; updateSelectedLeaves((target) => { target.mesh = value; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" disabled={selectedNode.systemType === "Sliding"}><option value="No">No</option><option value="Yes">Yes</option></select></label>
+                              {archControls}
+                            </>
+                          )}
+                          {canInsertExhaustFan && <label className="text-xs text-gray-600">Exhaust Fan Insert<select value={selectedNode.hasExhaustFan ? "Yes" : "No"} onChange={(e) => { const shouldInsert = e.target.value === "Yes"; updateSelectedLeaves((target) => { target.hasExhaustFan = shouldInsert; target.glass = "Yes"; target.mesh = "No"; target.exhaustFanX = DEFAULT_EXHAUST_FAN_X; target.exhaustFanY = DEFAULT_EXHAUST_FAN_Y; target.exhaustFanSize = DEFAULT_EXHAUST_FAN_SIZE; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="No">No</option><option value="Yes">Yes</option></select><div className="mt-1 text-[11px] text-gray-500">Fixed glass section will include the exhaust fan cut-out.</div></label>}
+                          {hasAdjustableExhaustFan && (
+                            <>
+                              <label className="text-xs text-gray-600">Fan Horizontal Position<input type="range" min={18} max={82} step={1} value={Math.round((selectedNode.exhaustFanX ?? DEFAULT_EXHAUST_FAN_X) * 100)} onChange={(e) => { const value = Number(e.target.value) / 100; updateSelectedNode((target) => { target.exhaustFanX = clampValue(value, 0.18, 0.82); }); }} className="mt-2 w-full" /><div className="mt-1 text-[11px] text-gray-500">{Math.round((selectedNode.exhaustFanX ?? DEFAULT_EXHAUST_FAN_X) * 100)}%</div></label>
+                              <label className="text-xs text-gray-600">Fan Vertical Position<input type="range" min={18} max={82} step={1} value={Math.round((selectedNode.exhaustFanY ?? DEFAULT_EXHAUST_FAN_Y) * 100)} onChange={(e) => { const value = Number(e.target.value) / 100; updateSelectedNode((target) => { target.exhaustFanY = clampValue(value, 0.18, 0.82); }); }} className="mt-2 w-full" /><div className="mt-1 text-[11px] text-gray-500">{Math.round((selectedNode.exhaustFanY ?? DEFAULT_EXHAUST_FAN_Y) * 100)}%</div></label>
+                              <label className="text-xs text-gray-600">Fan Size<input type="range" min={20} max={90} step={1} value={Math.round((selectedNode.exhaustFanSize ?? DEFAULT_EXHAUST_FAN_SIZE) * 100)} onChange={(e) => { const value = Number(e.target.value) / 100; updateSelectedNode((target) => { target.exhaustFanSize = clampValue(value, 0.2, 0.9); }); }} className="mt-2 w-full" /><div className="mt-1 text-[11px] text-gray-500">{Math.round((selectedNode.exhaustFanSize ?? DEFAULT_EXHAUST_FAN_SIZE) * 100)}%</div></label>
+                            </>
+                          )}
+                          {selectedSystemSupportsCatalog && (
+                            <>
+                              {!isCombinationChildSelection && <label className="text-xs text-gray-600">Color Finish<select value={selectedSectionMeta.colorFinish} onChange={(e) => updateSelectedSectionMeta({ colorFinish: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.colorFinishes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>}
+                              <label className="text-xs text-gray-600">Glass Spec<select value={selectedSectionMeta.glassSpec} onChange={(e) => updateSelectedSectionMeta({ glassSpec: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.glassSpecs.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
+                              {selectedNode.systemType === "Casement" && <label className="text-xs text-gray-600">Shutter Hardware<select value={selectedSectionMeta.hardwareOpeningType} onChange={(e) => updateSelectedSectionMeta({ hardwareOpeningType: e.target.value as "hinges" | "frictionStay" })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="hinges">Hinges</option><option value="frictionStay">Friction Stay</option></select></label>}
+                              <label className="text-xs text-gray-600">Handle Type<select value={selectedSectionMeta.handleType} onChange={(e) => updateSelectedSectionMeta({ handleType: e.target.value, handleColor: DEFAULT_HANDLE_COLOR })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.handleOptions.map((opt: HandleOption) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
+                              <label className="text-xs text-gray-600">Handle Color<select value={selectedSectionMeta.handleColor} onChange={(e) => updateSelectedSectionMeta({ handleColor: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{(metaHandleOption?.colors ?? []).map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
+                            </>
+                          )}
+                          {selectedSystemSupportsCatalog && (!isCombinationChildSelection || selectedNode.systemType === "Sliding") && <label className="text-xs text-gray-600">Mesh Type<select value={selectedSectionMeta.meshType} onChange={(e) => updateSelectedSectionMeta({ meshType: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" disabled={selectedNode.mesh !== "Yes"}><option value="">Select</option>{metaOptionsQuery.data?.meshTypes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>}
+                          {isCombinationChildSelection ? (
+                            <>
+                              {selectedNode.systemType !== "Blank Area" && <div className="text-[11px] text-gray-500">Rate is calculated and edited at the combination parent level.</div>}
+                              <div className="mt-1 text-[11px] text-gray-500">Section area: {selectedLeafAreaSqft.toFixed(2)} sqft</div>
+                            </>
 
-                        ) : (
-                          <>
-                            <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                          ) : (
+                            <>
+                              <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
 
-                            {/* <label className="text-xs text-gray-600">
+                              {/* <label className="text-xs text-gray-600">
   Frame Cut Angle
   {selectedNodeIsPureCasement ? (
     <input
@@ -4025,32 +4100,36 @@ const dividerValue = selectedDivider
   )}
 </label> */}
 
- <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
-                    <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
-                            {selectedNode.systemType !== "Blank Area" && (
-                              <>
-                                <RateCalculationAction
-                                  isCalculating={isCalculatingRate}
-                                  error={rateCalculationError}
-                                  isStale={rateIsStale}
-                                  result={singleRateCalculation}
-                                  onCalculate={handleCalculateRate}
-                                />
-                                <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={meta.rate} onChange={(e) => { setIsManualRate(true); setMeta((prev) => ({ ...prev, rate: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
-                              </>)}
-                            <label className="text-xs text-gray-600">Remarks<textarea value={meta.remarks} onChange={(e) => setMeta((prev) => ({ ...prev, remarks: e.target.value }))} rows={2} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657] resize-none" /></label>
-                          </>
-                        )}
-                      </>
-                    )}
-                  </>
-                )
-              )}  
-            
-              
+                              {/* <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
+                    <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label> */}
+                              {/* {selectedNode.systemType !== "Blank Area" && ( */}
+                              <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
+                              <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
+                              {editingItem && selectedNode.systemType !== "Blank Area" && (
+
+                                <>
+                                  <RateCalculationAction
+                                    isCalculating={isCalculatingRate}
+                                    error={rateCalculationError}
+                                    isStale={rateIsStale}
+                                    result={singleRateCalculation}
+                                    onCalculate={handleCalculateRate}
+                                  />
+                                  <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={meta.rate} onChange={(e) => { setIsManualRate(true); setMeta((prev) => ({ ...prev, rate: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                                </>)}
+                              <label className="text-xs text-gray-600">Remarks<textarea value={meta.remarks} onChange={(e) => setMeta((prev) => ({ ...prev, remarks: e.target.value }))} rows={2} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657] resize-none" /></label>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </>
+                  )
+                )}
+
+
 
               </div>
-              
+
             </div>
             <div className="space-y-3 text-sm text-gray-700">
               <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"><span className="text-gray-500">Width</span><span className="font-semibold">{widthMm} mm</span></div>

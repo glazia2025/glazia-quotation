@@ -78,7 +78,7 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: "quotation", label: "Quotation Details" },
   { key: "global", label: "Global Config" },
   { key: "item", label: "Item List" },
-  { key: "bulk", label: "Bulk Update" },
+  { key: "bulk", label: "Global Edit" },
 ];
 const isTabKey = (value: string | null): value is TabKey =>
   value === "customer" || value === "quotation" || value === "global" || value === "item" || value === "bulk";
@@ -144,14 +144,14 @@ function ItemCard({
   "CONFIG LAYOUT",
   item.configuratorLayout
 );
-  console.log("hardwareOpeningType:", item.hardwareOpeningType);
-console.log("openingType:", item.openingType);
-console.log("series:", item.series);
-console.log("systemType:", item.systemType);
-console.log("shutterCutAngle:", item.shutterCutAngle);
-console.log("ITEM SYSTEM =", item.systemType);
-console.log("ITEM SERIES =", item.series);
-console.log("ITEM DESCRIPTION =", item.description);
+//   console.log("hardwareOpeningType:", item.hardwareOpeningType);
+// console.log("openingType:", item.openingType);
+// console.log("series:", item.series);
+// console.log("systemType:", item.systemType);
+// console.log("shutterCutAngle:", item.shutterCutAngle);
+// console.log("ITEM SYSTEM =", item.systemType);
+// console.log("ITEM SERIES =", item.series);
+// console.log("ITEM DESCRIPTION =", item.description);
   const [showSections, setShowSections] = useState(false);
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -808,8 +808,6 @@ function ItemTab({
   onDeleteItem,
   onDuplicateItem,
   onReorderItems,
-  onSavePricing,
-  isSavingMetadata,
 }: {
   quotationBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
@@ -829,8 +827,6 @@ function ItemTab({
   }
 ) => Promise<void>;
   onReorderItems: (startIndex: number, endIndex: number) => Promise<void>;
-  onSavePricing: () => Promise<void>;
-  isSavingMetadata: boolean;
 }) {
   const quotation = useQuotationBuilderStore((state) => state.quotation);
   const items = quotation.items;
@@ -869,6 +865,7 @@ const currentItems = items.slice(startIndex, endIndex);
   const finalAmount = totalAmount + (totalAmount * profit) / 100;
   const finalWithGSTBase = optimizedFinal ?? finalAmount;
   const finalWithGST = finalWithGSTBase + (finalWithGSTBase * 18) / 100;
+  const ratePerSqft = totalArea > 0 ? finalWithGST / totalArea : 0;
   useEffect(() => {
     setOptimizedFinal(null);
     setOptimizedFinalError("");
@@ -941,11 +938,11 @@ const currentItems = items.slice(startIndex, endIndex);
               <div className="mt-1 text-xl font-bold">{totalQuantity}</div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Area</div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Area (sqft.)</div>
               <div className="mt-1 text-xl font-bold">{formatNumber(totalArea)}</div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Amount</div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Total Cost</div>
               <div className="mt-1 text-xl font-bold">{formatCurrency(totalAmount)}</div>
             </div>
             <div>
@@ -958,39 +955,18 @@ const currentItems = items.slice(startIndex, endIndex);
               />
             </div>
             <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Final</div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Selling Price<br />(Cost + Profit %)</div>
               <div className="mt-1 text-xl font-bold">{formatCurrency(finalAmount)}</div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Optimized Final</div>
-              {optimizedFinal === null ? (
-                <button
-                  type="button"
-                  onClick={() => void calculateOptimizedFinal()}
-                  disabled={isCalculatingOptimizedFinal}
-                  className="mt-1 rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
-                >
-                  {isCalculatingOptimizedFinal ? "Calculating…" : "Calculate"}
-                </button>
-              ) : (
-                <div className="mt-1 text-xl font-bold">{formatCurrency(optimizedFinal)}</div>
-              )}
-              {optimizedFinalError && <div className="mt-1 text-[11px] text-red-300">{optimizedFinalError}</div>}
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Final + GST</div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Customer Price<br />(Selling Price + GST)</div>
               <div className="mt-1 text-xl font-bold">{formatCurrency(finalWithGST)}</div>
             </div>
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Rate per sqft.</div>
+              <div className="mt-1 text-xl font-bold">{formatCurrency(ratePerSqft)}</div>
+            </div>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void onSavePricing()}
-            disabled={isSavingMetadata}
-            className="border-slate-600 bg-slate-900 text-white hover:bg-slate-800"
-          >
-            {isSavingMetadata ? "Saving..." : "Save Pricing"}
-          </Button>
         </div>
       </div>
 
@@ -1733,14 +1709,7 @@ export function QuotationBuilder({
   const router = useRouter();
   const configuratorBasePath = `${quotationBasePath}/configurator`;
   const handleAddItem = () => {
-    const newItem = {
-      _id: crypto.randomUUID(),
-    } as QuotationItem;
-    setQuotation({
-      ...quotation,
-      items: [...quotation.items, newItem]
-    });
-    router.push(`${configuratorBasePath}/${newItem._id}`);
+    router.push(`${configuratorBasePath}/${crypto.randomUUID()}?mode=create`);
   };
 
   useEffect(() => {
@@ -1957,24 +1926,155 @@ export function QuotationBuilder({
         const sourceIndex = items.findIndex(
           (entry) => getQuotationItemIdentity(entry) === sourceId
         );
+        console.log("========== BEFORE ==========");
+console.log("sourceId =", sourceId);
+console.log("refCode =", refCode);
+
+console.log("========== AFTER DUPLICATE ==========");
+const ite = useQuotationBuilderStore.getState().quotation.items;
+
+console.log("ALL ITEMS =", ite);
         const duplicate = items[sourceIndex + 1];
-        console.log("===== DUPLICATE ITEM =====");
-        console.dir(duplicate, { depth: null });
-        console.log("duplicate.frameCutAngle =", duplicate.frameCutAngle);
-console.log("duplicate.shutterCutAngle =", duplicate.shutterCutAngle);
-console.log("duplicate.cuttingScheduleKey =", duplicate.cuttingScheduleKey);
-console.log("duplicate.systemType =", duplicate.systemType);
+      console.log("DUPLICATE =", duplicate);
+
+if (duplicate) {
+  console.log("systemType =", duplicate.systemType);
+  console.log("series =", duplicate.series);
+  console.log("description =", duplicate.description);
+
+  console.log("SUB ITEMS =", duplicate.subItems);
+}
+//         console.dir(duplicate, { depth: null });
+//         console.log("duplicate.frameCutAngle =", duplicate.frameCutAngle);
+// console.log("duplicate.shutterCutAngle =", duplicate.shutterCutAngle);
+// console.log("duplicate.cuttingScheduleKey =", duplicate.cuttingScheduleKey);
+// console.log("duplicate.systemType =", duplicate.systemType);
         if (!duplicate) throw new Error("Failed to create the local duplicate");
-        console.log("duplicate", duplicate);
-console.log(" check frameCutAngle", duplicate.frameCutAngle);
-console.log(" check shutterCutAngle", duplicate.shutterCutAngle);
+//         console.log("duplicate", duplicate);
+// console.log(" check frameCutAngle", duplicate.frameCutAngle);
+// console.log(" check shutterCutAngle", duplicate.shutterCutAngle);
         const layout = duplicate.configuratorLayout as {
   frameCutAngle?: "45" | "90";
   shutterCutAngle?: "45" | "90";
 };
         const duplicateLocalId = getQuotationItemIdentity(duplicate);
+        const isCombinationItem = duplicate.systemType === "Combination" || (duplicate.subItems?.length ?? 0) > 1;
         try {
           const quotationId = await ensureParentQuotation();
+          if (isCombinationItem) {
+            const combinationSubItems = Array.isArray(duplicate.subItems) ? duplicate.subItems : [];
+            if (combinationSubItems.length) {
+              const rateInputs = combinationSubItems.map((subItem) => ({
+                clientId: subItem.id,
+                systemType: subItem.systemType || "",
+                series: subItem.series || "",
+                description: subItem.description || "",
+                width: Number(subItem.width),
+                height: Number(subItem.height),
+                area: Number(subItem.area),
+                frameCutAngle: subItem.frameCutAngle ?? layout.frameCutAngle ?? "45",
+                shutterCutAngle: subItem.shutterCutAngle ?? layout.shutterCutAngle ?? "45",
+                cuttingScheduleKey: subItem.cuttingScheduleKey || String(duplicate.cuttingScheduleKey || "45_45"),
+                glassSpec: subItem.glassSpec || "",
+                hardwareOpeningType: (subItem.hardwareOpeningType || "") as "" | "hinges" | "frictionStay",
+              }));
+
+              const [calculatedSubItemRates, ...rest] = await Promise.all([
+                calculateQuotationRates(rateInputs),
+                ...combinationSubItems.map(async (subItem) => {
+                  const [descriptions, options] = await Promise.all([
+                    fetchDescriptions(subItem.systemType || "", subItem.series || ""),
+                    fetchOptions(subItem.systemType || ""),
+                  ]);
+
+                  return { subItem, descriptions, options };
+                }),
+              ]);
+
+              const rateByClientId = new Map(
+                calculatedSubItemRates.map((result) => [result.clientId, result])
+              );
+
+              duplicate.subItems = rest.map(({ subItem, descriptions, options }) => {
+                const rateResult = rateByClientId.get(subItem.id);
+                if (!rateResult) {
+                  return subItem;
+                }
+
+                const matchedDescription = descriptions.descriptions.find(
+                  (entry) => entry.name === subItem.description
+                );
+                const colorRate =
+                  options?.colorFinishes.find((entry) => entry.name === subItem.colorFinish)?.rate ?? 0;
+                const meshRate = subItem.meshPresent
+                  ? options?.meshTypes.find((entry) => entry.name === subItem.meshType)?.rate ?? 0
+                  : 0;
+                const glassRate =
+                  options?.glassSpecs.find((entry) => entry.name === subItem.glassSpec)?.rate ?? 0;
+                const handleOption = options?.handleOptions.find(
+                  (entry) => entry.name === subItem.handleType
+                );
+                const handleCount = matchedDescription?.defaultHandleCount ?? 0;
+                const handleUnitRate =
+                  handleOption?.colors.find((entry) => entry.name === subItem.handleColor)?.rate ?? 0;
+                const handleRate =
+                  handleCount > 0
+                    ? (handleCount * handleUnitRate) / (Number(subItem.area) || 1)
+                    : 0;
+                const rate = Number(
+                  (
+                    (rateResult.baseRate ?? 0) +
+                    colorRate +
+                    meshRate +
+                    glassRate +
+                    handleRate
+                  ).toFixed(2)
+                );
+                const amount = Number(
+                  (
+                    rate *
+                    Number(subItem.area) *
+                    Number(subItem.quantity || 1)
+                  ).toFixed(2)
+                );
+
+                return {
+                  ...subItem,
+                  rate,
+                  amount,
+                };
+              });
+
+              const totalArea = Number(duplicate.area) || combinationSubItems.reduce((sum, subItem) => sum + Number(subItem.area || 0), 0);
+              const totalAmount = duplicate.subItems.reduce((sum, subItem) => sum + Number(subItem.amount || 0), 0);
+              duplicate.rate = Number((totalArea > 0 ? totalAmount / totalArea : 0).toFixed(2));
+              duplicate.amount = Number(
+                (
+                  duplicate.rate *
+                  Number(duplicate.area) *
+                  Number(duplicate.quantity || 1)
+                ).toFixed(2)
+              );
+            } else {
+              duplicate.rate = Number(duplicate.rate) || 0;
+              duplicate.amount = Number(
+                (
+                  Number(duplicate.rate) *
+                  Number(duplicate.area) *
+                  Number(duplicate.quantity || 1)
+                ).toFixed(2)
+              );
+            }
+            const savedItem = await createQuotationItem(quotationId, duplicate);
+            useQuotationBuilderStore.getState().replaceItem(duplicateLocalId, savedItem);
+            markSaved();
+            return;
+          }
+          console.log("=== RATE API HIT HONE WALI HAI ===");
+console.log("Duplicate object:", duplicate);
+console.log("System Type:", duplicate?.systemType);
+console.log("Series:", duplicate?.series);
+console.log("Description:", duplicate?.description);
           const [rateResult] = await calculateQuotationRates([
   {
     clientId: duplicate.id,
@@ -2620,8 +2720,6 @@ const exportExcel = async (includeAmount: boolean) => {
                 onDeleteItem={persistDeleteItem}
                 onDuplicateItem={persistDuplicateItem}
                 onReorderItems={persistReorderedItems}
-                onSavePricing={saveCurrentMetadata}
-                isSavingMetadata={metadataSaveStatus === "saving"}
               />
             )}
             {activeTab === "bulk" && (
