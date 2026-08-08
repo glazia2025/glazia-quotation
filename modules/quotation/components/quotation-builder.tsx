@@ -144,14 +144,7 @@ function ItemCard({
   "CONFIG LAYOUT",
   item.configuratorLayout
 );
-//   console.log("hardwareOpeningType:", item.hardwareOpeningType);
-// console.log("openingType:", item.openingType);
-// console.log("series:", item.series);
-// console.log("systemType:", item.systemType);
-// console.log("shutterCutAngle:", item.shutterCutAngle);
-// console.log("ITEM SYSTEM =", item.systemType);
-// console.log("ITEM SERIES =", item.series);
-// console.log("ITEM DESCRIPTION =", item.description);
+
   const [showSections, setShowSections] = useState(false);
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -1944,15 +1937,7 @@ if (duplicate) {
 
   console.log("SUB ITEMS =", duplicate.subItems);
 }
-//         console.dir(duplicate, { depth: null });
-//         console.log("duplicate.frameCutAngle =", duplicate.frameCutAngle);
-// console.log("duplicate.shutterCutAngle =", duplicate.shutterCutAngle);
-// console.log("duplicate.cuttingScheduleKey =", duplicate.cuttingScheduleKey);
-// console.log("duplicate.systemType =", duplicate.systemType);
         if (!duplicate) throw new Error("Failed to create the local duplicate");
-//         console.log("duplicate", duplicate);
-// console.log(" check frameCutAngle", duplicate.frameCutAngle);
-// console.log(" check shutterCutAngle", duplicate.shutterCutAngle);
         const layout = duplicate.configuratorLayout as {
   frameCutAngle?: "45" | "90";
   shutterCutAngle?: "45" | "90";
@@ -2075,6 +2060,20 @@ console.log("Duplicate object:", duplicate);
 console.log("System Type:", duplicate?.systemType);
 console.log("Series:", duplicate?.series);
 console.log("Description:", duplicate?.description);
+          const isCasement = duplicate.systemType === "Casement";
+          const isLouver = duplicate.systemType === "Louvers" || duplicate.description === "Louvers";
+          const frameCutAngle = isCasement
+            ? "45"
+            : (duplicate.frameCutAngle ?? layout.frameCutAngle ?? "90");
+          const shutterCutAngle = isCasement
+            ? "45"
+            : (duplicate.shutterCutAngle ?? layout.shutterCutAngle ?? "90");
+          const cuttingScheduleKey =
+            duplicate.cuttingScheduleKey || `${frameCutAngle}_${shutterCutAngle}`;
+          const hardwareOpeningType =
+            isCasement
+              ? ((duplicate.hardwareOpeningType || "") as "" | "hinges" | "frictionStay")
+              : "";
           const [rateResult] = await calculateQuotationRates([
   {
     clientId: duplicate.id,
@@ -2090,25 +2089,21 @@ console.log("Description:", duplicate?.description);
     height: Number(duplicate.height),
 
     area: Number(duplicate.area),
+    frameCutAngle,
 
-    // frameCutAngle: duplicate.frameCutAngle,
+  shutterCutAngle,
 
-    // shutterCutAngle: duplicate.shutterCutAngle,
-   frameCutAngle: layout.frameCutAngle ?? "45",
-
-shutterCutAngle: layout.shutterCutAngle ?? "45",
-
-    cuttingScheduleKey: String(duplicate.cuttingScheduleKey),
+     cuttingScheduleKey,
 
     glassSpec: duplicate.glassSpec || "",
 
-    hardwareOpeningType: "",
+     hardwareOpeningType,
   },
 ]);
 
 console.log("RATE RESULT", rateResult);
 const [descriptions, options] = await Promise.all([
-  fetchDescriptions(duplicate.systemType || "", duplicate.series || ""),
+  fetchDescriptions(duplicate.systemType || "", isLouver ? "_" : (duplicate.series || "")),
   fetchOptions(duplicate.systemType || ""),
 ]);
 
@@ -2121,7 +2116,7 @@ if (
   // desc = descriptions?.find(
   //   (d: any) => d.name === duplicate.description
   // );
-  const desc = descriptions.descriptions.find(
+   const desc = descriptions.descriptions.find(
   (d: any) => d.name === duplicate.description
 );
 }
@@ -2130,13 +2125,6 @@ const colorRate =
   options?.colorFinishes.find(
     (c: any) => c.name === duplicate.colorFinish
   )?.rate ?? 0;
-
-// const meshRate =
-//   duplicate.meshPresent === "Yes"
-//     ? options?.meshTypes.find(
-//         (m: any) => m.name === duplicate.meshType
-//       )?.rate ?? 0
-//     : 0;
 const meshRate =
   duplicate.meshPresent
     ? options?.meshTypes.find(

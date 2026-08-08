@@ -2733,7 +2733,7 @@ export function WindowDoorConfigurator({
         setMeta((prev) => ({ ...prev, rate: calculated.rate }));
         setSingleRateCalculation(calculated.aggregate);
         setIsManualRate(false);
-      } else if ((Number(meta.rate) || 0) <= 0) {
+      } else if (!isManualRate || (Number(meta.rate) || 0) <= 0) {
         const leaf = leafNodesForMode[0];
         if (!leaf) throw new Error("Unable to find an item section for rate calculation.");
         const calculated = await calculateLeafRate(
@@ -3691,48 +3691,8 @@ export function WindowDoorConfigurator({
                 <div key={label.id} className="pointer-events-auto absolute w-[88px]" style={{ left: label.x, top: label.y }}>
                   <input
                     type="number"
-                      value={label.value}
-                    // value={editingDimensions[label.id] ?? String(label.value)}
-                     onChange={(e) => label.onChange(Number(e.target.value))}
-                    // onChange={(e) => {
-                    //   const value = e.target.value;
-
-                    //   if (/^\d*$/.test(value)) {
-                    //     setEditingDimensions((prev) => ({
-                    //       ...prev,
-                    //       [label.id]: value,
-                    //     }));
-                    //   }
-                    // }}
-//                     onBlur={() => {
-//   const value = editingDimensions[label.id];
-
-//   if (value !== undefined) {
-//     const num = Number(value);
-
-//     if (!Number.isNaN(num)) {
-//       label.onChange(num);
-//     }
-
-//     setEditingDimensions((prev) => {
-//       const next = { ...prev };
-//       delete next[label.id];
-//       return next;
-//     });
-//   }
-// }}
-                    // // onChange={(e) => {
-                    ////   const value = e.target.value;
-                    //   //   if (value === "") return;
-                    //   //   label.onChange(Number(value));
-                    //   // }}
-                    //  onChange={(e) => {
-                    //   const value = parseInt(e.target.value, 10);
-
-                    //   if (Number.isNaN(value)) return;
-
-                    //   label.onChange(value);
-                    // }}
+                    value={label.value}
+                    onChange={(e) => label.onChange(Number(e.target.value))}
                     onFocus={(e) => {
                       setSelectedId(label.selectId);
                       setSelectedSlidingPanelIndex(label.panelIndex ?? null);
@@ -3803,64 +3763,59 @@ export function WindowDoorConfigurator({
                       {archControls}
                       <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
 
-                      {/* <label className="text-xs text-gray-600">
-  Frame Cut Angle
+                      <label className="text-xs text-gray-600">
+                        Frame Cut Angle
 
-  {selectedNodeIsPureCasement ? (
-    <input
-      type="text"
-      value="45°"
-      disabled
-      className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
-    />
-  ) : (
-    <select
-      value={meta.frameCutAngle}
-      onChange={(e) =>
-        setMeta((prev) => ({
-          ...prev,
-          frameCutAngle: e.target.value as CutAngle,
-        }))
-      }
-      className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
-    >
-      <option value="45">45°</option>
-      <option value="90">90°</option>
-    </select>
-  )}
-</label>
+                        {selectedNodeIsPureCasement ? (
+                          <input
+                            type="text"
+                            value="45°"
+                            disabled
+                            className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
+                          />
+                        ) : (
+                          <select
+                            value={meta.frameCutAngle}
+                            onChange={(e) =>
+                              setMeta((prev) => ({
+                                ...prev,
+                                frameCutAngle: e.target.value as CutAngle,
+                              }))
+                            }
+                            className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+                          >
+                            <option value="45">45°</option>
+                            <option value="90">90°</option>
+                          </select>
+                        )}
+                      </label>
 
-<label className="text-xs text-gray-600">
-  Shutter Cut Angle
+                      <label className="text-xs text-gray-600">
+                        Shutter Cut Angle
 
-  {selectedNodeIsPureCasement ? (
-    <input
-      type="text"
-      value="45°"
-      disabled
-      className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
-    />
-  ) : (
-    <select
-      value={meta.shutterCutAngle}
-      onChange={(e) =>
-        setMeta((prev) => ({
-          ...prev,
-          shutterCutAngle: e.target.value as CutAngle,
-        }))
-      }
-      className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
-    >
-      <option value="45">45°</option>
-      <option value="90">90°</option>
-    </select>
-  )}
-</label> */}
-
-                      <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
-                      <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
-
-
+                        {selectedNodeIsPureCasement ? (
+                          <input
+                            type="text"
+                            value="45°"
+                            disabled
+                            className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
+                          />
+                        ) : (
+                          <select
+                            value={meta.shutterCutAngle}
+                            onChange={(e) =>
+                              setMeta((prev) => ({
+                                ...prev,
+                                shutterCutAngle: e.target.value as CutAngle,
+                              }))
+                            }
+                            className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+                          >
+                            <option value="45">45°</option>
+                            <option value="90">90°</option>
+                          </select>
+                        )}
+                      </label>
                       <label className="text-xs text-gray-600">
                         Colour Finish
                         <select
@@ -3883,15 +3838,6 @@ export function WindowDoorConfigurator({
                           )}
                         </select>
                       </label>
-
-                      {/* <RateCalculationAction
-  isCalculating={isCalculatingRate}
-  error={rateCalculationError}
-  isStale={rateIsStale}
-  result={singleRateCalculation}
-  onCalculate={handleCalculateRate}
-/> */}
-
                       <label className="text-xs text-gray-600">
                         Rate
                         <input
@@ -3992,11 +3938,6 @@ export function WindowDoorConfigurator({
                                     target.sash = "fixed";
                                   }
                                 });
-                                //                               setMeta((prev) => ({
-                                //   ...prev,
-                                //   frameCutAngle: nextSystem === "Casement" ? "45" : "90",
-                                //   shutterCutAngle: nextSystem === "Casement" ? "45" : "90",
-                                // }));
                               }}
                               className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
                             >
@@ -4048,63 +3989,58 @@ export function WindowDoorConfigurator({
                             <>
                               <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
 
-                              {/* <label className="text-xs text-gray-600">
-  Frame Cut Angle
-  {selectedNodeIsPureCasement ? (
-    <input
-      type="text"
-      value="45°"
-      disabled
-      className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
-    />
-  ) : (
-    <select
-      value={meta.frameCutAngle}
-      onChange={(e) =>
-        setMeta((prev) => ({
-          ...prev,
-          frameCutAngle: e.target.value as CutAngle,
-        }))
-      }
-      className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
-    >
-      <option value="45">45°</option>
-      <option value="90">90°</option>
-    </select>
-  )}
-</label>
+                              <label className="text-xs text-gray-600">
+                                Frame Cut Angle
+                                {selectedNodeIsPureCasement ? (
+                                  <input
+                                    type="text"
+                                    value="45°"
+                                    disabled
+                                    className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
+                                  />
+                                ) : (
+                                  <select
+                                    value={meta.frameCutAngle}
+                                    onChange={(e) =>
+                                      setMeta((prev) => ({
+                                        ...prev,
+                                        frameCutAngle: e.target.value as CutAngle,
+                                      }))
+                                    }
+                                    className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+                                  >
+                                    <option value="45">45°</option>
+                                    <option value="90">90°</option>
+                                  </select>
+                                )}
+                              </label>
 
-<label className="text-xs text-gray-600">
-  Shutter Cut Angle
-  {selectedNodeIsPureCasement ? (
-    <input
-      type="text"
-      value="45°"
-      disabled
-      className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
-    />
-  ) : (
-    <select
-      value={meta.shutterCutAngle}
-      onChange={(e) =>
-        setMeta((prev) => ({
-          ...prev,
-          shutterCutAngle: e.target.value as CutAngle,
-        }))
-      }
-      className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
-    >
-      <option value="45">45°</option>
-      <option value="90">90°</option>
-    </select>
-  )}
-</label> */}
+                              <label className="text-xs text-gray-600">
+                                Shutter Cut Angle
+                                {selectedNodeIsPureCasement ? (
+                                  <input
+                                    type="text"
+                                    value="45°"
+                                    disabled
+                                    className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
+                                  />
+                                ) : (
+                                  <select
+                                    value={meta.shutterCutAngle}
+                                    onChange={(e) =>
+                                      setMeta((prev) => ({
+                                        ...prev,
+                                        shutterCutAngle: e.target.value as CutAngle,
+                                      }))
+                                    }
+                                    className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+                                  >
+                                    <option value="45">45°</option>
+                                    <option value="90">90°</option>
+                                  </select>
+                                )}
+                              </label>
 
-                              {/* <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
-                    <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label> */}
-                              {/* {selectedNode.systemType !== "Blank Area" && ( */}
-                              <label className="text-xs text-gray-600">Frame Cut Angle<select value={meta.frameCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, frameCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
-                              <label className="text-xs text-gray-600">Shutter Cut Angle<select value={meta.shutterCutAngle} onChange={(e) => setMeta((prev) => ({ ...prev, shutterCutAngle: e.target.value as CutAngle }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="45">45°</option><option value="90">90°</option></select></label>
                               {editingItem && selectedNode.systemType !== "Blank Area" && (
 
                                 <>
