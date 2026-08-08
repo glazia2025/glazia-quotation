@@ -642,6 +642,62 @@ function RateCalculationAction({
   );
 }
 
+function DimensionTextInput({
+  value,
+  onChange,
+  onFocus,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  onFocus: () => void;
+}) {
+  const [textValue, setTextValue] = useState(String(value));
+  const isFocusedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isFocusedRef.current) setTextValue(String(value));
+  }, [value]);
+
+  const commitValue = () => {
+    const parsed = Number(textValue);
+    if (textValue.trim() !== "" && Number.isFinite(parsed)) {
+      onChange(parsed);
+      setTextValue(String(Math.round(parsed)));
+    } else {
+      setTextValue(String(value));
+    }
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={textValue}
+      onChange={(event) => {
+        const next = event.target.value;
+        if (!/^\d*(?:\.\d*)?$/.test(next)) return;
+        setTextValue(next);
+        if (next.trim() !== "") onChange(Number(next));
+      }}
+      onFocus={(event) => {
+        isFocusedRef.current = true;
+        onFocus();
+        event.currentTarget.select();
+      }}
+      onBlur={() => {
+        isFocusedRef.current = false;
+        commitValue();
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") event.currentTarget.blur();
+      }}
+      onClick={(event) => event.currentTarget.select()}
+      data-dim-input="true"
+      className="h-7 w-[88px] rounded-sm border border-gray-400 bg-white text-center text-sm text-gray-900 shadow-sm focus:border-[#124657] focus:outline-none focus:ring-2 focus:ring-[#124657]"
+    />
+  );
+}
+
 const mapItemToConfiguratorState = (item: QuotationItem) => {
   const width = Math.round(item.width || 1500);
   const height = Math.round(item.height || 1500);
@@ -3689,18 +3745,13 @@ export function WindowDoorConfigurator({
             <div className="pointer-events-none absolute inset-0">
               {dimensionLabels.map((label) => (
                 <div key={label.id} className="pointer-events-auto absolute w-[88px]" style={{ left: label.x, top: label.y }}>
-                  <input
-                    type="number"
+                  <DimensionTextInput
                     value={label.value}
-                    onChange={(e) => label.onChange(Number(e.target.value))}
-                    onFocus={(e) => {
+                    onChange={label.onChange}
+                    onFocus={() => {
                       setSelectedId(label.selectId);
                       setSelectedSlidingPanelIndex(label.panelIndex ?? null);
-                      e.currentTarget.select();
                     }}
-                    onClick={(e) => e.currentTarget.select()}
-                    data-dim-input="true"
-                    className="h-7 w-[88px] rounded-sm border border-gray-400 bg-white text-center text-sm text-gray-900 shadow-sm focus:border-[#124657] focus:outline-none focus:ring-2 focus:ring-[#124657]"
                   />
                   {typeof label.staticValue === "number" ? (
                     <div className="mt-1 rounded-sm border border-slate-200 bg-white/95 px-1 py-0.5 text-center text-[11px] font-medium text-slate-600 shadow-sm">
