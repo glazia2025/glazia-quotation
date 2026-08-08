@@ -433,6 +433,7 @@ const currentItems = items.slice(startIndex, endIndex);
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
   const router = useRouter();
   const profit = Number(quotation.breakdown?.profitPercentage) || 0;
+  const [profitInput, setProfitInput] = useState(String(profit));
   const configuratorBasePath = `${quotationBasePath}/configurator`;
   const [optimizedFinal, setOptimizedFinal] = useState<number | null>(null);
   const [isCalculatingOptimizedFinal, setIsCalculatingOptimizedFinal] = useState(false);
@@ -542,9 +543,15 @@ const currentItems = items.slice(startIndex, endIndex);
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Profit %</div>
               <input
-                type="number"
-                value={profit}
-                onChange={(e) => updateProfit(Number(e.target.value))}
+                type="text"
+                inputMode="decimal"
+                value={profitInput}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (!/^\d*(?:\.\d*)?$/.test(value)) return;
+                  setProfitInput(value);
+                  updateProfit(value.trim() === "" ? 0 : Number(value));
+                }}
                 className="mt-1 w-24 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
               />
             </div>
