@@ -24,9 +24,6 @@ import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-bui
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { getArea, getPerimeter } from "@/modules/quotation/utils/calculations";
 import { createEmptyQuotation } from "@/modules/quotation/utils/factory";
-
-// import { bulkUpdateQuotationItems, createQuotationItem, deleteQuotationItem, getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationMetadata, getElevationPdfBlob, reorderQuotationItems,getQuotationExcelBlob,getQuotation } from "@/services/quotation-service";
-// import { bulkUpdateQuotationItems, createQuotationItem, deleteQuotationItem, getBomOrderData, getBomPdfBlob, getCuttingSchedulePdfBlob, getQuotationPdfBlob, saveQuotationMetadata, getElevationPdfBlob, getOptimizedFinal, reorderQuotationItems } from "@/services/quotation-service";
 import {
   bulkUpdateQuotationItems,
   createQuotationItem,
@@ -51,7 +48,6 @@ import { formatCurrency, formatNumber } from "@/utils/format";
 import { getQuotationPdfDownloadName } from "@/utils/quotationPdf";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loadGlobalConfig } from "../../../utils/globalConfig";
-// import { fetchOptions } from "@/lib/quotations/api";
 import { fetchDescriptions, fetchOptions } from "@/lib/quotations/api";
 import {
   DndContext,
@@ -114,6 +110,8 @@ const createBuilderGlobalConfig = () => ({
 const getQuotationIdentity = (quotation: Quotation | null | undefined) =>
   quotation?._id || quotation?.generatedId || quotation?.quotationDetails?.id || "";
 
+const EXHAUST_FAN_RATE_SURCHARGE = 10;
+
 function ItemCard({
   item,
   configuratorBasePath,
@@ -123,7 +121,6 @@ function ItemCard({
   item: QuotationItem;
   configuratorBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
-  // onDuplicateItem: (item: QuotationItem, refCode: string) => Promise<void>;
   onDuplicateItem: (
   item: QuotationItem,
   refCode: string,
@@ -148,7 +145,6 @@ function ItemCard({
   const [showSections, setShowSections] = useState(false);
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  // const [duplicateRefCode, setDuplicateRefCode] = useState("");
   const [duplicateStep, setDuplicateStep] = useState<1 | 2>(1);
   const [duplicateCount, setDuplicateCount] = useState(1);
   const [duplicateCountInput, setDuplicateCountInput] = useState("1");
@@ -191,7 +187,6 @@ function ItemCard({
   };
 
   const handleDuplicate = () => {
-    // setDuplicateRefCode("");
     setDuplicateStep(1);
     setDuplicateCount(1);
     setDuplicateCountInput("1");
@@ -231,9 +226,6 @@ function ItemCard({
   setIsMutating(true);
 
   try {
-    // for (const refCode of refCodes) {
-    //   await onDuplicateItem(item, refCode);
-    // }
     for (let index = 0; index < refCodes.length; index++) {
   await onDuplicateItem(
     item,
@@ -400,11 +392,7 @@ function ItemCard({
   onFocus={(event) => event.target.select()}
   onChange={(event) => {
     const value = event.target.value;
-
-    // Input state update
     setDuplicateCountInput(value);
-
-    // Empty hone do jab user delete kare
     if (value === "") {
       return;
     }
@@ -413,8 +401,6 @@ function ItemCard({
       1,
       Math.min(100, Number(value))
     );
-
-    // Actual numeric state
     setDuplicateCount(count);
 
     setDuplicateRefCodes((prev) => {
@@ -468,7 +454,7 @@ function ItemCard({
       </label>
 
       <label className="text-sm font-medium text-slate-700">
-        Parent Width
+         Width
         <input
           type="number"
           value={duplicateWindows[index]?.parent.width ?? ""}
@@ -494,7 +480,7 @@ function ItemCard({
       </label>
 
       <label className="text-sm font-medium text-slate-700">
-        Parent Height
+         Height
         <input
           type="number"
           value={duplicateWindows[index]?.parent.height ?? ""}
@@ -588,14 +574,6 @@ function ItemCard({
             )}
             {duplicateError ? <p className="mt-2 text-sm text-red-600">{duplicateError}</p> : null}
             </div>
-            {/* <div className="mt-6 flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => { setIsDuplicateModalOpen(false); setDuplicateError(""); }}>
-                Cancel
-              </Button>
-              <Button size="sm" onClick={confirmDuplicate} disabled={isMutating} className="bg-[#124657] hover:bg-[#0b3642]">
-                {isMutating ? "Saving..." : "Duplicate"}
-              </Button>
-            </div> */}
             <div className="border-t p-6">
             <div className="mt-6 flex justify-end gap-2">
   <Button
@@ -619,10 +597,6 @@ function ItemCard({
     <Button
       size="sm"
       className="bg-[#124657] hover:bg-[#0b3642]"
-      // onClick={() => {
-      //   setDuplicateStep(2);
-      // }}
-
       onClick={() => {
   const count = Number(duplicateCountInput);
 
@@ -705,7 +679,6 @@ function SortableItem({
   item: QuotationItem;
   configuratorBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
-  // onDuplicateItem: (item: QuotationItem, refCode: string) => Promise<void>;
   onDuplicateItem: (
   item: QuotationItem,
   refCode: string,
@@ -804,7 +777,6 @@ function ItemTab({
 }: {
   quotationBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
-  // onDuplicateItem: (item: QuotationItem, refCode: string) => Promise<void>;
   onDuplicateItem: (
   item: QuotationItem,
   refCode: string,
@@ -1926,11 +1898,6 @@ export function QuotationBuilder({
         const sourceIndex = items.findIndex(
           (entry) => getQuotationItemIdentity(entry) === sourceId
         );
-        console.log("========== BEFORE ==========");
-console.log("sourceId =", sourceId);
-console.log("refCode =", refCode);
-
-console.log("========== AFTER DUPLICATE ==========");
 const ite = useQuotationBuilderStore.getState().quotation.items;
 
 console.log("ALL ITEMS =", ite);
@@ -1982,6 +1949,23 @@ if (duplicate) {
                   return { subItem, descriptions, options };
                 }),
               ]);
+              const joinRequests = (duplicate.joins ?? [])
+  .map((join, index) => ({
+    clientId: `__join__${index}`,
+    itemType: "join" as const,
+    joinType: join.type,
+    // joinOrientation: join.orientation,
+    systemType: duplicate.systemType,
+    series: duplicate.series,
+    description: join.type,
+    width: Number(duplicate.width),
+    height: Number(duplicate.height),
+    area: Number(duplicate.area),
+    frameCutAngle: duplicate.frameCutAngle,
+    shutterCutAngle: duplicate.shutterCutAngle,
+    cuttingScheduleKey: duplicate.cuttingScheduleKey,
+  }))
+  .filter((request) => request.series);
 
               const rateByClientId = new Map(
                 calculatedSubItemRates.map((result) => [result.clientId, result])
@@ -2013,13 +1997,15 @@ if (duplicate) {
                   handleCount > 0
                     ? (handleCount * handleUnitRate) / (Number(subItem.area) || 1)
                     : 0;
+                const exhaustFanRate = subItem.hasExhaustFan ? EXHAUST_FAN_RATE_SURCHARGE : 0;
                 const rate = Number(
                   (
                     (rateResult.baseRate ?? 0) +
                     colorRate +
                     meshRate +
                     glassRate +
-                    handleRate
+                    handleRate +
+                    exhaustFanRate
                   ).toFixed(2)
                 );
                 const amount = Number(
@@ -2040,6 +2026,11 @@ if (duplicate) {
               const totalArea = Number(duplicate.area) || combinationSubItems.reduce((sum, subItem) => sum + Number(subItem.area || 0), 0);
               const totalAmount = duplicate.subItems.reduce((sum, subItem) => sum + Number(subItem.amount || 0), 0);
               duplicate.rate = Number((totalArea > 0 ? totalAmount / totalArea : 0).toFixed(2));
+              console.log("COMBINATION TOTAL", {
+  totalArea,
+  totalAmount,
+  finalRate: totalArea > 0 ? totalAmount / totalArea : 0,
+});
               duplicate.amount = Number(
                 (
                   duplicate.rate *
@@ -2123,7 +2114,7 @@ if (
   // desc = descriptions?.find(
   //   (d: any) => d.name === duplicate.description
   // );
-   const desc = descriptions.descriptions.find(
+   desc = descriptions.descriptions.find(
   (d: any) => d.name === duplicate.description
 );
 }
@@ -2160,13 +2151,15 @@ const handleRate =
     ? (handleCount * handleUnitRate) /
       (Number(duplicate.area) || 1)
     : 0;
+const exhaustFanRate = duplicate.hasExhaustFan ? EXHAUST_FAN_RATE_SURCHARGE : 0;
 
 duplicate.rate =
   (rateResult.baseRate ?? 0) +
   colorRate +
   meshRate +
   glassRate +
-  handleRate;
+  handleRate +
+  exhaustFanRate;
 
 duplicate.rate = Number(duplicate.rate.toFixed(2));
 
@@ -2190,19 +2183,6 @@ console.log("FINAL DUPLICATE RATE", {
           const savedItem = await createQuotationItem(quotationId, duplicate);
           useQuotationBuilderStore.getState().replaceItem(duplicateLocalId, savedItem);
           markSaved();
-//           await createQuotationItem(quotationId, duplicate);
-
-// const latestQuotation = await getQuotation(quotationId);
-
-// if (!latestQuotation) {
-//   throw new Error("Failed to reload quotation.");
-// }
-
-// useQuotationBuilderStore
-//   .getState()
-//   .setQuotation(latestQuotation);
-
-// markSaved();
 const latestQuotation = await getQuotation(quotationId);
 
 console.log("LATEST QUOTATION", latestQuotation);
@@ -2625,21 +2605,6 @@ const exportExcel = async (includeAmount: boolean) => {
   <Download className="h-4 w-4" />
   {isGeneratingExcel ? "Generating..." : " Download Excel"}
 </Button>
-{/* <Button
-  variant="outline"
-  onClick={() => fileInputRef.current?.click()}
->
-  <Upload className="h-4 w-4" />
-  Upload Excel
-</Button> */}
-{/* <input
-      ref={fileInputRef}
-      type="file"
-      accept=".xlsx"
-      hidden
-      onChange={handleExcelUpload}
-    /> */}
-
           <Button variant="outline" disabled={isSaveBlockingExports || isAnyExportInProgress}>
             <Share2 className="h-4 w-4" />
             Share

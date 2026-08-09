@@ -2157,35 +2157,6 @@ export function WindowDoorConfigurator({
     enabled: true,
   });
 
-  //   useEffect(() => {
-  //   if (meta.systemType === "Casement") {
-  //     setMeta((prev) => ({
-  //       ...prev,
-  //       frameCutAngle: "45",
-  //       shutterCutAngle: "45",
-  //     }));
-  //   }
-  // }, [meta.systemType]);
-  // useEffect(() => {
-  //   setMeta((prev) => ({
-  //     ...prev,
-  //     frameCutAngle: meta.systemType === "Casement" ? "45" : "90",
-  //     shutterCutAngle: meta.systemType === "Casement" ? "45" : "90",
-  //   }));
-  // }, [meta.systemType]);
-  // useEffect(() => {
-  //   setMeta((prev) => ({
-  //     ...prev,
-  //     frameCutAngle:
-  //       selectedNode.systemType === "Casement" ? "45" : "90",
-  //     shutterCutAngle:
-  //       selectedNode.systemType === "Casement" ? "45" : "90",
-  //   }));
-  // }, [selectedNode.systemType]);
-
-
-
-
   useEffect(() => {
     if (
       selectedNode.systemType !== "Sliding" ||
@@ -4112,8 +4083,6 @@ export function WindowDoorConfigurator({
                     </>
                   )
                 )}
-
-
 
               </div>
 
