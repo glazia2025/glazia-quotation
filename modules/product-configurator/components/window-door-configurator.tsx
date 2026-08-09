@@ -3838,44 +3838,6 @@ export function WindowDoorConfigurator({
                           </select>
                         )}
                       </label>
-                      <label className="text-xs text-gray-600">
-                        Colour Finish
-                        <select
-                          value={meta.colorFinish}
-                          onChange={(e) =>
-                            setMeta((prev) => ({
-                              ...prev,
-                              colorFinish: e.target.value,
-                            }))
-                          }
-                          className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
-                        >
-                          <option value="">Select</option>
-                          {combinationOptionsQuery.data?.colorFinishes.map(
-                            (opt: OptionWithRate) => (
-                              <option key={opt.name} value={opt.name}>
-                                {opt.name}
-                              </option>
-                            )
-                          )}
-                        </select>
-                      </label>
-                      <label className="text-xs text-gray-600">
-                        Rate
-                        <input
-                          type="number"
-                          min={0}
-                          value={meta.rate}
-                          onChange={(e) => {
-                            setIsManualRate(true);
-                            setMeta((prev) => ({
-                              ...prev,
-                              rate: Number(e.target.value) || 0,
-                            }));
-                          }}
-                          className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
-                        />
-                      </label>
                       <label className="text-xs text-gray-600">Colour Finish<select value={meta.colorFinish} onChange={(e) => setMeta((prev) => ({ ...prev, colorFinish: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{combinationOptionsQuery.data?.colorFinishes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
                       {editingItem && (
                         <>
