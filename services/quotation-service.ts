@@ -378,6 +378,20 @@ export async function getBomPdfBlob(quotationId: string): Promise<Blob> {
   return response.data;
 }
 
+
+// export async function getQuotationExcelBlob(
+//   quotationId: string,
+//   includeAmount: boolean
+// ): Promise<Blob> {
+//   const response = await axios.get(
+//     `${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/export-excel`,
+//     {
+//       headers: getAuthHeaders(),
+//       withCredentials: true,
+//       responseType: "blob",
+//        params: {
+//         includeAmount,
+//       },
 export type BomOrderRow = {
   type: string;
   system: string;
@@ -414,7 +428,46 @@ export async function getBomOrderData(quotationId: string): Promise<BomOrderData
 
   return response.data;
 }
+export async function getQuotationExcelBlob(
+  quotationId: string,
+  includeAmount: boolean
+): Promise<Blob> {
+  const response = await axios.get(
+    `${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/export-excel`,
+    {
+      headers: getAuthHeaders(),
+      withCredentials: true,
+      responseType: "blob",
+      params: {
+        includeAmount,
+      },
+    }
+  );
 
+  return response.data;
+}
+
+// export async function uploadQuotationExcel(
+//   quotationId: string,
+//   file: File
+// ) {
+//   const formData = new FormData();
+//   formData.append("file", file);
+
+//   const response = await axios.post(
+//     `${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/import-excel`,
+//     formData,
+//     {
+//       headers: {
+//         ...getAuthHeaders(),
+//         "Content-Type": "multipart/form-data",
+//       },
+//       withCredentials: true,
+//     }
+//   );
+
+//   return response.data;
+// }
 export async function getOptimizedFinal(quotationId: string) {
   const response = await axios.get<{
     optimizedFinal: number;
