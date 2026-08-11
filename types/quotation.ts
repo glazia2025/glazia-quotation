@@ -170,6 +170,7 @@ export interface Quotation {
     profitPercentage?: number;
   };
   globalConfig?: {
+    isOverridden?: boolean;
     logo?: string;
     terms?: string;
     website?: string;
