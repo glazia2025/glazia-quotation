@@ -2375,7 +2375,7 @@ console.log("SAVED ITEM", savedItem);
       setIsGeneratingPdf(false);
     }
   };
-const exportExcel = async (includeAmount: boolean) => {
+const exportExcel = async () => {
   try {
     setIsGeneratingExcel(true);
 
@@ -2391,7 +2391,7 @@ const exportExcel = async (includeAmount: boolean) => {
       throw new Error("Failed to resolve quotation id before Excel generation.");
     }
 
-    const blob = await getQuotationExcelBlob(quotationId,includeAmount);
+    const blob = await getQuotationExcelBlob(quotationId,true);
 
     const quoteNo =
       savedQuotation?.generatedId ||
@@ -2573,7 +2573,49 @@ const exportExcel = async (includeAmount: boolean) => {
                 : saveState}
           </Badge>
            
-          <Button variant="outline"
+          {/* <Button variant="outline"
+           onClick={exportCuttingSchedule} disabled={isSaveBlockingExports || isAnyExportInProgress}>
+            <Ruler className="h-4 w-4" />
+            {isGeneratingCuttingSchedule ? "Generating..." : "Cutting"}
+          </Button>
+          <Button variant="outline" onClick={exportBom} disabled={isSaveBlockingExports || isAnyExportInProgress}>
+            <Download className="h-4 w-4" />
+            {isGeneratingBom ? "Generating..." : "BOM"}
+          </Button>
+         
+          
+          <Button variant="outline" onClick={exportPdf} disabled={isSaveBlockingExports || isAnyExportInProgress}>
+            <Download className="h-4 w-4" />
+            {isGeneratingPdf ? "Generating..." : "Quotation"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={exportElevationPdf}
+            disabled={isSaveBlockingExports || isAnyExportInProgress}
+          >
+            <Download className="h-4 w-4" />
+            {isGeneratingElevation ? "Generating..." : "Elevation"}
+          </Button>
+          <Button
+  variant="outline"
+  // onClick={exportExcel}
+  onClick={() => setIsExcelExportModalOpen(true)}
+  disabled={isSaveBlockingExports || isAnyExportInProgress}
+>
+  <Download className="h-4 w-4" />
+  {isGeneratingExcel ? "Generating..." : " Download Excel"}
+</Button> */}
+          <Button variant="outline" disabled={isSaveBlockingExports || isAnyExportInProgress}>
+            <Share2 className="h-4 w-4" />
+            Share
+          </Button>
+        </>
+        
+      }
+    >
+      <Card className="border-0 bg-white/90">
+    <CardContent className="flex items-center justify-start gap-3 p-4">
+      <Button variant="outline"
            onClick={exportCuttingSchedule} disabled={isSaveBlockingExports || isAnyExportInProgress}>
             <Ruler className="h-4 w-4" />
             {isGeneratingCuttingSchedule ? "Generating..." : "Cutting"}
@@ -2605,14 +2647,9 @@ const exportExcel = async (includeAmount: boolean) => {
   <Download className="h-4 w-4" />
   {isGeneratingExcel ? "Generating..." : " Download Excel"}
 </Button>
-          <Button variant="outline" disabled={isSaveBlockingExports || isAnyExportInProgress}>
-            <Share2 className="h-4 w-4" />
-            Share
-          </Button>
-        </>
-        
-      }
-    >
+      
+    </CardContent>
+  </Card>
       <div id="quotation-pdf-root" className="space-y-6">
         <Card className="border-0 bg-white/90">
           <CardContent className="flex items-center justify-between p-4">
@@ -2745,7 +2782,7 @@ const exportExcel = async (includeAmount: boolean) => {
       </h3>
 
       <p className="mt-2 text-sm text-slate-600">
-        Do you want to export Amount in the Excel?
+        Do you want to download the Excel?
       </p>
 
       <div className="mt-6 flex justify-end gap-2">
@@ -2753,7 +2790,6 @@ const exportExcel = async (includeAmount: boolean) => {
           variant="outline"
           onClick={() => {
             setIsExcelExportModalOpen(false);
-            exportExcel(false);
           }}
         >
           No
@@ -2763,7 +2799,7 @@ const exportExcel = async (includeAmount: boolean) => {
           className="bg-[#124657] hover:bg-[#0b3642]"
           onClick={() => {
             setIsExcelExportModalOpen(false);
-            exportExcel(true);
+            exportExcel();
           }}
         >
           Yes
