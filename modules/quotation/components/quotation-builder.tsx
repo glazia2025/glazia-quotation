@@ -11,6 +11,7 @@ import {
   Plus,
   Ruler,
   Share2,
+  Upload,
   ShoppingCart,
 } from "lucide-react";
 
@@ -23,15 +24,32 @@ import { useQuotationBuilder } from "@/modules/quotation/hooks/use-quotation-bui
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 import { getArea, getPerimeter } from "@/modules/quotation/utils/calculations";
 import { createEmptyQuotation } from "@/modules/quotation/utils/factory";
-import { bulkUpdateQuotationItems, createQuotationItem, deleteQuotationItem, getBomOrderData, getBomPdfBlob, getCuttingSchedulePdfBlob, getGlassReportPdfBlob, getQuotationPdfBlob, saveQuotationMetadata, getElevationPdfBlob, getOptimizedFinal, reorderQuotationItems } from "@/services/quotation-service";
+import {
+  bulkUpdateQuotationItems,
+  createQuotationItem,
+  deleteQuotationItem,
+  getBomOrderData,
+  getBomPdfBlob,
+  getCuttingSchedulePdfBlob,
+  getQuotationPdfBlob,
+  saveQuotationMetadata,
+  getElevationPdfBlob,
+  getOptimizedFinal,
+  reorderQuotationItems,
+  getQuotationExcelBlob,
+  getQuotation,
+  calculateQuotationRates,
+  getGlassReportPdfBlob
+} from "@/services/quotation-service";
 import type { BomOrderData } from "@/services/quotation-service";
 import { BomOrderPlacement } from "@/modules/quotation/components/bom-order-placement";
+
 import type { Quotation, QuotationItem } from "@/types/quotation";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { getQuotationPdfDownloadName } from "@/utils/quotationPdf";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loadGlobalConfig } from "../../../utils/globalConfig";
-import { fetchOptions } from "@/lib/quotations/api";
+import { fetchDescriptions, fetchOptions } from "@/lib/quotations/api";
 import {
   DndContext,
   closestCenter,
@@ -94,6 +112,8 @@ const createBuilderGlobalConfig = () => ({
 const getQuotationIdentity = (quotation: Quotation | null | undefined) =>
   quotation?._id || quotation?.generatedId || quotation?.quotationDetails?.id || "";
 
+const EXHAUST_FAN_RATE_SURCHARGE = 10;
+
 function ItemCard({
   item,
   configuratorBasePath,
@@ -103,12 +123,46 @@ function ItemCard({
   item: QuotationItem;
   configuratorBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
-  onDuplicateItem: (item: QuotationItem, refCode: string) => Promise<void>;
+  onDuplicateItem: (
+  item: QuotationItem,
+  refCode: string,
+  dimensions?: {
+    parent: {
+      width: string;
+      height: string;
+    };
+    sections: {
+      width: string;
+      height: string;
+    }[];
+  }
+) => Promise<void>;
 }) {
+  console.log("CARD ITEM", item);
+  console.log(
+  "CONFIG LAYOUT",
+  item.configuratorLayout
+);
+
   const [showSections, setShowSections] = useState(false);
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [duplicateRefCode, setDuplicateRefCode] = useState("");
+  const [duplicateStep, setDuplicateStep] = useState<1 | 2>(1);
+  const [duplicateCount, setDuplicateCount] = useState(1);
+  const [duplicateCountInput, setDuplicateCountInput] = useState("1");
+  const [duplicateRefCodes, setDuplicateRefCodes] = useState([""]);
+  const [duplicateWindows, setDuplicateWindows] = useState<
+  {
+    parent: {
+      width: string;
+      height: string;
+    };
+    sections: {
+      width: string;
+      height: string;
+    }[];
+  }[]
+>([]);
   const [duplicateError, setDuplicateError] = useState("");
   const [isMutating, setIsMutating] = useState(false);
   const systemLabel = item.systemType || item.series || item.openingType || "Not configured";
@@ -135,32 +189,66 @@ function ItemCard({
   };
 
   const handleDuplicate = () => {
-    setDuplicateRefCode("");
+    setDuplicateStep(1);
+    setDuplicateCount(1);
+    setDuplicateCountInput("1");
+    setDuplicateRefCodes([""]);
+    setDuplicateWindows([
+  {
+    parent: {
+      width: String(item.width),
+      height: String(item.height),
+    },
+    sections: (item.subItems ?? []).map((subItem) => ({
+      width: String(subItem.width),
+      height: String(subItem.height),
+    })),
+  },
+]);
     setDuplicateError("");
     setIsDuplicateModalOpen(true);
   };
 
+
   const confirmDuplicate = async () => {
-    const trimmedRefCode = duplicateRefCode.trim();
-    if (!trimmedRefCode) {
-      setDuplicateError("Ref Code is required to duplicate an item.");
-      return;
-    }
+  const refCodes = duplicateRefCodes.map((code) => code.trim());
 
-    setIsMutating(true);
-    try {
-      await onDuplicateItem(item, trimmedRefCode);
-      setIsDuplicateModalOpen(false);
-      setDuplicateRefCode("");
-      setDuplicateError("");
-    } catch (error) {
-      console.error("Failed to duplicate quotation item", error);
-      setDuplicateError("Failed to duplicate this item.");
-    } finally {
-      setIsMutating(false);
-    }
-  };
+  if (refCodes.some((code) => !code)) {
+    setDuplicateError("Please enter all Ref Codes.");
+    return;
+  }
 
+  const uniqueRefCodes = new Set(refCodes);
+
+  if (uniqueRefCodes.size !== refCodes.length) {
+    setDuplicateError("Ref Codes must be unique.");
+    return;
+  }
+
+  setIsMutating(true);
+
+  try {
+    for (let index = 0; index < refCodes.length; index++) {
+  await onDuplicateItem(
+    item,
+    refCodes[index],
+    duplicateWindows[index]
+  );
+}
+
+    setIsDuplicateModalOpen(false);
+    setDuplicateStep(1);
+    setDuplicateCount(1);
+    setDuplicateCountInput("1");
+    setDuplicateRefCodes([""]);
+    setDuplicateError("");
+  } catch (error) {
+    console.error("Failed to duplicate quotation item", error);
+    setDuplicateError("Failed to duplicate this item.");
+  } finally {
+    setIsMutating(false);
+  }
+};
   return (
     <>
       <div className="self-start space-y-2 rounded-2xl border bg-white p-3 shadow-sm transition hover:shadow-md">
@@ -290,35 +378,293 @@ function ItemCard({
       ) : null}
       {isDuplicateModalOpen ? (
         <div className="fixed inset-0 z-[230] flex items-center justify-center bg-slate-950/60 p-4" onPointerDown={(event) => event.stopPropagation()}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+          {/* <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"> */}
+          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl">
+             <div className="overflow-y-auto p-6">
             <h3 className="text-lg font-semibold text-slate-900">Duplicate Item</h3>
             <p className="mt-1 text-sm text-slate-500">Enter a new ref code for {refCodeLabel}.</p>
+            {duplicateStep === 1 && (
             <label className="mt-5 block text-sm font-medium text-slate-700">
-              Ref Code
-              <input
-                value={duplicateRefCode}
-                onChange={(event) => {
-                  setDuplicateRefCode(event.target.value);
-                  setDuplicateError("");
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") confirmDuplicate();
-                  if (event.key === "Escape") setIsDuplicateModalOpen(false);
-                }}
-                autoFocus
-                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
-              />
-            </label>
-            {duplicateError ? <p className="mt-2 text-sm text-red-600">{duplicateError}</p> : null}
-            <div className="mt-6 flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => { setIsDuplicateModalOpen(false); setDuplicateError(""); }}>
-                Cancel
-              </Button>
-              <Button size="sm" onClick={confirmDuplicate} disabled={isMutating} className="bg-[#124657] hover:bg-[#0b3642]">
-                {isMutating ? "Saving..." : "Duplicate"}
-              </Button>
+  Number of  Duplicate Windows you want to make?
+<input
+  type="number"
+  min={1}
+  max={100}
+  value={duplicateCountInput}
+  onFocus={(event) => event.target.select()}
+  onChange={(event) => {
+    const value = event.target.value;
+    setDuplicateCountInput(value);
+    if (value === "") {
+      return;
+    }
+
+    const count = Math.max(
+      1,
+      Math.min(100, Number(value))
+    );
+    setDuplicateCount(count);
+
+    setDuplicateRefCodes((prev) => {
+      const next = [...prev];
+
+      while (next.length < count) {
+        next.push("");
+      }
+
+      return next.slice(0, count);
+    });
+
+    setDuplicateError("");
+  }}
+  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+/>
+</label>
+)}
+            {duplicateStep === 2 && (
+
+            <div className="mt-5 space-y-4">
+
+  {duplicateRefCodes.map((refCode, index) => (
+  <div
+    key={index}
+    className="rounded-lg border border-slate-200 p-4"
+  >
+    <div className="grid grid-cols-3 gap-4">
+      <label className="text-sm font-medium text-slate-700">
+        Ref Code {index + 1}
+        <input
+          value={refCode}
+          onChange={(event) => {
+            const value = event.target.value;
+
+            setDuplicateRefCodes((prev) => {
+              const next = [...prev];
+              next[index] = value;
+              return next;
+            });
+
+            setDuplicateError("");
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") confirmDuplicate();
+            if (event.key === "Escape") setIsDuplicateModalOpen(false);
+          }}
+          autoFocus={index === 0}
+          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+        />
+      </label>
+
+      <label className="text-sm font-medium text-slate-700">
+         Width
+        <input
+          type="number"
+          value={duplicateWindows[index]?.parent.width ?? ""}
+          onChange={(event) => {
+            const value = event.target.value;
+
+            setDuplicateWindows((prev) => {
+              const next = [...prev];
+
+              next[index] = {
+                ...next[index],
+                parent: {
+                  ...next[index].parent,
+                  width: value,
+                },
+              };
+
+              return [...next];
+            });
+          }}
+          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+        />
+      </label>
+
+      <label className="text-sm font-medium text-slate-700">
+         Height
+        <input
+          type="number"
+          value={duplicateWindows[index]?.parent.height ?? ""}
+          onChange={(event) => {
+            const value = event.target.value;
+
+            setDuplicateWindows((prev) => {
+              const next = [...prev];
+
+              next[index] = {
+                ...next[index],
+                parent: {
+                  ...next[index].parent,
+                  height: value,
+                },
+              };
+
+              return [...next];
+            });
+          }}
+          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+        />
+      </label>
+    </div>
+
+    {duplicateWindows[index]?.sections.length ? (
+      <div className="mt-4 space-y-3">
+        {duplicateWindows[index].sections.map((section, sectionIndex) => (
+          <div
+            key={sectionIndex}
+            className="rounded-lg border border-slate-200 p-3"
+          >
+            <p className="mb-3 text-sm font-semibold text-slate-700">
+              Window {sectionIndex + 1}
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-sm font-medium text-slate-700">
+                Width
+                <input
+                  type="number"
+                  value={section.width}
+                  onChange={(event) => {
+                    const value = event.target.value;
+
+                    setDuplicateWindows((prev) => {
+                      const next = [...prev];
+
+                      next[index].sections[sectionIndex] = {
+                        ...next[index].sections[sectionIndex],
+                        width: value,
+                      };
+
+                      return [...next];
+                    });
+                  }}
+                  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+                />
+              </label>
+
+              <label className="text-sm font-medium text-slate-700">
+                Height
+                <input
+                  type="number"
+                  value={section.height}
+                  onChange={(event) => {
+                    const value = event.target.value;
+
+                    setDuplicateWindows((prev) => {
+                      const next = [...prev];
+
+                      next[index].sections[sectionIndex] = {
+                        ...next[index].sections[sectionIndex],
+                        height: value,
+                      };
+
+                      return [...next];
+                    });
+                  }}
+                  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+                />
+              </label>
             </div>
           </div>
+        ))}
+      </div>
+    ) : null}
+  </div>
+))}
+</div>
+            )}
+            {duplicateError ? <p className="mt-2 text-sm text-red-600">{duplicateError}</p> : null}
+            </div>
+            <div className="border-t p-6">
+            <div className="mt-6 flex justify-end gap-2">
+  <Button
+    variant="outline"
+    size="sm"
+    onClick={() => {
+      if (duplicateStep === 2) {
+        setDuplicateStep(1);
+        setDuplicateError("");
+        return;
+      }
+
+      setIsDuplicateModalOpen(false);
+      setDuplicateError("");
+    }}
+  >
+    {duplicateStep === 2 ? "Back" : "Cancel"}
+  </Button>
+
+  {duplicateStep === 1 ? (
+    <Button
+      size="sm"
+      className="bg-[#124657] hover:bg-[#0b3642]"
+      onClick={() => {
+  const count = Number(duplicateCountInput);
+
+  if (!duplicateCountInput.trim()) {
+    setDuplicateError("Please enter the number of windows.");
+    return;
+  }
+
+  if (Number.isNaN(count) || count < 1 || count > 100) {
+    setDuplicateError("Number of windows must be between 1 and 100.");
+    return;
+  }
+
+  setDuplicateCount(count);
+
+  setDuplicateRefCodes((prev) => {
+    const next = [...prev];
+
+    while (next.length < count) {
+      next.push("");
+    }
+
+    return next.slice(0, count);
+  });
+  setDuplicateWindows((prev) => {
+  const template =
+    prev[0] ?? {
+      parent: {
+        width: String(item.width),
+        height: String(item.height),
+      },
+      sections: (item.subItems ?? []).map((subItem) => ({
+        width: String(subItem.width),
+        height: String(subItem.height),
+      })),
+    };
+
+  return Array.from({ length: count }, () => ({
+    parent: {
+      ...template.parent,
+    },
+    sections: template.sections.map((section) => ({
+      ...section,
+    })),
+  }));
+});
+
+  setDuplicateError("");
+  setDuplicateStep(2);
+}}
+    >
+      Next
+    </Button>
+  ) : (
+    <Button
+      size="sm"
+      onClick={confirmDuplicate}
+      disabled={isMutating}
+      className="bg-[#124657] hover:bg-[#0b3642]"
+    >
+      {isMutating ? "Saving..." : "Duplicate"}
+    </Button>
+  )}
+</div>
+          </div>
+        </div>
         </div>
       ) : null}
     </>
@@ -335,7 +681,20 @@ function SortableItem({
   item: QuotationItem;
   configuratorBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
-  onDuplicateItem: (item: QuotationItem, refCode: string) => Promise<void>;
+  onDuplicateItem: (
+  item: QuotationItem,
+  refCode: string,
+  dimensions?: {
+    parent: {
+      width: string;
+      height: string;
+    };
+    sections: {
+      width: string;
+      height: string;
+    }[];
+  }
+) => Promise<void>;
 }) {
   const {
     attributes,
@@ -420,7 +779,20 @@ function ItemTab({
 }: {
   quotationBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
-  onDuplicateItem: (item: QuotationItem, refCode: string) => Promise<void>;
+  onDuplicateItem: (
+  item: QuotationItem,
+  refCode: string,
+  dimensions?: {
+    parent: {
+      width: string;
+      height: string;
+    };
+    sections: {
+      width: string;
+      height: string;
+    }[];
+  }
+) => Promise<void>;
   onReorderItems: (startIndex: number, endIndex: number) => Promise<void>;
 }) {
   const quotation = useQuotationBuilderStore((state) => state.quotation);
@@ -1313,11 +1685,10 @@ export function QuotationBuilder({
   const [globalConfig, setGlobalConfig] = useState(createBuilderGlobalConfig);
   const hydratedQuotationKeyRef = useRef<string | null>(null);
   const hydratedGlobalConfigKeyRef = useRef<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const handleAddItem = () => {
     router.push(`${configuratorBasePath}/${crypto.randomUUID()}?mode=create`);
   };
-
-
 
   useEffect(() => {
     const fetchData = async () => {
@@ -1380,6 +1751,8 @@ export function QuotationBuilder({
   const [isGeneratingBom, setIsGeneratingBom] = useState(false);
   const [isGeneratingGlassReport, setIsGeneratingGlassReport] = useState(false);
   const [isGeneratingElevation, setIsGeneratingElevation] = useState(false);
+  const [isGeneratingExcel, setIsGeneratingExcel] = useState(false);
+  const [isExcelExportModalOpen, setIsExcelExportModalOpen] = useState(false);
   const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState("Quotation PDF Preview");
@@ -1547,24 +1920,336 @@ export function QuotationBuilder({
     [ensureParentQuotation, markSaved, runItemMutation]
   );
 
+  // const persistDuplicateItem = useCallback(
+  //   (item: QuotationItem, refCode: string) =>
   const persistDuplicateItem = useCallback(
-    (item: QuotationItem, refCode: string) =>
+  (
+    item: QuotationItem,
+    refCode: string,
+    dimensions?: {
+      parent: {
+        width: string;
+        height: string;
+      };
+      sections: {
+        width: string;
+        height: string;
+      }[];
+    }
+  ) =>
       runItemMutation(async () => {
         const sourceId = getQuotationItemIdentity(item);
         const store = useQuotationBuilderStore.getState();
-        store.duplicateItem(sourceId, refCode);
+        // store.duplicateItem(sourceId, refCode);
+        store.duplicateItem(sourceId, refCode, dimensions);
         const items = useQuotationBuilderStore.getState().quotation.items;
         const sourceIndex = items.findIndex(
           (entry) => getQuotationItemIdentity(entry) === sourceId
         );
+const ite = useQuotationBuilderStore.getState().quotation.items;
+
+console.log("ALL ITEMS =", ite);
         const duplicate = items[sourceIndex + 1];
+      console.log("DUPLICATE =", duplicate);
+
+if (duplicate) {
+  console.log("systemType =", duplicate.systemType);
+  console.log("series =", duplicate.series);
+  console.log("description =", duplicate.description);
+
+  console.log("SUB ITEMS =", duplicate.subItems);
+}
         if (!duplicate) throw new Error("Failed to create the local duplicate");
+        const layout = duplicate.configuratorLayout as {
+  frameCutAngle?: "45" | "90";
+  shutterCutAngle?: "45" | "90";
+};
         const duplicateLocalId = getQuotationItemIdentity(duplicate);
+        const isCombinationItem = duplicate.systemType === "Combination" || (duplicate.subItems?.length ?? 0) > 1;
         try {
           const quotationId = await ensureParentQuotation();
+          if (isCombinationItem) {
+            const combinationSubItems = Array.isArray(duplicate.subItems) ? duplicate.subItems : [];
+            if (combinationSubItems.length) {
+              const rateInputs = combinationSubItems.map((subItem) => ({
+                clientId: subItem.id,
+                systemType: subItem.systemType || "",
+                series: subItem.series || "",
+                description: subItem.description || "",
+                width: Number(subItem.width),
+                height: Number(subItem.height),
+                area: Number(subItem.area),
+                frameCutAngle: subItem.frameCutAngle ?? layout.frameCutAngle ?? "45",
+                shutterCutAngle: subItem.shutterCutAngle ?? layout.shutterCutAngle ?? "45",
+                cuttingScheduleKey: subItem.cuttingScheduleKey || String(duplicate.cuttingScheduleKey || "45_45"),
+                glassSpec: subItem.glassSpec || "",
+                hardwareOpeningType: (subItem.hardwareOpeningType || "") as "" | "hinges" | "frictionStay",
+              }));
+
+              const [calculatedSubItemRates, ...rest] = await Promise.all([
+                calculateQuotationRates(rateInputs),
+                ...combinationSubItems.map(async (subItem) => {
+                  const [descriptions, options] = await Promise.all([
+                    fetchDescriptions(subItem.systemType || "", subItem.series || ""),
+                    fetchOptions(subItem.systemType || ""),
+                  ]);
+
+                  return { subItem, descriptions, options };
+                }),
+              ]);
+              const joinRequests = (duplicate.joins ?? [])
+  .map((join, index) => ({
+    clientId: `__join__${index}`,
+    itemType: "join" as const,
+    joinType: join.type,
+    // joinOrientation: join.orientation,
+    systemType: duplicate.systemType,
+    series: duplicate.series,
+    description: join.type,
+    width: Number(duplicate.width),
+    height: Number(duplicate.height),
+    area: Number(duplicate.area),
+    frameCutAngle: duplicate.frameCutAngle,
+    shutterCutAngle: duplicate.shutterCutAngle,
+    cuttingScheduleKey: duplicate.cuttingScheduleKey,
+  }))
+  .filter((request) => request.series);
+
+              const rateByClientId = new Map(
+                calculatedSubItemRates.map((result) => [result.clientId, result])
+              );
+
+              duplicate.subItems = rest.map(({ subItem, descriptions, options }) => {
+                const rateResult = rateByClientId.get(subItem.id);
+                if (!rateResult) {
+                  return subItem;
+                }
+
+                const matchedDescription = descriptions.descriptions.find(
+                  (entry) => entry.name === subItem.description
+                );
+                const colorRate =
+                  options?.colorFinishes.find((entry) => entry.name === subItem.colorFinish)?.rate ?? 0;
+                const meshRate = subItem.meshPresent
+                  ? options?.meshTypes.find((entry) => entry.name === subItem.meshType)?.rate ?? 0
+                  : 0;
+                const glassRate =
+                  options?.glassSpecs.find((entry) => entry.name === subItem.glassSpec)?.rate ?? 0;
+                const handleOption = options?.handleOptions.find(
+                  (entry) => entry.name === subItem.handleType
+                );
+                const handleCount = matchedDescription?.defaultHandleCount ?? 0;
+                const handleUnitRate =
+                  handleOption?.colors.find((entry) => entry.name === subItem.handleColor)?.rate ?? 0;
+                const handleRate =
+                  handleCount > 0
+                    ? (handleCount * handleUnitRate) / (Number(subItem.area) || 1)
+                    : 0;
+                const exhaustFanRate = subItem.hasExhaustFan ? EXHAUST_FAN_RATE_SURCHARGE : 0;
+                const rate = Number(
+                  (
+                    (rateResult.baseRate ?? 0) +
+                    colorRate +
+                    meshRate +
+                    glassRate +
+                    handleRate +
+                    exhaustFanRate
+                  ).toFixed(2)
+                );
+                const amount = Number(
+                  (
+                    rate *
+                    Number(subItem.area) *
+                    Number(subItem.quantity || 1)
+                  ).toFixed(2)
+                );
+
+                return {
+                  ...subItem,
+                  rate,
+                  amount,
+                };
+              });
+
+              const totalArea = Number(duplicate.area) || combinationSubItems.reduce((sum, subItem) => sum + Number(subItem.area || 0), 0);
+              const totalAmount = duplicate.subItems.reduce((sum, subItem) => sum + Number(subItem.amount || 0), 0);
+              duplicate.rate = Number((totalArea > 0 ? totalAmount / totalArea : 0).toFixed(2));
+              console.log("COMBINATION TOTAL", {
+  totalArea,
+  totalAmount,
+  finalRate: totalArea > 0 ? totalAmount / totalArea : 0,
+});
+              duplicate.amount = Number(
+                (
+                  duplicate.rate *
+                  Number(duplicate.area) *
+                  Number(duplicate.quantity || 1)
+                ).toFixed(2)
+              );
+            } else {
+              duplicate.rate = Number(duplicate.rate) || 0;
+              duplicate.amount = Number(
+                (
+                  Number(duplicate.rate) *
+                  Number(duplicate.area) *
+                  Number(duplicate.quantity || 1)
+                ).toFixed(2)
+              );
+            }
+            const savedItem = await createQuotationItem(quotationId, duplicate);
+            useQuotationBuilderStore.getState().replaceItem(duplicateLocalId, savedItem);
+            markSaved();
+            return;
+          }
+          console.log("=== RATE API HIT HONE WALI HAI ===");
+console.log("Duplicate object:", duplicate);
+console.log("System Type:", duplicate?.systemType);
+console.log("Series:", duplicate?.series);
+console.log("Description:", duplicate?.description);
+          const isCasement = duplicate.systemType === "Casement";
+          const isLouver = duplicate.systemType === "Louvers" || duplicate.description === "Louvers";
+          const frameCutAngle = isCasement
+            ? "45"
+            : (duplicate.frameCutAngle ?? layout.frameCutAngle ?? "90");
+          const shutterCutAngle = isCasement
+            ? "45"
+            : (duplicate.shutterCutAngle ?? layout.shutterCutAngle ?? "90");
+          const cuttingScheduleKey =
+            duplicate.cuttingScheduleKey || `${frameCutAngle}_${shutterCutAngle}`;
+          const hardwareOpeningType =
+            isCasement
+              ? ((duplicate.hardwareOpeningType || "") as "" | "hinges" | "frictionStay")
+              : "";
+          const [rateResult] = await calculateQuotationRates([
+  {
+    clientId: duplicate.id,
+
+   systemType: duplicate.systemType || "",
+
+    series: duplicate.series || "",
+
+    description: duplicate.description || "",
+
+    width: Number(duplicate.width),
+
+    height: Number(duplicate.height),
+
+    area: Number(duplicate.area),
+    frameCutAngle,
+
+  shutterCutAngle,
+
+     cuttingScheduleKey,
+
+    glassSpec: duplicate.glassSpec || "",
+
+     hardwareOpeningType,
+  },
+]);
+
+console.log("RATE RESULT", rateResult);
+const [descriptions, options] = await Promise.all([
+  fetchDescriptions(duplicate.systemType || "", isLouver ? "_" : (duplicate.series || "")),
+  fetchOptions(duplicate.systemType || ""),
+]);
+
+let desc: any = null;
+
+if (
+  duplicate.systemType !== "Louvers" &&
+  duplicate.description !== "Louvers"
+) {
+  // desc = descriptions?.find(
+  //   (d: any) => d.name === duplicate.description
+  // );
+   desc = descriptions.descriptions.find(
+  (d: any) => d.name === duplicate.description
+);
+}
+
+const colorRate =
+  options?.colorFinishes.find(
+    (c: any) => c.name === duplicate.colorFinish
+  )?.rate ?? 0;
+const meshRate =
+  duplicate.meshPresent
+    ? options?.meshTypes.find(
+        (m: any) => m.name === duplicate.meshType
+      )?.rate ?? 0
+    : 0;
+
+const glassRate =
+  options?.glassSpecs.find(
+    (g: any) => g.name === duplicate.glassSpec
+  )?.rate ?? 0;
+
+const handleOpt = options?.handleOptions.find(
+  (h: any) => h.name === duplicate.handleType
+);
+
+const handleCount = desc?.defaultHandleCount ?? 0;
+
+const handleUnitRate =
+  handleOpt?.colors.find(
+    (c: any) => c.name === duplicate.handleColor
+  )?.rate ?? 0;
+
+const handleRate =
+  handleCount > 0
+    ? (handleCount * handleUnitRate) /
+      (Number(duplicate.area) || 1)
+    : 0;
+const exhaustFanRate = duplicate.hasExhaustFan ? EXHAUST_FAN_RATE_SURCHARGE : 0;
+
+duplicate.rate =
+  (rateResult.baseRate ?? 0) +
+  colorRate +
+  meshRate +
+  glassRate +
+  handleRate +
+  exhaustFanRate;
+
+duplicate.rate = Number(duplicate.rate.toFixed(2));
+
+duplicate.amount = Number(
+  (
+    duplicate.rate *
+    Number(duplicate.area) *
+    Number(duplicate.quantity || 1)
+  ).toFixed(2)
+);
+
+console.log("FINAL DUPLICATE RATE", {
+  baseRate: rateResult.baseRate,
+  colorRate,
+  meshRate,
+  glassRate,
+  handleRate,
+  finalRate: duplicate.rate,
+  amount: duplicate.amount,
+});
           const savedItem = await createQuotationItem(quotationId, duplicate);
           useQuotationBuilderStore.getState().replaceItem(duplicateLocalId, savedItem);
           markSaved();
+const latestQuotation = await getQuotation(quotationId);
+
+console.log("LATEST QUOTATION", latestQuotation);
+console.log(
+  latestQuotation?.items.map((item) => ({
+    refCode: item.refCode,
+    rate: item.rate,
+    amount: item.amount,
+    refImage: item.refImage,
+    area: item.area,
+  }))
+);
+
+console.log({
+  savedRate: savedItem.rate,
+  savedImage: savedItem.refImage,
+  savedArea: savedItem.area,
+});
+console.log("SAVED ITEM", savedItem);
         } catch (error) {
           useQuotationBuilderStore.getState().removeItem(duplicateLocalId);
           throw error;
@@ -1596,7 +2281,7 @@ export function QuotationBuilder({
       }),
     [ensureParentQuotation, markSaved, runItemMutation]
   );
-
+   
   const persistBulkUpdate = useCallback(
     async (field: BulkUpdateField, from: string, to: string) => {
       let updatedCount = 0;
@@ -1742,6 +2427,51 @@ export function QuotationBuilder({
       setIsGeneratingPdf(false);
     }
   };
+const exportExcel = async (includeAmount: boolean) => {
+  try {
+    setIsGeneratingExcel(true);
+
+    const savedQuotation = await getPersistedQuotation();
+
+    const quotationId =
+      savedQuotation?._id ??
+      quotationWithGlobalConfig._id ??
+      savedQuotation?.quotationDetails.id ??
+      quotationWithGlobalConfig.quotationDetails.id;
+
+    if (!quotationId) {
+      throw new Error("Failed to resolve quotation id before Excel generation.");
+    }
+
+    const blob = await getQuotationExcelBlob(quotationId,includeAmount);
+
+    const quoteNo =
+      savedQuotation?.generatedId ||
+      savedQuotation?.quotationDetails.id ||
+      quotationWithGlobalConfig.generatedId ||
+      quotationWithGlobalConfig.quotationDetails.id ||
+      "quotation";
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${quoteNo}.xlsx`;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+
+  } catch (error) {
+    console.error("Failed to export Excel", error);
+    alert("Failed to generate Excel.");
+  } finally {
+    setIsGeneratingExcel(false);
+  }
+};
+
   const exportElevationPdf = async () => {
     try {
       setIsGeneratingElevation(true);
@@ -1911,7 +2641,8 @@ export function QuotationBuilder({
     isGeneratingCuttingSchedule ||
     isGeneratingBom ||
     isGeneratingGlassReport ||
-    isGeneratingElevation;
+    isGeneratingElevation||
+    isGeneratingExcel;
 
   return (
     <PageShell
@@ -1956,11 +2687,21 @@ export function QuotationBuilder({
             <Download className="h-4 w-4" />
             {isGeneratingElevation ? "Generating..." : "Elevation"}
           </Button>
+          <Button
+  variant="outline"
+  // onClick={exportExcel}
+  onClick={() => setIsExcelExportModalOpen(true)}
+  disabled={isSaveBlockingExports || isAnyExportInProgress}
+>
+  <Download className="h-4 w-4" />
+  {isGeneratingExcel ? "Generating..." : " Download Excel"}
+</Button>
           <Button variant="outline" disabled={isSaveBlockingExports || isAnyExportInProgress}>
             <Share2 className="h-4 w-4" />
             Share
           </Button>
         </>
+        
       }
     >
       <div id="quotation-pdf-root" className="space-y-6">
@@ -2084,6 +2825,44 @@ export function QuotationBuilder({
           />
         ) : null}
       </div>
+       {isExcelExportModalOpen ? (
+  <div
+    className="fixed inset-0 z-[230] flex items-center justify-center bg-slate-950/60 p-4"
+    onPointerDown={(event) => event.stopPropagation()}
+  >
+    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+      <h3 className="text-lg font-semibold text-slate-900">
+        Export Excel
+      </h3>
+
+      <p className="mt-2 text-sm text-slate-600">
+        Do you want to export Amount in the Excel?
+      </p>
+
+      <div className="mt-6 flex justify-end gap-2">
+        <Button
+          variant="outline"
+          onClick={() => {
+            setIsExcelExportModalOpen(false);
+            exportExcel(false);
+          }}
+        >
+          No
+        </Button>
+
+        <Button
+          className="bg-[#124657] hover:bg-[#0b3642]"
+          onClick={() => {
+            setIsExcelExportModalOpen(false);
+            exportExcel(true);
+          }}
+        >
+          Yes
+        </Button>
+      </div>
+    </div>
+  </div>
+) : null}
     </PageShell>
   );
 }

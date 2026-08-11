@@ -135,6 +135,10 @@ export function QuotationList() {
             const quotationStatus: string = "Draft";
             const opportunity =
   quotation.quotationDetails?.opportunity || "Enquiry";
+  const totalWindows =
+  quotation.items?.length ??
+  quotation.quotationItems?.length ??
+  0;
 
             return (
               <div key={`${quotationId}-${index}`} className="grid gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 md:grid-cols-[1.2fr_0.8fr_auto] md:items-center">
@@ -148,6 +152,11 @@ export function QuotationList() {
                   <div className="mt-2 text-sm text-slate-600">
                     {customerName}
                   </div>
+                  <div className="mt-2 text-sm text-slate-600">
+                  <div className="text-xs text-slate-500"> 
+                    Total Items: {totalWindows}
+                    </div>
+                </div>
                 </div>
                 <div className="text-sm text-slate-600">
                 </div>
