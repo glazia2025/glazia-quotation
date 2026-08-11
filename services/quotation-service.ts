@@ -259,6 +259,7 @@ export function toBackendQuotation(quotation: Quotation) {
       profitPercentage,
     },
     globalConfig: {
+      isOverridden: quotation.globalConfig?.isOverridden === true,
       logo: quotation.globalConfig?.logo || "",
       website: quotation.globalConfig?.website || "",
       terms: quotation.globalConfig?.terms || "",
@@ -370,6 +371,16 @@ export async function getCuttingSchedulePdfBlob(quotationId: string): Promise<Bl
 
 export async function getBomPdfBlob(quotationId: string): Promise<Blob> {
   const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/bom`, {
+    headers: getAuthHeaders(),
+    withCredentials: true,
+    responseType: "blob"
+  });
+
+  return response.data;
+}
+
+export async function getGlassReportPdfBlob(quotationId: string): Promise<Blob> {
+  const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/glass-report`, {
     headers: getAuthHeaders(),
     withCredentials: true,
     responseType: "blob"

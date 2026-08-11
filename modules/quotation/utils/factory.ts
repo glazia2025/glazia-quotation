@@ -70,6 +70,7 @@ export function createEmptyQuotation(partial?: Partial<Quotation>): Quotation {
       profitPercentage: 0
     },
     globalConfig: partial?.globalConfig ?? {
+      isOverridden: false,
       logo: "",
       terms: "",
       prerequisites: "",

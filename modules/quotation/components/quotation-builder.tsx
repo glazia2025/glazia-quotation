@@ -39,6 +39,7 @@ import {
   getQuotationExcelBlob,
   getQuotation,
   calculateQuotationRates,
+  getGlassReportPdfBlob
 } from "@/services/quotation-service";
 import type { BomOrderData } from "@/services/quotation-service";
 import { BomOrderPlacement } from "@/modules/quotation/components/bom-order-placement";
@@ -90,6 +91,7 @@ const getServerQuotationItemId = (item: QuotationItem) =>
   [item._id, item.id].map(String).find((value) => /^[a-f\d]{24}$/i.test(value)) || "";
 
 const createBuilderGlobalConfig = () => ({
+  isOverridden: false,
   logo: "",
   logoUrl: "",
   prerequisites: "",
@@ -1680,20 +1682,46 @@ export function QuotationBuilder({
   const isReturningFromConfigurator = isCreateMode && requestedTab === "item";
   const router = useRouter();
   const configuratorBasePath = `${quotationBasePath}/configurator`;
+  const [globalConfig, setGlobalConfig] = useState(createBuilderGlobalConfig);
+  const hydratedQuotationKeyRef = useRef<string | null>(null);
+  const hydratedGlobalConfigKeyRef = useRef<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const handleAddItem = () => {
     router.push(`${configuratorBasePath}/${crypto.randomUUID()}?mode=create`);
   };
 
   useEffect(() => {
     const fetchData = async () => {
-      const data = await loadGlobalConfig();
-      console.log("Global Config API:", data)
-      // if (data) {
-      //   setGlobalConfig(data);
-      // }
+      try {
+        const data = await loadGlobalConfig();
+        if (!data) return;
+
+        const currentQuotation = useQuotationBuilderStore.getState().quotation;
+        const savedConfig = currentQuotation._id ? currentQuotation.globalConfig : undefined;
+        const useSavedOverride = savedConfig?.isOverridden === true;
+
+        setGlobalConfig({
+          ...createBuilderGlobalConfig(),
+          ...data,
+          ...(useSavedOverride ? savedConfig : {}),
+          isOverridden: useSavedOverride,
+          logoUrl: (useSavedOverride ? savedConfig?.logo : data.logo) || "",
+          logo: (useSavedOverride ? savedConfig?.logo : data.logo) || "",
+          website: (useSavedOverride ? savedConfig?.website : data.website) || "",
+          terms: (useSavedOverride ? savedConfig?.terms : data.terms) || "",
+          prerequisites: (useSavedOverride ? savedConfig?.prerequisites : data.prerequisites) || "",
+          additionalCosts: {
+            ...createBuilderGlobalConfig().additionalCosts,
+            ...data.additionalCosts,
+            ...(useSavedOverride ? savedConfig?.additionalCosts : {}),
+          },
+        });
+      } catch (error) {
+        console.error("Failed to load global quotation configuration", error);
+      }
     };
 
-    fetchData();
+    void fetchData();
   }, []);
   useEffect(() => {
     if (isCreateMode) {
@@ -1721,6 +1749,7 @@ export function QuotationBuilder({
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isGeneratingCuttingSchedule, setIsGeneratingCuttingSchedule] = useState(false);
   const [isGeneratingBom, setIsGeneratingBom] = useState(false);
+  const [isGeneratingGlassReport, setIsGeneratingGlassReport] = useState(false);
   const [isGeneratingElevation, setIsGeneratingElevation] = useState(false);
   const [isGeneratingExcel, setIsGeneratingExcel] = useState(false);
   const [isExcelExportModalOpen, setIsExcelExportModalOpen] = useState(false);
@@ -1730,10 +1759,6 @@ export function QuotationBuilder({
   const [pdfDownloadName, setPdfDownloadName] = useState("");
   const [bomOrderData, setBomOrderData] = useState<BomOrderData | null>(null);
   const [isOrderPlacementOpen, setIsOrderPlacementOpen] = useState(false);
-  const [globalConfig, setGlobalConfig] = useState(createBuilderGlobalConfig);
-  const hydratedQuotationKeyRef = useRef<string | null>(null);
-  const hydratedGlobalConfigKeyRef = useRef<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     return () => {
       if (pdfPreviewUrl) {
@@ -1751,6 +1776,7 @@ export function QuotationBuilder({
     () => ({
       ...quotation,
       globalConfig: {
+        isOverridden: globalConfig.isOverridden,
         logo: globalConfig.logo || "",
         website: globalConfig.website || "",
         terms: globalConfig.terms || "",
@@ -1826,10 +1852,32 @@ export function QuotationBuilder({
     }
   }, [activeTab, isCreateMode, quotationWithGlobalConfig.globalConfig, router, saveMetadata]);
 
+  const saveQuotationGlobalOverride = useCallback(async () => {
+    const overriddenGlobalConfig = {
+      ...quotationWithGlobalConfig.globalConfig,
+      isOverridden: true,
+    };
+    setGlobalConfig((current) => ({ ...current, isOverridden: true }));
+    const current = useQuotationBuilderStore.getState().quotation;
+    const saved = await saveMetadata({
+      ...current,
+      globalConfig: overriddenGlobalConfig,
+    });
+    if (saved?._id && isCreateMode) {
+      router.replace(`/quotations/${saved._id}?tab=${activeTab}`);
+    }
+  }, [activeTab, isCreateMode, quotationWithGlobalConfig.globalConfig, router, saveMetadata]);
+
   const getPersistedQuotation = useCallback(async () => {
     await itemMutationChainRef.current;
-    return useQuotationBuilderStore.getState().quotation;
-  }, []);
+    const current = useQuotationBuilderStore.getState().quotation;
+    const snapshot = {
+      ...current,
+      globalConfig: quotationWithGlobalConfig.globalConfig,
+    };
+    const saved = await saveMetadata(snapshot);
+    return saved ?? useQuotationBuilderStore.getState().quotation;
+  }, [quotationWithGlobalConfig.globalConfig, saveMetadata]);
 
   const runItemMutation = useCallback((mutation: () => Promise<void>) => {
     setItemMutationsInProgress((count) => count + 1);
@@ -2262,13 +2310,15 @@ console.log("SAVED ITEM", savedItem);
     if (hydratedGlobalConfigKeyRef.current === quotationKey) return;
 
     hydratedGlobalConfigKeyRef.current = quotationKey;
+    if (savedGlobalConfig.isOverridden !== true) return;
     setGlobalConfig((prev) => ({
       ...prev,
-      logo: savedGlobalConfig.logo ?? prev.logo,
-      logoUrl: savedGlobalConfig.logo ?? prev.logoUrl,
-      website: savedGlobalConfig.website ?? prev.website,
-      prerequisites: savedGlobalConfig.prerequisites ?? prev.prerequisites,
-      terms: savedGlobalConfig.terms ?? prev.terms,
+      isOverridden: true,
+      logo: savedGlobalConfig.logo || prev.logo,
+      logoUrl: savedGlobalConfig.logo || prev.logoUrl,
+      website: savedGlobalConfig.website || prev.website,
+      prerequisites: savedGlobalConfig.prerequisites || prev.prerequisites,
+      terms: savedGlobalConfig.terms || prev.terms,
       additionalCosts: {
         ...prev.additionalCosts,
         installation: savedGlobalConfig.additionalCosts?.installation ?? prev.additionalCosts.installation,
@@ -2285,6 +2335,7 @@ console.log("SAVED ITEM", savedItem);
 
   useEffect(() => {
     const nextGlobalConfig = {
+      isOverridden: globalConfig.isOverridden,
       logo: globalConfig.logo || "",
       website: globalConfig.website || "",
       terms: globalConfig.terms || "",
@@ -2303,6 +2354,7 @@ console.log("SAVED ITEM", savedItem);
 
     const currentGlobalConfig = quotation.globalConfig;
     const isSameGlobalConfig =
+      Boolean(currentGlobalConfig?.isOverridden) === Boolean(nextGlobalConfig.isOverridden) &&
       (currentGlobalConfig?.logo || "") === nextGlobalConfig.logo &&
       (currentGlobalConfig?.website || "") === nextGlobalConfig.website &&
       (currentGlobalConfig?.terms || "") === nextGlobalConfig.terms &&
@@ -2533,6 +2585,40 @@ const exportExcel = async () => {
       setIsGeneratingBom(false);
     }
   };
+  const exportGlassReport = async () => {
+    try {
+      setIsGeneratingGlassReport(true);
+      const savedQuotation = await getPersistedQuotation();
+      const pdfQuotationId =
+        savedQuotation?._id ??
+        quotationWithGlobalConfig._id ??
+        savedQuotation?.quotationDetails.id ??
+        quotationWithGlobalConfig.quotationDetails.id;
+      if (!pdfQuotationId) {
+        throw new Error("Failed to resolve quotation id before Glass Report generation.");
+      }
+      const blob = await getGlassReportPdfBlob(pdfQuotationId);
+      const nextPdfPreviewUrl = URL.createObjectURL(blob);
+      const quoteNo =
+        savedQuotation?.generatedId ||
+        savedQuotation?.quotationDetails.id ||
+        quotationWithGlobalConfig.generatedId ||
+        quotationWithGlobalConfig.quotationDetails.id ||
+        "quotation";
+      setPdfPreviewTitle("Glass Report PDF Preview");
+      setPdfDownloadName(`${quoteNo}-glass-report.pdf`);
+      setPdfPreviewUrl((currentUrl) => {
+        if (currentUrl) URL.revokeObjectURL(currentUrl);
+        return nextPdfPreviewUrl;
+      });
+      setIsPdfPreviewOpen(true);
+    } catch (error) {
+      console.error("Failed to export Glass Report PDF", error);
+      alert("Failed to generate Glass Report.");
+    } finally {
+      setIsGeneratingGlassReport(false);
+    }
+  };
   const closePdfPreview = () => {
     setIsPdfPreviewOpen(false);
   };
@@ -2554,6 +2640,7 @@ const exportExcel = async () => {
     isGeneratingPdf ||
     isGeneratingCuttingSchedule ||
     isGeneratingBom ||
+    isGeneratingGlassReport ||
     isGeneratingElevation||
     isGeneratingExcel;
 
@@ -2623,6 +2710,10 @@ const exportExcel = async () => {
           <Button variant="outline" onClick={exportBom} disabled={isSaveBlockingExports || isAnyExportInProgress}>
             <Download className="h-4 w-4" />
             {isGeneratingBom ? "Generating..." : "BOM"}
+          </Button>
+          <Button variant="outline" onClick={exportGlassReport} disabled={isSaveBlockingExports || isAnyExportInProgress}>
+            <Download className="h-4 w-4" />
+            {isGeneratingGlassReport ? "Generating..." : "Glass Report"}
           </Button>
          
           
@@ -2707,7 +2798,7 @@ const exportExcel = async () => {
                 setGlobalConfig={setGlobalConfig}
                 logoPreview={logoPreview}
                 handleLogoUpload={handleLogoUpload}
-                onSave={saveCurrentMetadata}
+                onSave={saveQuotationGlobalOverride}
                 isSaving={metadataSaveStatus === "saving"}
               />
             )}
