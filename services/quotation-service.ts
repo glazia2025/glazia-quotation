@@ -542,6 +542,25 @@ export async function updateQuotationItem(
   return extractItemResponse(response.data);
 }
 
+export async function duplicateQuotation(quotationId: string) {
+  const response = await axios.post(
+    `${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/duplicate`,
+    {},
+    {
+      headers: getAuthHeaders(),
+      withCredentials: true,
+    }
+  );
+
+  const quotation = extractBackendQuotation(response.data?.quotation);
+
+  if (!quotation) {
+    throw new Error("Duplicate quotation API returned an invalid quotation");
+  }
+
+  return quotation;
+}
+
 export async function deleteQuotationItem(quotationId: string, itemId: string) {
   await axios.delete(`${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/items/${itemId}`, {
     headers: getAuthHeaders(),
