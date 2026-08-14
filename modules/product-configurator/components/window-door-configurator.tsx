@@ -250,7 +250,7 @@ const createLeaf = (
   glass: "Yes",
   mesh,
   frameCutAngle: "45",
-shutterCutAngle: "45",
+  shutterCutAngle: "45",
 });
 
 const buildPreset = (systemType: SystemType, glass: YesNo, mesh: YesNo): SectionNode => {
@@ -599,13 +599,13 @@ const calculateRateForItem = (
   const slabIndex = slab ? slab.index : 0;
   const baseRate = calculatedBaseRate ?? baseRates[slabIndex] ?? 0;
   if (next.systemType === "Louvers") {
-  return {
-    rate: 500,
-    handleCount: 0,
-    baseRate: 500,
-    areaSlabIndex: slab?.index ?? 0,
-  };
-}
+    return {
+      rate: 500,
+      handleCount: 0,
+      baseRate: 500,
+      areaSlabIndex: slab?.index ?? 0,
+    };
+  }
   console.log("FINAL DEBUG", {
     area: next.area,
     slabIndex,
@@ -622,7 +622,7 @@ const calculateRateForItem = (
   const handleCount = desc?.defaultHandleCount ?? 0;
   const handleUnitRate = handleOpt?.colors.find((c) => c.name === next.handleColor)?.rate ?? 0;
   const handleRate = handleCount > 0 ? (handleCount * handleUnitRate) / (next.area || 1) : 0;
-  
+
   return {
     rate: baseRate + colorRate + meshRate + glassRate + handleRate + (next.hasExhaustFan ? EXHAUST_FAN_RATE_SURCHARGE : 0),
     handleCount,
@@ -905,7 +905,7 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
     root.glass = "Yes";
     root.mesh = yesNoFromValue(item.meshPresent);
     root.frameCutAngle = normalizeCutAngle(item.frameCutAngle, "45");
-root.shutterCutAngle = normalizeCutAngle(item.shutterCutAngle, "45");
+    root.shutterCutAngle = normalizeCutAngle(item.shutterCutAngle, "45");
     root.sash =
       item.sash === "fixed" ||
         item.sash === "left" ||
@@ -2431,22 +2431,22 @@ export function WindowDoorConfigurator({
     if (!louver && (!series || !description)) {
       throw new Error("Select a series and description before calculating the rate.");
     }
-//     const frameCutAngle = normalizeCutAngle(leaf.frameCutAngle, "45");
-// const shutterCutAngle = normalizeCutAngle(leaf.shutterCutAngle, "45");
-const frameCutAngle =
-  leaf.systemType === "Casement"
-    ? "45"
-    : normalizeCutAngle(leaf.frameCutAngle, "45");
+    //     const frameCutAngle = normalizeCutAngle(leaf.frameCutAngle, "45");
+    // const shutterCutAngle = normalizeCutAngle(leaf.shutterCutAngle, "45");
+    const frameCutAngle =
+      leaf.systemType === "Casement"
+        ? "45"
+        : normalizeCutAngle(leaf.frameCutAngle, "45");
 
-const shutterCutAngle =
-  leaf.systemType === "Casement"
-    ? "45"
-    : normalizeCutAngle(leaf.shutterCutAngle, "45");
+    const shutterCutAngle =
+      leaf.systemType === "Casement"
+        ? "45"
+        : normalizeCutAngle(leaf.shutterCutAngle, "45");
 
-const cuttingScheduleKey = getCuttingScheduleKey(
-  frameCutAngle,
-  shutterCutAngle
-);
+    const cuttingScheduleKey = getCuttingScheduleKey(
+      frameCutAngle,
+      shutterCutAngle
+    );
     const [result] = await calculateQuotationRates([{
       clientId: leaf.id,
       systemType: leaf.systemType,
@@ -2455,12 +2455,9 @@ const cuttingScheduleKey = getCuttingScheduleKey(
       width,
       height,
       area,
-      // frameCutAngle: normalizeCutAngle(meta.frameCutAngle),
-      // shutterCutAngle: normalizeCutAngle(meta.shutterCutAngle),
-      // cuttingScheduleKey: String(getCuttingScheduleKey(normalizeCutAngle(meta.frameCutAngle), normalizeCutAngle(meta.shutterCutAngle))),
-       frameCutAngle,
-       shutterCutAngle,
-       cuttingScheduleKey: String(cuttingScheduleKey),
+      frameCutAngle,
+      shutterCutAngle,
+      cuttingScheduleKey: String(cuttingScheduleKey),
       glassSpec: leaf.glass === "Yes" ? (sectionMeta.glassSpec || "Yes") : "",
       hardwareOpeningType: leaf.systemType === "Casement" ? sectionMeta.hardwareOpeningType : "",
     }]);
@@ -2504,39 +2501,37 @@ const cuttingScheduleKey = getCuttingScheduleKey(
       };
     });
     const regularRequests = inputs.map(({ leaf, height, area, series, description }) => {
-       const frameCutAngle = normalizeCutAngle(
-      leaf.frameCutAngle,
-      "45"
-    );
+      const frameCutAngle = normalizeCutAngle(
+        leaf.frameCutAngle,
+        "45"
+      );
 
-    const shutterCutAngle = normalizeCutAngle(
-      leaf.shutterCutAngle,
-      "45"
-    );
+      const shutterCutAngle = normalizeCutAngle(
+        leaf.shutterCutAngle,
+        "45"
+      );
 
-    return {
-      
-      clientId: leaf.id,
-      systemType: leaf.systemType,
-      series,
-      description,
-      width: leaf.w * widthMm,
-      height,
-      area,
-      // frameCutAngle: normalizeCutAngle(meta.frameCutAngle),
-      // shutterCutAngle: normalizeCutAngle(meta.shutterCutAngle),
-      // cuttingScheduleKey: String(getCuttingScheduleKey(normalizeCutAngle(meta.frameCutAngle), normalizeCutAngle(meta.shutterCutAngle))),
-      frameCutAngle,
-      shutterCutAngle,
-       cuttingScheduleKey: String(
-        getCuttingScheduleKey(
-          frameCutAngle,
-          shutterCutAngle
-        )
-      ),
-      glassSpec: leaf.glass === "Yes" ? (getLeafSectionMeta(leaf.id).glassSpec || "Yes") : "",
-      hardwareOpeningType: leaf.systemType === "Casement" ? getLeafSectionMeta(leaf.id).hardwareOpeningType : "",
-    }});
+      return {
+
+        clientId: leaf.id,
+        systemType: leaf.systemType,
+        series,
+        description,
+        width: leaf.w * widthMm,
+        height,
+        area,
+        frameCutAngle,
+        shutterCutAngle,
+        cuttingScheduleKey: String(
+          getCuttingScheduleKey(
+            frameCutAngle,
+            shutterCutAngle
+          )
+        ),
+        glassSpec: leaf.glass === "Yes" ? (getLeafSectionMeta(leaf.id).glassSpec || "Yes") : "",
+        hardwareOpeningType: leaf.systemType === "Casement" ? getLeafSectionMeta(leaf.id).hardwareOpeningType : "",
+      }
+    });
     const joinRequests = dividerBadgesRef.current.map((badge, index) => {
       const source = findNode(root, badge.leftId) || leaves[0];
       const dividerValue = resolveDividerValue(
@@ -2556,17 +2551,14 @@ const cuttingScheduleKey = getCuttingScheduleKey(
         width: widthMm,
         height: heightMm,
         area: effectiveAreaSqft,
-        // frameCutAngle: normalizeCutAngle(meta.frameCutAngle),
-        // shutterCutAngle: normalizeCutAngle(meta.shutterCutAngle),
-        // cuttingScheduleKey: String(getCuttingScheduleKey(normalizeCutAngle(meta.frameCutAngle), normalizeCutAngle(meta.shutterCutAngle))),
         frameCutAngle: normalizeCutAngle(source?.frameCutAngle, "45"),
-shutterCutAngle: normalizeCutAngle(source?.shutterCutAngle, "45"),
-cuttingScheduleKey: String(
-  getCuttingScheduleKey(
-    normalizeCutAngle(source?.frameCutAngle, "45"),
-    normalizeCutAngle(source?.shutterCutAngle, "45")
-  )
-),
+        shutterCutAngle: normalizeCutAngle(source?.shutterCutAngle, "45"),
+        cuttingScheduleKey: String(
+          getCuttingScheduleKey(
+            normalizeCutAngle(source?.frameCutAngle, "45"),
+            normalizeCutAngle(source?.shutterCutAngle, "45")
+          )
+        ),
       };
     }).filter((request) => request.series);
     const materialResults = await calculateQuotationRates([...regularRequests, ...joinRequests]);
@@ -2788,39 +2780,25 @@ cuttingScheduleKey: String(
     if (!areAllDescriptionsFilled(root)) { alert("Please fill description for all windows"); return; }
     const trimmedRefCode = meta.refCode.trim();
     if (!trimmedRefCode) { alert("Ref Code is required."); return; }
-    // const frameCutAngle = normalizeCutAngle(meta.frameCutAngle);
-    // const shutterCutAngle = normalizeCutAngle(meta.shutterCutAngle);
-    // const frameCutAngle =
-    //   selectedNode.systemType === "Casement"
-    //     ? "45"
-    //     : normalizeCutAngle(meta.frameCutAngle);
-
-    // const shutterCutAngle =
-    //   selectedNode.systemType === "Casement"
-    //     ? "45"
-    //     : normalizeCutAngle(meta.shutterCutAngle);
-    // const cuttingScheduleKey = getCuttingScheduleKey(frameCutAngle, shutterCutAngle);
     const firstLeaf = leafNodesForMode[0];
 
-const itemFrameCutAngle = isCombinationDraft
-  ? normalizeCutAngle(firstLeaf?.frameCutAngle, "45")
-  : selectedNode.systemType === "Casement"
-    ? "45"
-    // : normalizeCutAngle(meta.frameCutAngle);
-     : normalizeCutAngle(selectedNode.frameCutAngle, "45");
+    const itemFrameCutAngle = isCombinationDraft
+      ? normalizeCutAngle(firstLeaf?.frameCutAngle, "45")
+      : selectedNode.systemType === "Casement"
+        ? "45"
+        // : normalizeCutAngle(meta.frameCutAngle);
+        : normalizeCutAngle(selectedNode.frameCutAngle, "45");
+    const itemShutterCutAngle = isCombinationDraft
+      ? normalizeCutAngle(firstLeaf?.shutterCutAngle, "45")
+      : selectedNode.systemType === "Casement"
+        ? "45"
+        // : normalizeCutAngle(meta.shutterCutAngle);
+        : normalizeCutAngle(selectedNode.shutterCutAngle, "45");
 
-
-const itemShutterCutAngle = isCombinationDraft
-  ? normalizeCutAngle(firstLeaf?.shutterCutAngle, "45")
-  : selectedNode.systemType === "Casement"
-    ? "45"
-    // : normalizeCutAngle(meta.shutterCutAngle);
-     : normalizeCutAngle(selectedNode.shutterCutAngle, "45");
-
-const itemCuttingScheduleKey = getCuttingScheduleKey(
-  itemFrameCutAngle,
-  itemShutterCutAngle
-);
+    const itemCuttingScheduleKey = getCuttingScheduleKey(
+      itemFrameCutAngle,
+      itemShutterCutAngle
+    );
     const calculatedRatesForSave: Record<string, number> = {};
     const calculatedDetailsForSave: Record<string, RateCalculationResult> = {};
     let manualCombinationRateForSave = false;
@@ -2934,8 +2912,8 @@ const itemCuttingScheduleKey = getCuttingScheduleKey(
         const frameCutAngle = normalizeCutAngle(leaf.frameCutAngle, "45");
         const shutterCutAngle = normalizeCutAngle(leaf.shutterCutAngle, "45");
         const cuttingScheduleKey = getCuttingScheduleKey(
-        frameCutAngle,
-        shutterCutAngle
+          frameCutAngle,
+          shutterCutAngle
         );
         return {
           // id: crypto.randomUUID(),
@@ -3888,59 +3866,6 @@ const itemCuttingScheduleKey = getCuttingScheduleKey(
                       {archControls}
                       <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
 
-                      {/* <label className="text-xs text-gray-600">
-                        Frame Cut Angle
-
-                        {selectedNodeIsPureCasement ? (
-                          <input
-                            type="text"
-                            value="45°"
-                            disabled
-                            className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
-                          />
-                        ) : (
-                          <select
-                            value={meta.frameCutAngle}
-                            onChange={(e) =>
-                              setMeta((prev) => ({
-                                ...prev,
-                                frameCutAngle: e.target.value as CutAngle,
-                              }))
-                            }
-                            className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
-                          >
-                            <option value="45">45°</option>
-                            <option value="90">90°</option>
-                          </select>
-                        )}
-                      </label>
-
-                      <label className="text-xs text-gray-600">
-                        Shutter Cut Angle
-
-                        {selectedNodeIsPureCasement ? (
-                          <input
-                            type="text"
-                            value="45°"
-                            disabled
-                            className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
-                          />
-                        ) : (
-                          <select
-                            value={meta.shutterCutAngle}
-                            onChange={(e) =>
-                              setMeta((prev) => ({
-                                ...prev,
-                                shutterCutAngle: e.target.value as CutAngle,
-                              }))
-                            }
-                            className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
-                          >
-                            <option value="45">45°</option>
-                            <option value="90">90°</option>
-                          </select>
-                        )}
-                      </label> */}
                       <label className="text-xs text-gray-600">Colour Finish<select value={meta.colorFinish} onChange={(e) => setMeta((prev) => ({ ...prev, colorFinish: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{combinationOptionsQuery.data?.colorFinishes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
                       {editingItem && (
                         <>
@@ -4060,83 +3985,83 @@ const itemCuttingScheduleKey = getCuttingScheduleKey(
                             <>
                               {!isCombinationChildSelection && <label className="text-xs text-gray-600">Color Finish<select value={selectedSectionMeta.colorFinish} onChange={(e) => updateSelectedSectionMeta({ colorFinish: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.colorFinishes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>}
                               <label className="text-xs text-gray-600">Glass Spec<select value={selectedSectionMeta.glassSpec} onChange={(e) => updateSelectedSectionMeta({ glassSpec: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.glassSpecs.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
-                              {selectedNode.systemType === "Casement" && selectedNode.description !== "Fix" && ( <label className="text-xs text-gray-600">Shutter Hardware<select value={selectedSectionMeta.hardwareOpeningType} onChange={(e) => updateSelectedSectionMeta({ hardwareOpeningType: e.target.value as "hinges" | "frictionStay" })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="hinges">Hinges</option><option value="frictionStay">Friction Stay</option></select></label>)}
+                              {selectedNode.systemType === "Casement" && selectedNode.description !== "Fix" && (<label className="text-xs text-gray-600">Shutter Hardware<select value={selectedSectionMeta.hardwareOpeningType} onChange={(e) => updateSelectedSectionMeta({ hardwareOpeningType: e.target.value as "hinges" | "frictionStay" })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="hinges">Hinges</option><option value="frictionStay">Friction Stay</option></select></label>)}
                               <label className="text-xs text-gray-600">Handle Type<select value={selectedSectionMeta.handleType} onChange={(e) => updateSelectedSectionMeta({ handleType: e.target.value, handleColor: DEFAULT_HANDLE_COLOR })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.handleOptions.map((opt: HandleOption) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
                               <label className="text-xs text-gray-600">Handle Color<select value={selectedSectionMeta.handleColor} onChange={(e) => updateSelectedSectionMeta({ handleColor: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{(metaHandleOption?.colors ?? []).map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
                             </>
                           )}
                           {selectedSystemSupportsCatalog && (!isCombinationChildSelection || selectedNode.systemType === "Sliding") && <label className="text-xs text-gray-600">Mesh Type<select value={selectedSectionMeta.meshType} onChange={(e) => updateSelectedSectionMeta({ meshType: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" disabled={selectedNode.mesh !== "Yes"}><option value="">Select</option>{metaOptionsQuery.data?.meshTypes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>}
                           {isCombinationChildSelection ? (
-                             <>
-    {selectedNode.systemType !== "Blank Area" && (
-      <>
-        <label className="text-xs text-gray-600">
-          Frame Cut Angle
+                            <>
+                              {selectedNode.systemType !== "Blank Area" && (
+                                <>
+                                  <label className="text-xs text-gray-600">
+                                    Frame Cut Angle
 
-          {selectedNodeIsPureCasement ? (
-            <input
-              type="text"
-              value="45°"
-              disabled
-              className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
-            />
-          ) : (
-            <select
-              value={selectedNode.frameCutAngle}
-              onChange={(e) => {
-                const value = e.target.value as CutAngle;
+                                    {selectedNodeIsPureCasement ? (
+                                      <input
+                                        type="text"
+                                        value="45°"
+                                        disabled
+                                        className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
+                                      />
+                                    ) : (
+                                      <select
+                                        value={selectedNode.frameCutAngle}
+                                        onChange={(e) => {
+                                          const value = e.target.value as CutAngle;
 
-                const next = cloneTree(root);
-                const target = findNode(next, selectedNode.id);
+                                          const next = cloneTree(root);
+                                          const target = findNode(next, selectedNode.id);
 
-                if (!target) return;
+                                          if (!target) return;
 
-                target.frameCutAngle = value;
-                push(next);
-              }}
-              className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
-            >
-              <option value="45">45°</option>
-              <option value="90">90°</option>
-            </select>
-          )}
-        </label>
+                                          target.frameCutAngle = value;
+                                          push(next);
+                                        }}
+                                        className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+                                      >
+                                        <option value="45">45°</option>
+                                        <option value="90">90°</option>
+                                      </select>
+                                    )}
+                                  </label>
 
-        <label className="text-xs text-gray-600">
-          Shutter Cut Angle
+                                  <label className="text-xs text-gray-600">
+                                    Shutter Cut Angle
 
-          {selectedNodeIsPureCasement ? (
-            <input
-              type="text"
-              value="45°"
-              disabled
-              className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
-            />
-          ) : (
-            <select
-              value={selectedNode.shutterCutAngle}
-              onChange={(e) => {
-                const value = e.target.value as CutAngle;
+                                    {selectedNodeIsPureCasement ? (
+                                      <input
+                                        type="text"
+                                        value="45°"
+                                        disabled
+                                        className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
+                                      />
+                                    ) : (
+                                      <select
+                                        value={selectedNode.shutterCutAngle}
+                                        onChange={(e) => {
+                                          const value = e.target.value as CutAngle;
 
-                const next = cloneTree(root);
-                const target = findNode(next, selectedNode.id);
+                                          const next = cloneTree(root);
+                                          const target = findNode(next, selectedNode.id);
 
-                if (!target) return;
+                                          if (!target) return;
 
-                target.shutterCutAngle = value;
-                push(next);
-              }}
-              className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
-            >
-              <option value="45">45°</option>
-              <option value="90">90°</option>
-            </select>
-          )}
-        </label>
-      </>
-    )}
+                                          target.shutterCutAngle = value;
+                                          push(next);
+                                        }}
+                                        className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+                                      >
+                                        <option value="45">45°</option>
+                                        <option value="90">90°</option>
+                                      </select>
+                                    )}
+                                  </label>
+                                </>
+                              )}
                               {selectedNode.systemType !== "Blank Area" &&
-                               <div className="text-[11px] text-gray-500">Rate is calculated and edited at the combination parent level.</div>}
+                                <div className="text-[11px] text-gray-500">Rate is calculated and edited at the combination parent level.</div>}
                               <div className="mt-1 text-[11px] text-gray-500">Section area: {selectedLeafAreaSqft.toFixed(2)} sqft</div>
                             </>
 
@@ -4154,37 +4079,25 @@ const itemCuttingScheduleKey = getCuttingScheduleKey(
                                     className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
                                   />
                                 ) : (
-                                  // <select
-                                  //   value={meta.frameCutAngle}
-                                  //   onChange={(e) =>
-                                  //     setMeta((prev) => ({
-                                  //       ...prev,
-                                  //       frameCutAngle: e.target.value as CutAngle,
-                                  //     }))
-                                  //   }
-                                  //   className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
-                                  // >
-                                  //   <option value="45">45°</option>
-                                  //   <option value="90">90°</option>
-                                  // </select>
-                                 <select
-  value={selectedNode.frameCutAngle}
-  onChange={(e) => {
-    const value = e.target.value as CutAngle;
 
-    const next = cloneTree(root);
-    const target = findNode(next, selectedNode.id);
+                                  <select
+                                    value={selectedNode.frameCutAngle}
+                                    onChange={(e) => {
+                                      const value = e.target.value as CutAngle;
 
-    if (!target) return;
+                                      const next = cloneTree(root);
+                                      const target = findNode(next, selectedNode.id);
 
-    target.frameCutAngle = value;
-    push(next);
-  }}
-  className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
->
-  <option value="45">45°</option>
-  <option value="90">90°</option>
-</select>
+                                      if (!target) return;
+
+                                      target.frameCutAngle = value;
+                                      push(next);
+                                    }}
+                                    className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+                                  >
+                                    <option value="45">45°</option>
+                                    <option value="90">90°</option>
+                                  </select>
                                 )}
                               </label>
 
@@ -4198,37 +4111,25 @@ const itemCuttingScheduleKey = getCuttingScheduleKey(
                                     className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
                                   />
                                 ) : (
-                                  // <select
-                                  //   value={meta.shutterCutAngle}
-                                  //   onChange={(e) =>
-                                  //     setMeta((prev) => ({
-                                  //       ...prev,
-                                  //       shutterCutAngle: e.target.value as CutAngle,
-                                  //     }))
-                                  //   }
-                                  //   className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
-                                  // >
-                                  //   <option value="45">45°</option>
-                                  //   <option value="90">90°</option>
-                                  // </select>
-                                 <select
-  value={selectedNode.shutterCutAngle}
-  onChange={(e) => {
-    const value = e.target.value as CutAngle;
+                                  
+                                  <select
+                                    value={selectedNode.shutterCutAngle}
+                                    onChange={(e) => {
+                                      const value = e.target.value as CutAngle;
 
-    const next = cloneTree(root);
-    const target = findNode(next, selectedNode.id);
+                                      const next = cloneTree(root);
+                                      const target = findNode(next, selectedNode.id);
 
-    if (!target) return;
+                                      if (!target) return;
 
-    target.shutterCutAngle = value;
-    push(next);
-  }}
-  className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
->
-  <option value="45">45°</option>
-  <option value="90">90°</option>
-</select>
+                                      target.shutterCutAngle = value;
+                                      push(next);
+                                    }}
+                                    className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+                                  >
+                                    <option value="45">45°</option>
+                                    <option value="90">90°</option>
+                                  </select>
                                 )}
                               </label>
 

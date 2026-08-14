@@ -57,25 +57,6 @@ export function QuotationList() {
     setQuotationToDelete({ id: quotationId, number: quotationNumber });
   };
 
-  // const handleDuplicateQuotation = async (quotationId: string) => {
-  //   if (!quotationId || duplicatingQuotationId) return;
-
-  //   setDuplicatingQuotationId(quotationId);
-
-  //   try {
-  //     const duplicatedQuotation = await duplicateQuotation(quotationId);
-
-  //     console.log("Duplicated quotation:", duplicatedQuotation);
-
-  //     await refetch();
-  //   } catch (error) {
-  //     console.error("Duplicate quotation failed:", error);
-  //   } finally {
-  //     setDuplicatingQuotationId(null);
-  //   }
-  // };
-
-
   const handleDuplicateQuotation = (
   quotationId: string,
   quotationNumber: string
