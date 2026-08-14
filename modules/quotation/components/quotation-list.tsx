@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageShell } from "@/components/shared/page-shell";
 import { useTenantQuery } from "@/hooks/use-tenant-query";
-import { deleteQuotation, getQuotations } from "@/services/quotation-service";
+import { deleteQuotation, duplicateQuotation, getQuotations } from "@/services/quotation-service";
 import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotation-builder-store";
 
 
@@ -17,13 +17,18 @@ export function QuotationList() {
   const [page, setPage] = useState(1);
   const [deletingQuotationId, setDeletingQuotationId] = useState<string | null>(null);
   const [quotationToDelete, setQuotationToDelete] = useState<{ id: string; number: string } | null>(null);
+  const [duplicatingQuotationId, setDuplicatingQuotationId] = useState<string | null>(null);
+  const [quotationToDuplicate, setQuotationToDuplicate] = useState<{
+  id: string;
+  number: string;
+} | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const pageSize = 20;
   const { data, isLoading, error, refetch } = useTenantQuery({
     queryKey: ["quotations", String(page)],
     queryFn: () => getQuotations(page, pageSize)
   });
-   const quotationDetails = useQuotationBuilderStore((s) => s.quotation.quotationDetails);
+  const quotationDetails = useQuotationBuilderStore((s) => s.quotation.quotationDetails);
   const updateQuotationField = useQuotationBuilderStore((s) => s.updateQuotationField);
 
   console.log(data, "DATAAAAAAA")
@@ -52,6 +57,39 @@ export function QuotationList() {
     setQuotationToDelete({ id: quotationId, number: quotationNumber });
   };
 
+  const handleDuplicateQuotation = (
+  quotationId: string,
+  quotationNumber: string
+) => {
+  if (!quotationId || duplicatingQuotationId) return;
+
+  setQuotationToDuplicate({
+    id: quotationId,
+    number: quotationNumber,
+  });
+};
+
+const confirmDuplicateQuotation = async () => {
+  if (!quotationToDuplicate || duplicatingQuotationId) return;
+
+  setDuplicatingQuotationId(quotationToDuplicate.id);
+
+  try {
+    const duplicatedQuotation = await duplicateQuotation(
+      quotationToDuplicate.id
+    );
+
+    console.log("Duplicated quotation:", duplicatedQuotation);
+
+    setQuotationToDuplicate(null);
+
+    await refetch();
+  } catch (error) {
+    console.error("Duplicate quotation failed:", error);
+  } finally {
+    setDuplicatingQuotationId(null);
+  }
+};
   const confirmDeleteQuotation = async () => {
     if (!quotationToDelete || deletingQuotationId) return;
 
@@ -134,11 +172,11 @@ export function QuotationList() {
             const quotationNumber = quotation.generatedId || quotation.quotationDetails?.id || quotationId;
             const quotationStatus: string = "Draft";
             const opportunity =
-  quotation.quotationDetails?.opportunity || "Enquiry";
-  const totalWindows =
-  quotation.items?.length ??
-  quotation.quotationItems?.length ??
-  0;
+              quotation.quotationDetails?.opportunity || "Enquiry";
+            const totalWindows =
+              quotation.items?.length ??
+              quotation.quotationItems?.length ??
+              0;
 
             return (
               <div key={`${quotationId}-${index}`} className="grid gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 md:grid-cols-[1.2fr_0.8fr_auto] md:items-center">
@@ -153,32 +191,41 @@ export function QuotationList() {
                     {customerName}
                   </div>
                   <div className="mt-2 text-sm text-slate-600">
-                  <div className="text-xs text-slate-500"> 
-                    Total Items: {totalWindows}
+                    <div className="text-xs text-slate-500">
+                      Total Items: {totalWindows}
                     </div>
-                </div>
+                  </div>
                 </div>
                 <div className="text-sm text-slate-600">
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <div className="text-sm text-slate-600">
-   <div className="min-w-[170px]">
+                    <div className="min-w-[170px]">
 
-  <Badge variant="outline">
-    {opportunity}
-  </Badge>
-</div>
-</div>
+                      <Badge variant="outline">
+                        {opportunity}
+                      </Badge>
+                    </div>
+                  </div>
                   <Button variant="outline" size="sm" asChild>
                     <Link href={`/quotations/${quotationId}`}>
                       <Eye className="h-4 w-4" />
                       Open
                     </Link>
                   </Button>
-                  <Button variant="ghost" size="sm">
+                  {/* <Button variant="ghost" size="sm">
                     <CopyPlus className="h-4 w-4" />
                     Duplicate
+                  </Button> */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDuplicateQuotation(quotationId , quotationNumber)}
+                    disabled={duplicatingQuotationId === quotationId}
+                  >
+                    <CopyPlus className="h-4 w-4" />
+                    {duplicatingQuotationId === quotationId ? "Duplicating..." : "Duplicate"}
                   </Button>
                   <Button
                     variant="outline"
@@ -235,6 +282,45 @@ export function QuotationList() {
           </div>
         </div>
       ) : null}
+
+      {quotationToDuplicate ? (
+  <div className="fixed inset-0 z-[230] flex items-center justify-center bg-slate-950/60 p-4">
+    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+      <h3 className="text-lg font-semibold text-slate-900">
+        Duplicate Quotation
+      </h3>
+
+      <p className="mt-2 text-sm text-slate-600">
+        Are you sure you want to duplicate quotation{" "}
+        <span className="font-semibold">
+          {quotationToDuplicate.number}
+        </span>
+        ?
+      </p>
+
+      <div className="mt-6 flex justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setQuotationToDuplicate(null)}
+          disabled={Boolean(duplicatingQuotationId)}
+        >
+          No
+        </Button>
+
+        <Button
+          size="sm"
+          onClick={confirmDuplicateQuotation}
+          disabled={Boolean(duplicatingQuotationId)}
+        >
+          {duplicatingQuotationId ? "Duplicating..." : "Yes"}
+        </Button>
+      </div>
+    </div>
+  </div>
+) : null}
+
+
     </PageShell>
   );
 }
