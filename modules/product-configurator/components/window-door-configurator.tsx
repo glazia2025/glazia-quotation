@@ -598,6 +598,14 @@ const calculateRateForItem = (
   const slab = AREA_SLABS.find((s) => next.area <= s.max);
   const slabIndex = slab ? slab.index : 0;
   const baseRate = calculatedBaseRate ?? baseRates[slabIndex] ?? 0;
+  if (next.systemType === "Louvers") {
+  return {
+    rate: 500,
+    handleCount: 0,
+    baseRate: 500,
+    areaSlabIndex: slab?.index ?? 0,
+  };
+}
   console.log("FINAL DEBUG", {
     area: next.area,
     slabIndex,
@@ -614,7 +622,7 @@ const calculateRateForItem = (
   const handleCount = desc?.defaultHandleCount ?? 0;
   const handleUnitRate = handleOpt?.colors.find((c) => c.name === next.handleColor)?.rate ?? 0;
   const handleRate = handleCount > 0 ? (handleCount * handleUnitRate) / (next.area || 1) : 0;
-
+  
   return {
     rate: baseRate + colorRate + meshRate + glassRate + handleRate + (next.hasExhaustFan ? EXHAUST_FAN_RATE_SURCHARGE : 0),
     handleCount,
