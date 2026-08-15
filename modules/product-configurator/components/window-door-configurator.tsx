@@ -247,7 +247,8 @@ const createLeaf = (
   exhaustFanX: DEFAULT_EXHAUST_FAN_X,
   exhaustFanY: DEFAULT_EXHAUST_FAN_Y,
   exhaustFanSize: DEFAULT_EXHAUST_FAN_SIZE,
-  glass: "Yes",
+  // glass: "Yes",
+  glass: isLouverSystem(systemType) ? "No" : glass,
   mesh,
   frameCutAngle: "45",
   shutterCutAngle: "45",
@@ -277,7 +278,7 @@ const buildPreset = (systemType: SystemType, glass: YesNo, mesh: YesNo): Section
 
   if (systemType === "Louvers") {
     root.description = "Louvers";
-    root.glass = "Yes";
+    root.glass = "No";
     root.mesh = "No";
     root.sash = "fixed";
     return root;
@@ -3643,7 +3644,9 @@ export function WindowDoorConfigurator({
     console.dir(mapped.root.dividerTypes, { depth: null });
     const mappedLeaves: SectionNode[] = [];
     mapLeafNodes(mapped.root, (leaf) => mappedLeaves.push(leaf));
-    setSelectedId(mappedLeaves.length > 1 ? mappedLeaves[0].id : "root");
+    // setSelectedId(mappedLeaves.length > 1 ? mappedLeaves[0].id : "root");
+    setSelectedId("root");
+
     setSelectedDivider(null);
     setSelectedSlidingPanelIndex(null);
     setIsManualRate(editingItem.rateSource === "manual");
@@ -3934,7 +3937,7 @@ export function WindowDoorConfigurator({
 
                                   target.glass =
                                     isLouverSystem(nextSystem)
-                                      ? "Yes"
+                                      ? "No"
                                       : target.glass;
 
                                   target.exhaustFanX = DEFAULT_EXHAUST_FAN_X;
