@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Calendar, CopyPlus, Eye, File, HandCoins, Plus, Trash2, Search } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,8 @@ import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotatio
 
 export function QuotationList() {
   const [page, setPage] = useState(1);
+  const [sortOrder, setSortOrder] = useState<"latest" | "oldest">("latest");
+  const [isSortOpen, setIsSortOpen] = useState(false);
   const [deletingQuotationId, setDeletingQuotationId] = useState<string | null>(null);
   const [quotationToDelete, setQuotationToDelete] = useState<{ id: string; number: string } | null>(null);
   const [duplicatingQuotationId, setDuplicatingQuotationId] = useState<string | null>(null);
@@ -33,6 +36,15 @@ export function QuotationList() {
 
   console.log(data, "DATAAAAAAA")
   const quotations = data?.quotations ?? [];
+  const sortedQuotations = [...quotations].sort((a, b) => {
+  const dateA = new Date(a.createdAt ?? 0).getTime();
+  const dateB = new Date(b.createdAt ?? 0).getTime();
+
+  return sortOrder === "latest"
+    ? dateB - dateA
+    : dateA - dateB;
+});
+
   const total = data?.total ?? 0;
   const totalPages = data?.totalPages ?? 1;
   const totalValue = quotations.reduce((sum, quotation) => {
@@ -181,13 +193,76 @@ const confirmDuplicateQuotation = async () => {
       </div>
 
       <Card className="border-0 bg-white/90">
-        <CardHeader>
+        {/* <CardHeader>
           <CardTitle>Recent Quotations</CardTitle>
-        </CardHeader>
+        </CardHeader> */}
+        <CardHeader className="flex flex-row items-center justify-between">
+  <CardTitle>Recent Quotations</CardTitle>
+
+  <div className="flex items-center gap-2">
+    {/* <Button
+      variant="outline"
+      size="sm"
+      className="h-9 px-3 text-xs"
+    >
+      Sort by
+      <ChevronDown className="ml-1 h-4 w-4" />
+    </Button> */}
+
+    <div className="relative">
+  <Button
+    variant="outline"
+    size="sm"
+    className="h-9 px-3 text-xs"
+    onClick={() => setIsSortOpen((prev) => !prev)}
+  >
+    Sort by
+    <ChevronDown className="ml-1 h-4 w-4" />
+  </Button>
+
+  {isSortOpen && (
+    <div className="absolute right-0 top-11 z-50 w-44 rounded-md border border-slate-200 bg-white p-1 shadow-lg">
+      <button
+        type="button"
+        className="w-full rounded-sm px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-100"
+        onClick={() => {
+          setSortOrder("latest");
+          setIsSortOpen(false);
+        }}
+      >
+        Latest quotation
+      </button>
+
+      <button
+        type="button"
+        className="w-full rounded-sm px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-100"
+        onClick={() => {
+          setSortOrder("oldest");
+          setIsSortOpen(false);
+        }}
+      >
+        Oldest quotation
+      </button>
+    </div>
+  )}
+</div>
+
+
+
+    <Button
+      variant="outline"
+      size="sm"
+      className="h-9 px-3 text-xs"
+    >
+      View all quotations
+    </Button>
+  </div>
+</CardHeader>
         <CardContent className="space-y-3">
           {isLoading ? <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-500">Loading quotations...</div> : null}
           {error ? <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-600">Failed to load quotations.</div> : null}
-          {quotations.map((quotation, index) => {
+          {/* {quotations.map((quotation, index) => { */}
+          {sortedQuotations.map((quotation, index) => {
             const customerName =
               quotation.customerDetails?.name ||
               "Unknown customer";
