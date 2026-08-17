@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -18,10 +19,10 @@ import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/utils/cn";
 
 const navItems = [
-  {href: "/dashboard", label:"Dashboard",icon:LayoutDashboard},
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/quotations", label: "Quotations", icon: ClipboardPenLine },
   { href: `/settings?section=${defaultSettingsSection}`, label: "Global settings", icon: Settings, matchHref: "/settings" },
- 
+
 ];
 
 export function AppSidebar({
@@ -45,11 +46,13 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-white/50 bg-slate-950 py-6 text-white transition-[width,padding] duration-200 lg:flex",
+        // "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-white/50 bg-slate-950 py-6 text-white transition-[width,padding] duration-200 lg:flex",
+        "sticky top-0 hidden h-screen shrink-0 flex-col overflow-x-hidden border-r border-slate-200 bg-white py-3 text-slate-800 transition-[width,padding] duration-200 lg:flex",
         collapsed ? "w-24 px-3" : "w-72 px-5"
+
       )}
     >
-      <div className={cn("flex rounded-2xl bg-white/5 p-4", collapsed ? "justify-center px-2" : "items-center gap-3")}>
+      {/* <div className={cn("flex rounded-2xl bg-white/5 p-4", collapsed ? "justify-center px-2" : "items-center gap-3")}>
         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-teal-500/20">
           <SendToBack className="h-5 w-5 text-teal-200" />
         </div>
@@ -59,12 +62,34 @@ export function AppSidebar({
             <div className="font-medium">Fenestration ERP</div>
           </div>
         ) : null}
+      </div> */}
+      {/* <div
+        className={cn(
+          "flex rounded-2xl bg-white/5 p-4",
+          collapsed ? "justify-center px-2" : "items-center"
+        )}
+      > */}
+      <div
+        className={cn(
+          "flex items-center rounded-lg border border-slate-200 bg-white p-2",
+          collapsed ? "justify-center" : "justify-center"
+        )}
+      >
+        <Image
+          src="/images/glazia-new-logo.jpeg"
+          alt="Glazia"
+          width={140}
+          height={40}
+          className="h-auto w-auto object-contain"
+        />
       </div>
-      <div className={cn("mt-4 flex", collapsed ? "justify-center" : "justify-end")}>
+      {/* <div className={cn("mt-4 flex", collapsed ? "justify-center" : "justify-end")}> */}
+      <div className={cn("mt-3 flex", collapsed ? "justify-center" : "justify-end")}>
         <button
           type="button"
           onClick={onToggle}
-          className="rounded-xl border border-white/10 bg-white/5 p-2 text-slate-300 transition hover:bg-white/10 hover:text-white"
+          // className="rounded-xl border border-white/10 bg-white/5 p-2 text-slate-300 transition hover:bg-white/10 hover:text-white"
+          className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -77,23 +102,36 @@ export function AppSidebar({
             <div key={item.href} className="space-y-1">
               <Link
                 href={item.href}
+                // className={cn(
+                //   "flex rounded-2xl py-3 text-sm text-slate-300 transition hover:bg-white/5 hover:text-white",
+                //   collapsed ? "justify-center px-3" : "items-center gap-3 px-4",
+                //   active && "bg-white text-slate-950 shadow-sm"
+                // )}
                 className={cn(
-                  "flex rounded-2xl py-3 text-sm text-slate-300 transition hover:bg-white/5 hover:text-white",
-                  collapsed ? "justify-center px-3" : "items-center gap-3 px-4",
-                  active && "bg-white text-slate-950 shadow-sm"
+                  // "flex rounded-lg py-2 text-sm text-slate-600 transition hover:bg-slate-50 hover:text-slate-900",
+                  "flex rounded-lg py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900",
+                  collapsed ? "justify-center px-2" : "items-center gap-2 px-3",
+                  active && "bg-red-50 text-red-600"
                 )}
                 title={collapsed ? item.label : undefined}
               >
-                <item.icon className="h-4 w-4" />
+                {/* <item.icon className="h-4 w-4" /> */}
+                <item.icon
+                  className={cn(
+                    "h-4 w-4",
+                    active ? "text-red-600" : "text-slate-600"
+                  )}
+                />
                 {!collapsed ? (
                   <>
                     <span className="flex-1">{item.label}</span>
-                    {item.matchHref === "/settings" ? <ChevronDown className="h-4 w-4" /> : null}
+                    {item.matchHref === "/settings" ? <ChevronDown className="h-4 w-4 text-slate-600" /> : null}
                   </>
                 ) : null}
               </Link>
               {!collapsed && item.matchHref === "/settings" && active ? (
-                <div className="ml-4 space-y-1 border-l border-white/10 pl-4">
+                // <div className="ml-4 space-y-1 border-l border-white/10 pl-4">
+                <div className="ml-3 space-y-1 border-l border-slate-200 pl-3">
                   {settingsSections.map((section) => {
                     const sectionActive = currentSettingsSection === section.key;
                     return (
@@ -101,8 +139,10 @@ export function AppSidebar({
                         key={section.key}
                         href={`/settings?section=${section.key}`}
                         className={cn(
-                          "block rounded-xl px-3 py-2 text-sm text-slate-400 transition hover:bg-white/5 hover:text-white",
-                          sectionActive && "bg-white/10 text-white"
+                          // "block rounded-xl px-3 py-2 text-sm text-slate-400 transition hover:bg-white/5 hover:text-white",
+                          // sectionActive && "bg-white/10 text-white"
+                          "block rounded-md px-3 py-2 text-sm text-slate-500 transition hover:bg-slate-50 hover:text-slate-900",
+                          sectionActive && "bg-red-50 text-red-600"
                         )}
                       >
                         {section.label}
@@ -115,7 +155,7 @@ export function AppSidebar({
           );
         })}
       </nav>
-      <div className="mt-auto pt-6">
+      {/* <div className="mt-auto pt-6">
         <div className={cn("rounded-2xl border border-white/10 bg-white/5", collapsed ? "p-2" : "p-4")}>
           {!collapsed ? <div className="mb-3 text-sm font-medium text-white">{user?.name || "Glazia User"}</div> : null}
           <button
@@ -131,7 +171,34 @@ export function AppSidebar({
             {!collapsed ? <span>Logout</span> : null}
           </button>
         </div>
+      </div> */}
+      <div className="mt-auto pb-12 pt-4">
+  <div
+    className={cn(
+      "rounded-lg border border-slate-200 bg-white",
+      collapsed ? "p-2" : "p-2"
+    )}
+  >
+    {!collapsed ? (
+      <div className="mb-2 px-2 text-xs text-slate-500">
+        {user?.name || "Glazia User"}
       </div>
+    ) : null}
+
+    <button
+      type="button"
+      onClick={handleLogout}
+      className={cn(
+        "flex w-full items-center rounded-md text-sm font-medium text-slate-800 transition hover:bg-slate-50 hover:text-slate-900",
+        collapsed ? "justify-center p-2" : "gap-2 px-2 py-2"
+      )}
+      title={collapsed ? "Logout" : undefined}
+    >
+      <LogOut className="h-4 w-4 text-slate-700" />
+      {!collapsed ? <span>Logout</span> : null}
+    </button>
+  </div>
+</div>
     </aside>
   );
 }

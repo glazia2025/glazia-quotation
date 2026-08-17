@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Calendar, CopyPlus, Eye, File, HandCoins, Plus, Trash2 } from "lucide-react";
+import { Calendar, CopyPlus, Eye, File, HandCoins, Plus, Trash2, Search } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -113,9 +113,32 @@ const confirmDuplicateQuotation = async () => {
   return (
     <PageShell
       title="Quotations"
-      description="Manage draft, submitted, revised, and converted quotations with pricing visibility and revision history."
+      // description="Manage draft, submitted, revised, and converted quotations with pricing visibility and revision history."
+       description={
+    <div className="flex flex-col gap-2">
+      <span>
+        Manage draft, submitted, revised, and converted quotations with pricing
+        visibility and revision history.
+      </span>
+
+      <div className="relative w-[300px]">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+        <input
+          type="text"
+          placeholder="Search quotation, customer..."
+          className="h-9 w-full rounded-md border border-slate-200 bg-white pl-9 pr-3 text-xs text-slate-700 outline-none placeholder:text-slate-400 focus:border-red-400 focus:ring-1 focus:ring-red-400"
+        />
+      </div>
+    </div>
+  }
+
+
       actions={
-        <Button asChild>
+        <Button asChild 
+         className="text-white hover:opacity-90"
+         style={{ backgroundColor: "#EE1C25" }}
+        >
           <Link href="/quotations/new">
             <Plus className="h-4 w-4" />
             New quotation
