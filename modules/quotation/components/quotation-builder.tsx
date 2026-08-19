@@ -13,6 +13,24 @@ import {
   Share2,
   Upload,
   ShoppingCart,
+  Scissors,
+  Box,
+  FileText,
+  Monitor,
+  ArrowLeft,
+  UserRound,
+Mail,
+Phone,
+MapPin,
+Building2,
+MapPinned,
+Hash,
+X,
+Image as ImageIcon,
+Settings2,
+Trash2
+
+  
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -68,7 +86,7 @@ import type { DragEndEvent } from "@dnd-kit/core";
 import { rectSortingStrategy } from "@dnd-kit/sortable";
 
 
-type TabKey = "customer" | "quotation" | "global" | "item" | "bulk";
+type TabKey = "customer" | "quotation" | "global" | "item" | "bulk" | "export";
 
 const tabs: { key: TabKey; label: string }[] = [
   { key: "customer", label: "Customer Details" },
@@ -76,9 +94,10 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: "global", label: "Global Config" },
   { key: "item", label: "Item List" },
   { key: "bulk", label: "Global Edit" },
+  { key: "export", label: "Generate & Export" },
 ];
 const isTabKey = (value: string | null): value is TabKey =>
-  value === "customer" || value === "quotation" || value === "global" || value === "item" || value === "bulk";
+  value === "customer" || value === "quotation" || value === "global" || value === "item" || value === "bulk" ||value === "export";
 
 const formatDimensionMm = (value: number | string | undefined) => `${value ?? "-"} mm`;
 const formatSizeMm = (width: number | string | undefined, height: number | string | undefined) =>
@@ -1022,126 +1041,218 @@ function CustomerTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSavi
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-black-200 p-6">
-      <button
+      {/* <button
         type="button"
         onClick={() => setExpanded(!expanded)}
         className="mb-6 flex w-full items-center justify-between text-left"
       >
         <h2 className="text-xl font-bold text-gray-900">Customer Details</h2>
         <span>{expanded ? "▲" : "▼"}</span>
-      </button>
+      </button> */}
+      <button
+  type="button"
+  onClick={() => setExpanded(!expanded)}
+  className="mb-5 flex w-full items-start justify-between text-left"
+>
+  <div className="flex items-start gap-3">
+    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
+      <UserRound className="h-4 w-4 text-slate-600" />
+    </div>
+
+    <div>
+      <h2 className="text-base font-semibold text-slate-900">
+        Customer Profile
+      </h2>
+
+      <p className="mt-1 text-xs text-slate-500">
+        Manage the primary contact and billing address for this quotation.
+      </p>
+    </div>
+  </div>
+
+  <span className="pt-1 text-sm text-slate-400">
+    {expanded ? "▲" : "▼"}
+  </span>
+</button>
 
       {expanded && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+  <div className="mt-2 border-t border-slate-100 pt-6">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
 
-          {/* Customer Name */}
+      <div>
+        <h3 className="mb-5 text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
+          Contact Information
+        </h3>
+
+        <div className="space-y-4">
+
+        
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Name
+            <label className="mb-2 block text-xs font-medium text-slate-700">
+              Full Name
             </label>
-            <input
-              type="text"
-              value={customerValues.name}
-              onChange={(e) =>
-                updateCustomer("name", e.target.value)
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
+
+            <div className="relative">
+              <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+              <input
+                type="text"
+                value={customerValues.name}
+                onChange={(e) =>
+                  updateCustomer("name", e.target.value)
+                }
+                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100"
+              />
+            </div>
           </div>
 
-          {/* Email */}
+        
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-2 block text-xs font-medium text-slate-700">
               Email Address
             </label>
-            <input
-              type="email"
-              value={customerValues.email}
-              onChange={(e) =>
-                updateCustomer("email", e.target.value)
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
+
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+              <input
+                type="email"
+                value={customerValues.email}
+                onChange={(e) =>
+                  updateCustomer("email", e.target.value)
+                }
+                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100"
+              />
+            </div>
           </div>
 
-          {/* Phone */}
+          
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="mb-2 block text-xs font-medium text-slate-700">
               Phone Number
             </label>
-            <input
-              type="tel"
-              value={customerValues.phone}
-              onChange={(e) =>
-                updateCustomer("phone", e.target.value)
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
 
-          {/* Address */}
-          <div className="md:col-span-3">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Address
-            </label>
-            <textarea
-              value={customerValues.address}
-              onChange={(e) =>
-                updateCustomer("address", e.target.value)
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
+            <div className="relative">
+              <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
-          {/* City */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              City
-            </label>
-            <input
-              type="text"
-              value={customerValues.city || ""}
-              onChange={(e) =>
-                updateCustomer("city", e.target.value)
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-
-          {/* State */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              State
-            </label>
-            <input
-              type="text"
-              value={customerValues.state || ""}
-              onChange={(e) =>
-                updateCustomer("state", e.target.value)
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-
-          {/* Pincode */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              PIN Code
-            </label>
-            <input
-              type="text"
-              value={customerValues.pincode || ""}
-              onChange={(e) =>
-                updateCustomer("pincode", e.target.value)
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
+              <input
+                type="tel"
+                value={customerValues.phone}
+                onChange={(e) =>
+                  updateCustomer("phone", e.target.value)
+                }
+                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100"
+              />
+            </div>
           </div>
 
         </div>
-      )}
+      </div>
+
+    
+      <div>
+        <h3 className="mb-5 text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
+          Billing Address
+        </h3>
+
+        <div className="space-y-4">
+
+        
+          <div>
+            <label className="mb-2 block text-xs font-medium text-slate-700">
+              Street Address
+            </label>
+
+            <div className="relative">
+              <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+              <textarea
+                value={customerValues.address}
+                onChange={(e) =>
+                  updateCustomer("address", e.target.value)
+                }
+                rows={1}
+                className="min-h-[44px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100"
+              />
+            </div>
+          </div>
+
+      
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+      
+            <div>
+              <label className="mb-2 block text-xs font-medium text-slate-700">
+                City
+              </label>
+
+              <div className="relative">
+                <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                <input
+                  type="text"
+                  value={customerValues.city || ""}
+                  onChange={(e) =>
+                    updateCustomer("city", e.target.value)
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100"
+                />
+              </div>
+            </div>
+
+          
+            <div>
+              <label className="mb-2 block text-xs font-medium text-slate-700">
+                State
+              </label>
+
+              <div className="relative">
+                <MapPinned className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                <input
+                  type="text"
+                  value={customerValues.state || ""}
+                  onChange={(e) =>
+                    updateCustomer("state", e.target.value)
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100"
+                />
+              </div>
+            </div>
+
+          </div>
+
+        
+          <div>
+            <label className="mb-2 block text-xs font-medium text-slate-700">
+              PIN Code
+            </label>
+
+            <div className="relative">
+              <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+              <input
+                type="text"
+                value={customerValues.pincode || ""}
+                onChange={(e) =>
+                  updateCustomer("pincode", e.target.value)
+                }
+                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100"
+              />
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+
+
+
       <div className="mt-6 flex justify-end">
-        <Button type="button" onClick={() => void onSave()} disabled={isSaving}>
+        <Button type="button" onClick={() => void onSave()} disabled={isSaving} className="bg-[#EE1C25] text-white hover:bg-[#c9151d]">
           {isSaving ? "Saving..." : "Save Customer Details"}
         </Button>
       </div>
@@ -1158,268 +1269,718 @@ function GlobalConfigTab({ globalConfig,
   const [expanded, setExpanded] = useState(true);
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-black-200 p-6">
+    // <div className="bg-white rounded-2xl shadow-sm border border-black-200 p-6">
 
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="mb-6 flex w-full items-center justify-between text-left"
-      >
-        <h2 className="text-xl font-bold text-gray-900">Global Config</h2>
-        {expanded ? <span>▲</span> : <span>▼</span>}
-      </button>
+    //   <button
+    //     type="button"
+    //     onClick={() => setExpanded(!expanded)}
+    //     className="mb-6 flex w-full items-center justify-between text-left"
+    //   >
+    //     <h2 className="text-xl font-bold text-gray-900">Global Config</h2>
+    //     {expanded ? <span>▲</span> : <span>▼</span>}
+    //   </button>
 
-      {expanded && (
-        <>
-          <div className="mb-6 flex justify-end">
-            <a href="/quotations/settings" className="text-sm text-[#124657]">
-              Manage
-            </a>
-          </div>
+    //   {expanded && (
+    //     <>
+    //       <div className="mb-6 flex justify-end">
+    //         <a href="/quotations/settings" className="text-sm text-[#124657]">
+    //           Manage
+    //         </a>
+    //       </div>
 
-          {/* LOGO */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    //       {/* LOGO */}
+    //       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-            <div>
-              <label className="block text-sm mb-2">Logo</label>
+    //         <div>
+    //           <label className="block text-sm mb-2">Logo</label>
 
-              {logoPreview && (
-                <div className="mb-4 flex gap-4">
-                  <img src={logoPreview} className="h-16 border p-2" />
-                  <button
-                    onClick={() =>
-                      setGlobalConfig((p: any) => ({ ...p, logo: "", logoUrl: "" }))
-                    }
-                    className="text-red-600 text-sm"
-                  >
-                    Remove
-                  </button>
-                </div>
-              )}
+    //           {logoPreview && (
+    //             <div className="mb-4 flex gap-4">
+    //               <img src={logoPreview} className="h-16 border p-2" />
+    //               <button
+    //                 onClick={() =>
+    //                   setGlobalConfig((p: any) => ({ ...p, logo: "", logoUrl: "" }))
+    //                 }
+    //                 className="text-red-600 text-sm"
+    //               >
+    //                 Remove
+    //               </button>
+    //             </div>
+    //           )}
 
-              <input
-                type="file"
-                onChange={(e) =>
-                  handleLogoUpload(e.target.files?.[0] || null)
-                }
-              />
-            </div>
+    //           <input
+    //             type="file"
+    //             onChange={(e) =>
+    //               handleLogoUpload(e.target.files?.[0] || null)
+    //             }
+    //           />
+    //         </div>
 
-            <div>
-              <label className="block text-sm mb-2">Prerequisites</label>
-              <textarea
-                value={globalConfig.prerequisites}
-                onChange={(e) =>
-                  setGlobalConfig((p: any) => ({
-                    ...p,
-                    prerequisites: e.target.value,
-                  }))
-                }
-                rows={3}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-transparent"
-              />
-            </div>
+    //         <div>
+    //           <label className="block text-sm mb-2">Prerequisites</label>
+    //           <textarea
+    //             value={globalConfig.prerequisites}
+    //             onChange={(e) =>
+    //               setGlobalConfig((p: any) => ({
+    //                 ...p,
+    //                 prerequisites: e.target.value,
+    //               }))
+    //             }
+    //             rows={3}
+    //             className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-transparent"
+    //           />
+    //         </div>
 
-            <div>
-              <label className="block text-sm mb-2">Website</label>
-              <input
-                value={globalConfig.website}
-                onChange={(e) =>
-                  setGlobalConfig((p: any) => ({
-                    ...p,
-                    website: e.target.value,
-                  }))
-                }
+    //         <div>
+    //           <label className="block text-sm mb-2">Website</label>
+    //           <input
+    //             value={globalConfig.website}
+    //             onChange={(e) =>
+    //               setGlobalConfig((p: any) => ({
+    //                 ...p,
+    //                 website: e.target.value,
+    //               }))
+    //             }
 
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-transparent"
-              />
-            </div>
-          </div>
+    //             className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-transparent"
+    //           />
+    //         </div>
+    //       </div>
 
 
-          {/* TERMS */}
-          <div className="mt-6">
-            <label>Terms</label>
-            <textarea
-              value={globalConfig.terms}
-              onChange={(e) =>
-                setGlobalConfig((p: any) => ({
-                  ...p,
-                  terms: e.target.value,
-                }))
-              }
-              rows={3}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-transparent"
-            />
-          </div>
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+    //       {/* TERMS */}
+    //       <div className="mt-6">
+    //         <label>Terms</label>
+    //         <textarea
+    //           value={globalConfig.terms}
+    //           onChange={(e) =>
+    //             setGlobalConfig((p: any) => ({
+    //               ...p,
+    //               terms: e.target.value,
+    //             }))
+    //           }
+    //           rows={3}
+    //           className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-transparent"
+    //         />
+    //       </div>
+    //       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
 
-            {/* INSTALLATION */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Installation (₹/sqft)
-              </label>
+    //         {/* INSTALLATION */}
+    //         <div>
+    //           <label className="block text-sm font-medium text-gray-700 mb-2">
+    //             Installation (₹/sqft)
+    //           </label>
 
-              <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
-                <input
-                  type="checkbox"
-                  checked={globalConfig.additionalCosts.showInstallation ?? true}
-                  onChange={(e) =>
-                    setGlobalConfig((p: any) => ({
-                      ...p,
-                      additionalCosts: {
-                        ...p.additionalCosts,
-                        showInstallation: e.target.checked,
-                      },
-                    }))
-                  }
-                />
-                <span>Show in PDF</span>
-              </label>
+    //           <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
+    //             <input
+    //               type="checkbox"
+    //               checked={globalConfig.additionalCosts.showInstallation ?? true}
+    //               onChange={(e) =>
+    //                 setGlobalConfig((p: any) => ({
+    //                   ...p,
+    //                   additionalCosts: {
+    //                     ...p.additionalCosts,
+    //                     showInstallation: e.target.checked,
+    //                   },
+    //                 }))
+    //               }
+    //             />
+    //             <span>Show in PDF</span>
+    //           </label>
 
-              <input
-                type="number"
-                value={globalConfig.additionalCosts.installation}
-                onChange={(e) =>
-                  setGlobalConfig((p: any) => ({
-                    ...p,
-                    additionalCosts: {
-                      ...p.additionalCosts,
-                      installation: Number(e.target.value) || 0,
-                    },
-                  }))
-                }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
+    //           <input
+    //             type="number"
+    //             value={globalConfig.additionalCosts.installation}
+    //             onChange={(e) =>
+    //               setGlobalConfig((p: any) => ({
+    //                 ...p,
+    //                 additionalCosts: {
+    //                   ...p.additionalCosts,
+    //                   installation: Number(e.target.value) || 0,
+    //                 },
+    //               }))
+    //             }
+    //             className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+    //           />
+    //         </div>
 
-            {/* TRANSPORT */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Transport (₹)
-              </label>
+    //         {/* TRANSPORT */}
+    //         <div>
+    //           <label className="block text-sm font-medium text-gray-700 mb-2">
+    //             Transport (₹)
+    //           </label>
 
-              <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
-                <input
-                  type="checkbox"
-                  checked={globalConfig.additionalCosts.showTransport ?? true}
-                  onChange={(e) =>
-                    setGlobalConfig((p: any) => ({
-                      ...p,
-                      additionalCosts: {
-                        ...p.additionalCosts,
-                        showTransport: e.target.checked,
-                      },
-                    }))
-                  }
-                />
-                <span>Show in PDF</span>
-              </label>
+    //           <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
+    //             <input
+    //               type="checkbox"
+    //               checked={globalConfig.additionalCosts.showTransport ?? true}
+    //               onChange={(e) =>
+    //                 setGlobalConfig((p: any) => ({
+    //                   ...p,
+    //                   additionalCosts: {
+    //                     ...p.additionalCosts,
+    //                     showTransport: e.target.checked,
+    //                   },
+    //                 }))
+    //               }
+    //             />
+    //             <span>Show in PDF</span>
+    //           </label>
 
-              <input
-                type="number"
-                value={globalConfig.additionalCosts.transport}
-                onChange={(e) =>
-                  setGlobalConfig((p: any) => ({
-                    ...p,
-                    additionalCosts: {
-                      ...p.additionalCosts,
-                      transport: Number(e.target.value) || 0,
-                    },
-                  }))
-                }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
+    //           <input
+    //             type="number"
+    //             value={globalConfig.additionalCosts.transport}
+    //             onChange={(e) =>
+    //               setGlobalConfig((p: any) => ({
+    //                 ...p,
+    //                 additionalCosts: {
+    //                   ...p.additionalCosts,
+    //                   transport: Number(e.target.value) || 0,
+    //                 },
+    //               }))
+    //             }
+    //             className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+    //           />
+    //         </div>
 
-            {/* LOADING */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Loading & Unloading (₹)
-              </label>
+    //         {/* LOADING */}
+    //         <div>
+    //           <label className="block text-sm font-medium text-gray-700 mb-2">
+    //             Loading & Unloading (₹)
+    //           </label>
 
-              <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
-                <input
-                  type="checkbox"
-                  checked={globalConfig.additionalCosts.showLoadingUnloading ?? true}
-                  onChange={(e) =>
-                    setGlobalConfig((p: any) => ({
-                      ...p,
-                      additionalCosts: {
-                        ...p.additionalCosts,
-                        showLoadingUnloading: e.target.checked,
-                      },
-                    }))
-                  }
-                />
-                <span>Show in PDF</span>
-              </label>
+    //           <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
+    //             <input
+    //               type="checkbox"
+    //               checked={globalConfig.additionalCosts.showLoadingUnloading ?? true}
+    //               onChange={(e) =>
+    //                 setGlobalConfig((p: any) => ({
+    //                   ...p,
+    //                   additionalCosts: {
+    //                     ...p.additionalCosts,
+    //                     showLoadingUnloading: e.target.checked,
+    //                   },
+    //                 }))
+    //               }
+    //             />
+    //             <span>Show in PDF</span>
+    //           </label>
 
-              <input
-                type="number"
-                value={globalConfig.additionalCosts.loadingUnloading}
-                onChange={(e) =>
-                  setGlobalConfig((p: any) => ({
-                    ...p,
-                    additionalCosts: {
-                      ...p.additionalCosts,
-                      loadingUnloading: Number(e.target.value) || 0,
-                    },
-                  }))
-                }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
+    //           <input
+    //             type="number"
+    //             value={globalConfig.additionalCosts.loadingUnloading}
+    //             onChange={(e) =>
+    //               setGlobalConfig((p: any) => ({
+    //                 ...p,
+    //                 additionalCosts: {
+    //                   ...p.additionalCosts,
+    //                   loadingUnloading: Number(e.target.value) || 0,
+    //                 },
+    //               }))
+    //             }
+    //             className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+    //           />
+    //         </div>
 
-            {/* DISCOUNT */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Discount (%)
-              </label>
+    //         {/* DISCOUNT */}
+    //         <div>
+    //           <label className="block text-sm font-medium text-gray-700 mb-2">
+    //             Discount (%)
+    //           </label>
 
-              <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
-                <input
-                  type="checkbox"
-                  checked={globalConfig.additionalCosts.showDiscount ?? true}
-                  onChange={(e) =>
-                    setGlobalConfig((p: any) => ({
-                      ...p,
-                      additionalCosts: {
-                        ...p.additionalCosts,
-                        showDiscount: e.target.checked,
-                      },
-                    }))
-                  }
-                />
-                <span>Show in PDF</span>
-              </label>
+    //           <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
+    //             <input
+    //               type="checkbox"
+    //               checked={globalConfig.additionalCosts.showDiscount ?? true}
+    //               onChange={(e) =>
+    //                 setGlobalConfig((p: any) => ({
+    //                   ...p,
+    //                   additionalCosts: {
+    //                     ...p.additionalCosts,
+    //                     showDiscount: e.target.checked,
+    //                   },
+    //                 }))
+    //               }
+    //             />
+    //             <span>Show in PDF</span>
+    //           </label>
 
-              <input
-                type="number"
-                value={globalConfig.additionalCosts.discountPercent}
-                onChange={(e) =>
-                  setGlobalConfig((p: any) => ({
-                    ...p,
-                    additionalCosts: {
-                      ...p.additionalCosts,
-                      discountPercent: Number(e.target.value) || 0,
-                    },
-                  }))
-                }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
+    //           <input
+    //             type="number"
+    //             value={globalConfig.additionalCosts.discountPercent}
+    //             onChange={(e) =>
+    //               setGlobalConfig((p: any) => ({
+    //                 ...p,
+    //                 additionalCosts: {
+    //                   ...p.additionalCosts,
+    //                   discountPercent: Number(e.target.value) || 0,
+    //                 },
+    //               }))
+    //             }
+    //             className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+    //           />
+    //         </div>
 
-          </div>
+    //       </div>
 
-        </>
-      )}
-      <div className="mt-6 flex justify-end">
-        <Button type="button" onClick={() => void onSave()} disabled={isSaving}>
-          {isSaving ? "Saving..." : "Save Global Configuration"}
-        </Button>
+    //     </>
+    //   )}
+    //   <div className="mt-6 flex justify-end">
+    //     <Button type="button" onClick={() => void onSave()} disabled={isSaving} className="bg-[#EE1C25] text-white hover:bg-[#c9151d]">
+    //       {isSaving ? "Saving..." : "Save Global Configuration"}
+    //     </Button>
+    //   </div>
+    // </div>
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+
+
+  <button
+    type="button"
+    onClick={() => setExpanded(!expanded)}
+    className="mb-6 flex w-full items-center justify-between text-left"
+  >
+    <div className="flex items-center gap-3">
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
+        <Settings2 className="h-4 w-4 text-slate-600" />
+      </div>
+
+      <div>
+        <h2 className="text-base font-semibold text-slate-900">
+          Global Configuration
+        </h2>
+
+        <p className="mt-1 text-xs text-slate-500">
+          Manage global settings used across this quotation.
+        </p>
       </div>
     </div>
+
+    <span className="text-sm text-slate-400">
+      {expanded ? "⌃" : "⌄"}
+    </span>
+  </button>
+
+  {expanded && (
+    <>
+    
+      <div className="mb-5 flex justify-end">
+        <a
+          href="/quotations/settings"
+          className="text-xs font-medium text-slate-500 transition hover:text-red-500"
+        >
+          Manage Presets
+        </a>
+      </div>
+
+      <div className="border-t border-slate-100 pt-6">
+
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+
+          {/*  LEFT COLUMN  */}
+          <div className="space-y-7">
+
+        
+            <div>
+              <div className="mb-4 flex items-center gap-2">
+                <Building2 className="h-3.5 w-3.5 text-slate-500" />
+
+                <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
+                  Brand Identity
+                </h3>
+              </div>
+
+              <div className="space-y-5">
+
+            
+                <div>
+                  <label className="mb-2 block text-xs font-medium text-slate-700">
+                    Company Logo
+                  </label>
+
+                  <div className="flex items-center gap-4">
+
+                    {logoPreview ? (
+                      <div className="flex h-14 w-20 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                        <img
+                          src={logoPreview}
+                          alt="Company Logo"
+                          className="max-h-12 max-w-[72px] object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex h-14 w-20 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50">
+                        <ImageIcon className="h-5 w-5 text-slate-400" />
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2">
+
+                      <label className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-red-400 hover:text-red-500">
+                        <span className="flex items-center gap-2">
+                          <Upload className="h-3.5 w-3.5" />
+                          Choose File
+                        </span>
+
+                        <input
+                          type="file"
+                          className="hidden"
+                          onChange={(e) =>
+                            handleLogoUpload(e.target.files?.[0] || null)
+                          }
+                        />
+                      </label>
+
+                      {logoPreview && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setGlobalConfig((p: any) => ({
+                              ...p,
+                              logo: "",
+                              logoUrl: "",
+                            }))
+                          }
+                          className="rounded-lg px-2 py-2 text-xs font-medium text-red-500 transition hover:bg-red-50"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Remove
+                          </span>
+                        </button>
+                      )}
+
+                    </div>
+                  </div>
+                </div>
+
+              
+                <div>
+                  <label className="mb-2 block text-xs font-medium text-slate-700">
+                    Website URL
+                  </label>
+
+                  <input
+                    value={globalConfig.website}
+                    onChange={(e) =>
+                      setGlobalConfig((p: any) => ({
+                        ...p,
+                        website: e.target.value,
+                      }))
+                    }
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100"
+                  />
+                </div>
+
+              </div>
+            </div>
+
+
+            <div className="border-t border-slate-100 pt-6">
+
+              <div className="mb-4 flex items-center gap-2">
+                <FileText className="h-3.5 w-3.5 text-slate-500" />
+
+                <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
+                  Document Content
+                </h3>
+              </div>
+
+              <div className="space-y-5">
+
+                <div>
+                  <label className="mb-2 block text-xs font-medium text-slate-700">
+                    Prerequisites
+                  </label>
+
+                  <textarea
+                    value={globalConfig.prerequisites}
+                    onChange={(e) =>
+                      setGlobalConfig((p: any) => ({
+                        ...p,
+                        prerequisites: e.target.value,
+                      }))
+                    }
+                    rows={3}
+                    className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-medium text-slate-700">
+                    Terms & Conditions
+                  </label>
+
+                  <textarea
+                    value={globalConfig.terms}
+                    onChange={(e) =>
+                      setGlobalConfig((p: any) => ({
+                        ...p,
+                        terms: e.target.value,
+                      }))
+                    }
+                    rows={3}
+                    className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100"
+                  />
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+
+
+          {/*  RIGHT COLUMN  */}
+          <div>
+
+           
+            <div>
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Settings2 className="h-3.5 w-3.5 text-slate-500" />
+
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
+                    Additional Costs
+                  </h3>
+                </div>
+
+                <span className="text-[11px] text-slate-400">
+                  Toggle "PDF" to show on quotation
+                </span>
+              </div>
+
+              <div className="space-y-5">
+
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="text-xs font-medium text-slate-700">
+                      Installation
+                    </label>
+
+                    <span className="text-[11px] text-slate-400">
+                      ₹/sqft
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-xs text-slate-500">
+                      <input
+                        type="checkbox"
+                        checked={
+                          globalConfig.additionalCosts.showInstallation ??
+                          true
+                        }
+                        onChange={(e) =>
+                          setGlobalConfig((p: any) => ({
+                            ...p,
+                            additionalCosts: {
+                              ...p.additionalCosts,
+                              showInstallation: e.target.checked,
+                            },
+                          }))
+                        }
+                        className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
+                      />
+                      Show in PDF
+                    </label>
+
+                    <input
+                      type="number"
+                      value={globalConfig.additionalCosts.installation}
+                      onChange={(e) =>
+                        setGlobalConfig((p: any) => ({
+                          ...p,
+                          additionalCosts: {
+                            ...p.additionalCosts,
+                            installation: Number(e.target.value) || 0,
+                          },
+                        }))
+                      }
+                      className="h-10 w-[138px]  rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="text-xs font-medium text-slate-700">
+                      Transport
+                    </label>
+
+                    <span className="text-[11px] text-slate-400">
+                      ₹
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-xs text-slate-500">
+                      <input
+                        type="checkbox"
+                        checked={
+                          globalConfig.additionalCosts.showTransport ??
+                          true
+                        }
+                        onChange={(e) =>
+                          setGlobalConfig((p: any) => ({
+                            ...p,
+                            additionalCosts: {
+                              ...p.additionalCosts,
+                              showTransport: e.target.checked,
+                            },
+                          }))
+                        }
+                        className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
+                      />
+                      Show in PDF
+                    </label>
+
+                    <input
+                      type="number"
+                      value={globalConfig.additionalCosts.transport}
+                      onChange={(e) =>
+                        setGlobalConfig((p: any) => ({
+                          ...p,
+                          additionalCosts: {
+                            ...p.additionalCosts,
+                            transport: Number(e.target.value) || 0,
+                          },
+                        }))
+                      }
+                      className="h-10 w-[138px]  rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="text-xs font-medium text-slate-700">
+                      Loading & Unloading
+                    </label>
+
+                    <span className="text-[11px] text-slate-400">
+                      ₹
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-xs text-slate-500">
+                      <input
+                        type="checkbox"
+                        checked={
+                          globalConfig.additionalCosts
+                            .showLoadingUnloading ?? true
+                        }
+                        onChange={(e) =>
+                          setGlobalConfig((p: any) => ({
+                            ...p,
+                            additionalCosts: {
+                              ...p.additionalCosts,
+                              showLoadingUnloading: e.target.checked,
+                            },
+                          }))
+                        }
+                        className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
+                      />
+                      Show in PDF
+                    </label>
+
+                    <input
+                      type="number"
+                      value={
+                        globalConfig.additionalCosts.loadingUnloading
+                      }
+                      onChange={(e) =>
+                        setGlobalConfig((p: any) => ({
+                          ...p,
+                          additionalCosts: {
+                            ...p.additionalCosts,
+                            loadingUnloading:
+                              Number(e.target.value) || 0,
+                          },
+                        }))
+                      }
+                      className="h-10 w-[138px]  rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100"
+                    />
+                  </div>
+                </div>
+
+
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="text-xs font-medium text-slate-700">
+                      Discount
+                    </label>
+
+                    <span className="text-[11px] text-slate-400">
+                      %
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-xs text-slate-500">
+                      <input
+                        type="checkbox"
+                        checked={
+                          globalConfig.additionalCosts.showDiscount ??
+                          true
+                        }
+                        onChange={(e) =>
+                          setGlobalConfig((p: any) => ({
+                            ...p,
+                            additionalCosts: {
+                              ...p.additionalCosts,
+                              showDiscount: e.target.checked,
+                            },
+                          }))
+                        }
+                        className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
+                      />
+                      Show in PDF
+                    </label>
+
+                    <input
+                      type="number"
+                      value={
+                        globalConfig.additionalCosts.discountPercent
+                      }
+                      onChange={(e) =>
+                        setGlobalConfig((p: any) => ({
+                          ...p,
+                          additionalCosts: {
+                            ...p.additionalCosts,
+                            discountPercent:
+                              Number(e.target.value) || 0,
+                          },
+                        }))
+                      }
+                      className="h-10 w-[138px] rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100"
+                    />
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </>
+  )}
+
+  {/* SAVE */}
+  <div className="mt-7 flex justify-end border-t border-slate-100 pt-5">
+    <Button
+      type="button"
+      onClick={() => void onSave()}
+      disabled={isSaving}
+      className="rounded-lg bg-[#EE1C25] px-5 text-sm font-medium text-white hover:bg-[#c9151d]"
+    >
+      {isSaving ? "Saving..." : "Save Global Configuration"}
+    </Button>
+  </div>
+
+</div>
+
+
   );
 }
 function QuotationDetailsTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSaving: boolean }) {
@@ -1442,7 +2003,6 @@ function QuotationDetailsTab({ onSave, isSaving }: { onSave: () => Promise<void>
       {expanded && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-          {/* Date */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Date
@@ -1457,7 +2017,7 @@ function QuotationDetailsTab({ onSave, isSaving }: { onSave: () => Promise<void>
             />
           </div>
 
-          {/* Opportunity */}
+        
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Opportunity Stage
@@ -1480,7 +2040,7 @@ function QuotationDetailsTab({ onSave, isSaving }: { onSave: () => Promise<void>
         </div>
       )}
       <div className="mt-6 flex justify-end">
-        <Button type="button" onClick={() => void onSave()} disabled={isSaving}>
+        <Button type="button" onClick={() => void onSave()} disabled={isSaving} className="bg-[#EE1C25] text-white hover:bg-[#c9151d]">
           {isSaving ? "Saving..." : "Save Quotation Details"}
         </Button>
       </div>
@@ -1651,6 +2211,7 @@ function BulkUpdateTab({
           type="button"
           onClick={() => void applyUpdate()}
           disabled={!from || !to || isSaving}
+          className="bg-[#EE1C25] text-white hover:bg-[#c9151d]"
         >
           {isSaving ? "Saving..." : "Save Bulk Update"}
         </Button>
@@ -1753,12 +2314,36 @@ export function QuotationBuilder({
   const [isGeneratingElevation, setIsGeneratingElevation] = useState(false);
   const [isGeneratingExcel, setIsGeneratingExcel] = useState(false);
   const [isExcelExportModalOpen, setIsExcelExportModalOpen] = useState(false);
+  const [activeExport, setActiveExport] = useState<
+  "cutting" | "bom" | "glass" | "quotation" | "elevation" | "excel" | null
+>(null);
   const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState("Quotation PDF Preview");
   const [pdfDownloadName, setPdfDownloadName] = useState("");
   const [bomOrderData, setBomOrderData] = useState<BomOrderData | null>(null);
   const [isOrderPlacementOpen, setIsOrderPlacementOpen] = useState(false);
+
+  useEffect(() => {
+  const isAnyGenerationInProgress =
+    isGeneratingCuttingSchedule ||
+    isGeneratingBom ||
+    isGeneratingGlassReport ||
+    isGeneratingPdf ||
+    isGeneratingElevation ||
+    isGeneratingExcel;
+
+  if (!isAnyGenerationInProgress) {
+    setActiveExport(null);
+  }
+}, [
+  isGeneratingCuttingSchedule,
+  isGeneratingBom,
+  isGeneratingGlassReport,
+  isGeneratingPdf,
+  isGeneratingElevation,
+  isGeneratingExcel,
+]);
   useEffect(() => {
     return () => {
       if (pdfPreviewUrl) {
@@ -2648,6 +3233,16 @@ const exportExcel = async () => {
     <PageShell
       title={pageTitle}
       description={pageDescription}
+       backButton={
+    <button
+      type="button"
+      onClick={() => router.back()}
+      className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100"
+      aria-label="Go back"
+    >
+      <ArrowLeft className="h-4 w-4" />
+    </button>
+  }
       actions={
         <>
           <Badge variant={metadataSaveStatus === "failed" ? "danger" : itemMutationsInProgress > 0 ? "warning" : "success"}>
@@ -2700,7 +3295,7 @@ const exportExcel = async () => {
         
       }
     >
-      <Card className="border-0 bg-white/90">
+      {/* <Card className="border-0 bg-white/90">
     <CardContent className="flex items-center justify-start gap-3 p-4">
       <Button variant="outline"
            onClick={exportCuttingSchedule} disabled={isSaveBlockingExports || isAnyExportInProgress}>
@@ -2740,7 +3335,8 @@ const exportExcel = async () => {
 </Button>
       
     </CardContent>
-  </Card>
+  </Card> */}
+
       <div id="quotation-pdf-root" className="space-y-6">
         <Card className="border-0 bg-white/90">
           <CardContent className="flex items-center justify-between p-4">
@@ -2765,7 +3361,7 @@ const exportExcel = async () => {
             <button
               onClick={handleAddItem}
               disabled={metadataSaveStatus === "saving" || itemMutationsInProgress > 0}
-              className="rounded-xl bg-[#124657] px-4 py-2 text-sm text-white hover:bg-[#0b3642] disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-xl bg-[#EE1C25] px-4 py-2 text-sm text-white hover:bg-[#0b3642] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Add Item
             </button>
@@ -2817,6 +3413,460 @@ const exportExcel = async () => {
                 isSaving={itemMutationsInProgress > 0}
               />
             )}
+
+            {activeTab === "export" && (
+  <div className="rounded-2xl border border-slate-200 bg-white p-6">
+    <div className="mb-6">
+      <h2 className="text-xl font-semibold text-slate-900">
+        Generate & Export
+      </h2>
+
+      <p className="mt-1 text-sm text-slate-500">
+        Select a document format to generate
+      </p>
+    </div>
+
+    {/* <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"> */}
+    {/* <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"> */}
+      {/* <Card className="border-0 bg-white/90">
+  <CardContent className="p-3"> */}
+  {/* <Card className="border-0 bg-transparent shadow-none">
+  <CardContent className="p-0"> */}
+  <Card className="border-0 bg-transparent shadow-none">
+  <CardContent className="p-0">
+    <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    {/* <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-3"> */}
+
+      {/* Cutting */}
+      <button
+        type="button"
+        // onClick={exportCuttingSchedule}
+        onClick={() => {
+  setActiveExport("cutting");
+  exportCuttingSchedule();
+}}
+        disabled={isSaveBlockingExports || isAnyExportInProgress}
+        // className="group relative flex min-h-[118px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-slate-300 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+       className={`group relative flex min-h-[190px] flex-col justify-between rounded-2xl p-6 text-left transition ${
+  activeExport === "cutting"
+    ? "border border-red-500 bg-red-500 shadow-sm"
+    : "border border-slate-200 bg-white hover:border-red-500 hover:bg-red-500 hover:shadow-sm"
+} disabled:cursor-not-allowed disabled:opacity-60`}
+      >
+        <div className="flex items-start justify-between">
+          {/* <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100">
+            <Scissors className="h-4 w-4 text-slate-800" />
+          </div> */}
+          <div
+  className={`flex h-12 w-12 items-center justify-center rounded-full ${
+    activeExport === "cutting"
+      ? "bg-white"
+      : "bg-amber-100 group-hover:bg-white"
+  }`}
+>
+  <Scissors
+    className={`h-6 w-6 ${
+      activeExport === "cutting"
+        ? "text-red-500"
+        : "text-slate-800 group-hover:text-red-500"
+    }`}
+  />
+</div>
+          
+
+        </div>
+
+        <div>
+          {/* <p className="text-sm font-semibold text-slate-900">
+            {isGeneratingCuttingSchedule ? "Generating..." : "Cutting"}
+          </p> */}
+         <p
+  className={`text-base font-semibold ${
+    activeExport === "cutting"
+      ? "text-white"
+      : "text-slate-900 group-hover:text-white"
+  }`}
+>
+  {isGeneratingCuttingSchedule ? "Generating..." : "Cutting"}
+</p>
+
+
+          {/* <p className="mt-1 text-[11px] text-slate-500">
+            Optimised list
+          </p> */}
+          <p
+  className={`mt-1 text-sm ${
+    activeExport === "cutting"
+      ? "text-red-100"
+      : "text-slate-500 group-hover:text-red-100"
+  }`}
+>
+  Optimised list
+</p>
+
+         
+        </div>
+      </button>
+
+      {/* BOM */}
+      <button
+        type="button"
+        // onClick={exportBom}
+        onClick={() => {
+  setActiveExport("bom");
+  exportBom();
+}}
+        disabled={isSaveBlockingExports || isAnyExportInProgress}
+        // className="group relative flex min-h-[118px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-slate-300 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+        className={`group relative flex min-h-[190px] flex-col justify-between rounded-2xl p-6 text-left transition ${
+  activeExport === "bom"
+    ? "border border-red-500 bg-red-500 shadow-sm"
+    : "border border-slate-200 bg-white hover:border-red-500 hover:bg-red-500 hover:shadow-sm"
+} disabled:cursor-not-allowed disabled:opacity-60`}
+      >
+        <div className="flex items-start justify-between">
+          {/* <div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-100">
+            <Box className="h-4 w-4 text-slate-800" />
+          </div> */}
+          <div
+  className={`flex h-12 w-12 items-center justify-center rounded-full ${
+    activeExport === "bom"
+      ? "bg-white"
+      : "bg-violet-100 group-hover:bg-white"
+  }`}
+>
+  <Box
+    className={`h-6 w-6 ${
+      activeExport === "bom"
+        ? "text-red-500"
+        : "text-slate-800 group-hover:text-red-500"
+    }`}
+  />
+</div>
+
+        </div>
+
+        <div>
+          {/* <p className="text-sm font-semibold text-slate-900">
+            {isGeneratingBom ? "Generating..." : "BOM"}
+          </p> */}
+          <p
+  className={`text-base font-semibold ${
+    activeExport === "bom"
+      ? "text-white"
+      : "text-slate-900 group-hover:text-white"
+  }`}
+>
+  {isGeneratingBom ? "Generating..." : "BOM"}
+</p>
+
+          {/* <p className="mt-1 text-[11px] text-slate-500">
+            Materials
+          </p> */}
+          <p
+  className={`mt-1 text-sm ${
+    activeExport === "bom"
+      ? "text-red-100"
+      : "text-slate-500 group-hover:text-red-100"
+  }`}
+>
+  Materials
+</p>
+        </div>
+      </button>
+
+      {/* Glass Report */}
+      <button
+        type="button"
+        // onClick={exportGlassReport}
+        onClick={() => {
+  setActiveExport("glass");
+  exportGlassReport();
+}}
+        disabled={isSaveBlockingExports || isAnyExportInProgress}
+        // className="group relative flex min-h-[118px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-slate-300 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+        className={`group relative flex min-h-[190px] flex-col justify-between rounded-2xl p-6 text-left transition ${
+  activeExport === "glass"
+    ? "border border-red-500 bg-red-500 shadow-sm"
+    : "border border-slate-200 bg-white hover:border-red-500 hover:bg-red-500 hover:shadow-sm"
+} disabled:cursor-not-allowed disabled:opacity-60`}
+
+      >
+        <div className="flex items-start justify-between">
+          {/* <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-100">
+            <FileText className="h-4 w-4 text-slate-800" />
+          </div> */}
+          <div
+  className={`flex h-12 w-12 items-center justify-center rounded-full ${
+    activeExport === "glass"
+      ? "bg-white"
+      : "bg-sky-100 group-hover:bg-white"
+  }`}
+>
+  <FileText
+    className={`h-6 w-6 ${
+      activeExport === "glass"
+        ? "text-red-500"
+        : "text-slate-800 group-hover:text-red-500"
+    }`}
+  />
+</div>
+
+        </div>
+
+        <div>
+          {/* <p className="text-sm font-semibold text-slate-900">
+            {isGeneratingGlassReport ? "Generating..." : "Glass Report"}
+          </p> */}
+          <p
+  className={`text-base font-semibold ${
+    activeExport === "glass"
+      ? "text-white"
+      : "text-slate-900 group-hover:text-white"
+  }`}
+>
+  {isGeneratingGlassReport ? "Generating..." : "Glass Report"}
+</p>
+
+
+          {/* <p className="mt-1 text-[11px] text-slate-500">
+            Panel schedule
+          </p> */}
+          <p
+  className={`mt-1 text-sm ${
+    activeExport === "glass"
+      ? "text-red-100"
+      : "text-slate-500 group-hover:text-red-100"
+  }`}
+>
+  Panel schedule
+</p>
+
+
+        </div>
+      </button>
+
+      {/* Quotation */}
+      <button
+        type="button"
+        // onClick={exportPdf}
+        onClick={() => {
+  setActiveExport("quotation");
+  exportPdf();
+}}
+        disabled={isSaveBlockingExports || isAnyExportInProgress}
+        // className="group relative flex min-h-[118px] flex-col justify-between rounded-2xl border border-red-500 bg-red-500 p-4 text-left shadow-sm transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+        className={`group relative flex min-h-[190px] flex-col justify-between rounded-2xl p-6 text-left transition ${
+  activeExport === "quotation"
+    ? "border border-red-500 bg-red-500 shadow-sm"
+    : "border border-slate-200 bg-white hover:border-red-500 hover:bg-red-500 hover:shadow-sm"
+} disabled:cursor-not-allowed disabled:opacity-60`}
+
+      >
+        <div className="flex items-start justify-between">
+          {/* <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white">
+            <FileText className="h-4 w-4 text-red-500" />
+          </div> */}
+          <div
+  className={`flex h-12 w-12 items-center justify-center rounded-full ${
+    activeExport === "quotation"
+      ? "bg-white"
+      : "bg-sky-100 group-hover:bg-white"
+  }`}
+>
+  <FileText
+    className={`h-6 w-6 ${
+      activeExport === "quotation"
+        ? "text-red-500"
+        : "text-slate-800 group-hover:text-red-500"
+    }`}
+  />
+</div>
+
+
+          {/* <span className="rounded-full bg-white/20 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-white">
+            Current
+          </span> */}
+        </div>
+
+        <div>
+          {/* <p className="text-sm font-semibold text-white">
+            {isGeneratingPdf ? "Generating..." : "Quotation"}
+          </p> */}
+          <p
+  className={`text-base font-semibold ${
+    activeExport === "quotation"
+      ? "text-white"
+      : "text-slate-900 group-hover:text-white"
+  }`}
+>
+  {isGeneratingPdf ? "Generating..." : "Quotation"}
+</p>
+
+
+          {/* <p className="mt-1 text-[11px] text-red-100">
+            This document
+          </p> */}
+          <p
+  className={`mt-1 text-sm ${
+    activeExport === "quotation"
+      ? "text-red-100"
+      : "text-slate-500 group-hover:text-red-100"
+  }`}
+>
+  This document
+</p>
+
+
+        </div>
+      </button>
+
+      {/* Elevation */}
+      <button
+        type="button"
+        // onClick={exportElevationPdf}
+        onClick={() => {
+  setActiveExport("elevation");
+  exportElevationPdf();
+}}
+        disabled={isSaveBlockingExports || isAnyExportInProgress}
+        // className="group relative flex min-h-[118px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-slate-300 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+        className={`group relative flex min-h-[190px] flex-col justify-between rounded-2xl p-6 text-left transition ${
+  activeExport === "elevation"
+    ? "border border-red-500 bg-red-500 shadow-sm"
+    : "border border-slate-200 bg-white hover:border-red-500 hover:bg-red-500 hover:shadow-sm"
+} disabled:cursor-not-allowed disabled:opacity-60`}
+      >
+        <div className="flex items-start justify-between">
+          {/* <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100">
+            <Monitor className="h-4 w-4 text-slate-800" />
+          </div> */}
+          <div
+  className={`flex h-12 w-12 items-center justify-center rounded-full ${
+    activeExport === "elevation"
+      ? "bg-white"
+      : "bg-emerald-100 group-hover:bg-white"
+  }`}
+>
+  <Monitor
+    className={`h-6 w-6 ${
+      activeExport === "elevation"
+        ? "text-red-500"
+        : "text-slate-800 group-hover:text-red-500"
+    }`}
+  />
+</div>
+
+
+        </div>
+
+        <div>
+          {/* <p className="text-sm font-semibold text-slate-900">
+            {isGeneratingElevation ? "Generating..." : "Elevation"}
+          </p> */}
+          <p
+  className={`text-base font-semibold ${
+    activeExport === "elevation"
+      ? "text-white"
+      : "text-slate-900 group-hover:text-white"
+  }`}
+>
+  {isGeneratingElevation ? "Generating..." : "Elevation"}
+</p>
+
+          {/* <p className="mt-1 text-[11px] text-slate-500">
+            Drawing view
+          </p> */}
+          <p
+  className={`mt-1 text-sm ${
+    activeExport === "elevation"
+      ? "text-red-100"
+      : "text-slate-500 group-hover:text-red-100"
+  }`}
+>
+  Drawing view
+</p>
+
+        </div>
+      </button>
+
+      {/* Download Excel */}
+      <button
+        type="button"
+        // onClick={() => setIsExcelExportModalOpen(true)}
+        onClick={() => {
+  setActiveExport("excel");
+  setIsExcelExportModalOpen(true);
+}}
+        disabled={isSaveBlockingExports || isAnyExportInProgress}
+        // className="group relative flex min-h-[118px] flex-col justify-between rounded-2xl border border-slate-900 bg-slate-950 p-4 text-left shadow-sm transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+        className={`group relative flex min-h-[190px] flex-col justify-between rounded-2xl p-6 text-left transition ${
+  activeExport === "excel"
+    ? "border border-red-500 bg-red-500 shadow-sm"
+    : "border border-slate-200 bg-white hover:border-red-500 hover:bg-red-500 hover:shadow-sm"
+} disabled:cursor-not-allowed disabled:opacity-60`}
+      >
+        <div className="flex items-start justify-between">
+          {/* <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500">
+            <Download className="h-4 w-4 text-white" />
+          </div> */}
+          <div
+  className={`flex h-12 w-12 items-center justify-center rounded-full ${
+    activeExport === "excel"
+      ? "bg-white"
+      : "bg-emerald-100 group-hover:bg-white"
+  }`}
+>
+  <Download
+    className={`h-6 w-6 ${
+      activeExport === "excel"
+        ? "text-red-500"
+        : "text-slate-800 group-hover:text-red-500"
+    }`}
+  />
+</div>
+
+        </div>
+
+        <div>
+          {/* <p className="text-sm font-semibold text-white">
+            {isGeneratingExcel ? "Generating..." : "Download Excel"}
+          </p> */}
+          <p
+  className={`text-base font-semibold ${
+    activeExport === "excel"
+      ? "text-white"
+      : "text-slate-900 group-hover:text-white"
+  }`}
+>
+  {isGeneratingExcel ? "Generating..." : "Download Excel"}
+</p>
+
+
+          {/* <p className="mt-1 text-[11px] text-emerald-300">
+            .xlsx export
+          </p> */}
+          <p
+  className={`mt-1 text-sm ${
+    activeExport === "excel"
+      ? "text-red-100"
+      : "text-slate-500 group-hover:text-red-100"
+  }`}
+>
+  .xlsx export
+</p>
+        </div>
+      </button>
+
+    </div>
+  </CardContent>
+</Card>
+
+    </div>
+  
+)}
+
+
 
           </motion.div>
         </AnimatePresence>

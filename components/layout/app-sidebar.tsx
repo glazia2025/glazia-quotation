@@ -36,12 +36,20 @@ export function AppSidebar({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user, logout } = useAuthStore();
+  const isQuotationBuilderPage =
+  pathname === "/quotations/new" ||
+  (pathname.startsWith("/quotations/") &&
+    pathname.split("/").length === 3);
   const currentSettingsSection = searchParams.get("section") ?? defaultSettingsSection;
 
   const handleLogout = () => {
     logout();
     router.replace("/login");
   };
+
+  if (isQuotationBuilderPage) {
+  return null;
+}
 
   return (
     <aside
