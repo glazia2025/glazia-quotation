@@ -588,6 +588,14 @@ const calculateRateForItem = (
   const slab = AREA_SLABS.find((s) => next.area <= s.max);
   const slabIndex = slab ? slab.index : 0;
   const baseRate = calculatedBaseRate ?? baseRates[slabIndex] ?? 0;
+  if (next.systemType === "Louvers" && calculatedBaseRate !== undefined) {
+    return {
+      rate: calculatedBaseRate,
+      handleCount: 0,
+      baseRate: calculatedBaseRate,
+      areaSlabIndex: slab?.index ?? 0,
+    };
+  }
   console.log("FINAL DEBUG", {
     area: next.area,
     slabIndex,
