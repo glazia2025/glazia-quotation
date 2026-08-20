@@ -19,6 +19,7 @@ type RateRow = {
   rates: number[];
   colors?: ColorRate[];
   canDelete?: boolean;
+  color?: string;
 };
 
 type ColorRate = {
@@ -128,6 +129,7 @@ function normalizeRateRow(item: unknown): RateRow {
     rates: rawRatesArray,
     colors,
     canDelete: raw.canDelete === true,
+    color: asString(raw.color) || "#C0C0C0",
   };
 }
 
@@ -296,15 +298,15 @@ async function listOptionSetRates() {
   return normalizeOptionSetRows(data);
 }
 
-async function addOptionSetItem(type: OptionSetType, payload: { name: string; rate: number; system?: string }) {
+async function addOptionSetItem(type: OptionSetType, payload: { name: string; rate: number; color?: string; system?: string }) {
   return requestWithFallback("post", `/option-sets/${encodeURIComponent(type)}/items`, payload);
 }
 
-async function setOptionSetRate(type: OptionSetType, name: string, rate: number) {
+async function setOptionSetRate(type: OptionSetType, name: string, rate: number, color?: string) {
   return requestWithFallback(
     "put",
     `/option-sets/${encodeURIComponent(type)}/admin-items/${encodeURIComponent(name)}/rate`,
-    { rate }
+    { rate, ...(color ? { color } : {}) }
   );
 }
 
@@ -332,6 +334,9 @@ type RateSectionProps = {
   onNewNameChange: (value: string) => void;
   onNewRateChange: (value: string) => void;
   onRowRateChange: (id: string, rate: number) => void;
+  newColor?: string;
+  onNewColorChange?: (value: string) => void;
+  onRowColorChange?: (id: string, color: string) => void;
   onAdd: () => void;
   onSave: () => void;
   onReset: () => void;
@@ -349,6 +354,9 @@ function RateSection({
   onNewNameChange,
   onNewRateChange,
   onRowRateChange,
+  newColor,
+  onNewColorChange,
+  onRowColorChange,
   onAdd,
   onSave,
   onReset,
@@ -369,7 +377,7 @@ function RateSection({
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full lg:w-auto">
+        <div className={`grid grid-cols-1 ${onNewColorChange ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-2 w-full lg:w-auto`}>
           <input
             type="text"
             placeholder="Name"
@@ -377,6 +385,12 @@ function RateSection({
             onChange={(e) => onNewNameChange(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#124657] focus:outline-none"
           />
+          {onNewColorChange && (
+            <label className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-600">
+              Frame colour
+              <input type="color" aria-label="New frame colour" value={newColor || "#C0C0C0"} onChange={(e) => onNewColorChange(e.target.value)} className="h-8 w-10 cursor-pointer border-0 bg-transparent p-0" />
+            </label>
+          )}
           <input
             type="number"
             placeholder="Rate"
@@ -403,13 +417,14 @@ function RateSection({
             <tr>
               <th className="px-4 py-3 text-left">Item Name</th>
               <th className="px-4 py-3 text-left">Price Level</th>
+              {onRowColorChange && <th className="px-4 py-3 text-left">Frame Colour</th>}
             </tr>
           </thead>
 
           <tbody className="divide-y divide-gray-100">
             {isLoading && (
               <tr>
-                <td colSpan={2} className="px-4 py-4 text-center text-gray-500">
+                <td colSpan={onRowColorChange ? 3 : 2} className="px-4 py-4 text-center text-gray-500">
                   Loading...
                 </td>
               </tr>
@@ -417,7 +432,7 @@ function RateSection({
 
             {!isLoading && rows.length === 0 && (
               <tr>
-                <td colSpan={2} className="px-4 py-4 text-center text-gray-500">
+                <td colSpan={onRowColorChange ? 3 : 2} className="px-4 py-4 text-center text-gray-500">
                   No items found.
                 </td>
               </tr>
@@ -435,6 +450,14 @@ function RateSection({
                       className="w-28 px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#124657] focus:outline-none"
                     />
                   </td>
+                  {onRowColorChange && (
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <input type="color" aria-label={`${item.name} frame colour`} value={item.color || "#C0C0C0"} onChange={(e) => onRowColorChange(item.id, e.target.value)} className="h-9 w-12 cursor-pointer border-0 bg-transparent p-0" />
+                        <span className="font-mono text-xs text-gray-500">{item.color || "#C0C0C0"}</span>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
           </tbody>
@@ -769,7 +792,7 @@ export default function QuotationSettingsPage() {
 
   const [newMesh, setNewMesh] = useState({ name: "", code: "", unit: "", rate: "" });
   const [newGlass, setNewGlass] = useState({ name: "", code: "", unit: "", rate: "" });
-  const [newColorFinish, setNewColorFinish] = useState({ name: "", code: "", unit: "", rate: "" });
+  const [newColorFinish, setNewColorFinish] = useState({ name: "", code: "", unit: "", rate: "", color: "#C0C0C0" });
   const [newHardwareBySystem, setNewHardwareBySystem] = useState<NewHardwareDrafts>({});
 
   const [isRatesLoading, setIsRatesLoading] = useState(false);
@@ -896,6 +919,10 @@ export default function QuotationSettingsPage() {
     setColorFinishRows((prev) => updater(prev));
   };
 
+  const updateFrameColor = (id: string, color: string) => {
+    setColorFinishRows((prev) => prev.map((row) => row.id === id ? { ...row, color } : row));
+  };
+
   const updateHardwareRate = (system: string, id: string, rate: number) => {
     setHardwareRows((prev) => ({
       ...prev,
@@ -999,8 +1026,8 @@ export default function QuotationSettingsPage() {
         await addOptionSetItem("glassSpec", { name, rate });
         setNewGlass({ name: "", code: "", unit: "", rate: "" });
       } else {
-        await addOptionSetItem("colorFinish", { name, rate });
-        setNewColorFinish({ name: "", code: "", unit: "", rate: "" });
+        await addOptionSetItem("colorFinish", { name, rate, color: newColorFinish.color });
+        setNewColorFinish({ name: "", code: "", unit: "", rate: "", color: "#C0C0C0" });
       }
 
       await fetchRates();
@@ -1075,7 +1102,7 @@ export default function QuotationSettingsPage() {
 
     setIsRatesSaving(true);
     try {
-      await Promise.all(rows.map((row) => setOptionSetRate(type, row.name, row.rate)));
+      await Promise.all(rows.map((row) => setOptionSetRate(type, row.name, row.rate, type === "colorFinish" ? row.color : undefined)));
 
       await fetchRates();
       setStatus("Rates updated.");
@@ -1360,10 +1387,13 @@ export default function QuotationSettingsPage() {
               isSaving={isRatesSaving}
               newName={newColorFinish.name}
               newRate={newColorFinish.rate}
+              newColor={newColorFinish.color}
               onSearchChange={setColorFinishSearch}
               onNewNameChange={(value) => setNewColorFinish((prev) => ({ ...prev, name: value }))}
               onNewRateChange={(value) => setNewColorFinish((prev) => ({ ...prev, rate: value }))}
+              onNewColorChange={(value) => setNewColorFinish((prev) => ({ ...prev, color: value }))}
               onRowRateChange={(id, rate) => updateRowRate("colorFinish", id, rate)}
+              onRowColorChange={updateFrameColor}
               onAdd={() => void addItem("colorFinish")}
               onSave={() => void saveSectionRates("colorFinish")}
               onReset={() => resetSectionRates("colorFinish")}

@@ -1,6 +1,6 @@
 import axios from "axios";
 
-import { QUOTATION_API_BASE_URL } from "@/services/api";
+import { MAIN_API_BASE_URL, QUOTATION_API_BASE_URL } from "@/services/api";
 import { useAuthStore } from "@/store/auth-store";
 import type { Quotation, QuotationSubItem } from "@/types/quotation";
 import { getAuthToken } from "@/utils/auth-cookie";
@@ -345,6 +345,40 @@ export async function getQuotationPdfBlob(quotationId: string): Promise<Blob> {
   });
 
   return response.data;
+}
+
+export async function shareQuotationPdf({
+  pdf,
+  fileName,
+  phone,
+  customerName,
+  quotationNumber,
+}: {
+  pdf: Blob;
+  fileName: string;
+  phone: string;
+  customerName: string;
+  quotationNumber: string;
+}) {
+  const form = new FormData();
+  form.append("quotationPdf", pdf, fileName);
+  form.append("phone", phone);
+  form.append("customerName", customerName);
+  form.append("quotationNumber", quotationNumber);
+
+  try {
+    const response = await axios.post<{ message: string; messageId?: string }>(
+      `${MAIN_API_BASE_URL}/api/user/share-quotation`,
+      form,
+      { headers: getAuthHeaders(), withCredentials: true }
+    );
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError<{ message?: string }>(error)) {
+      throw new Error(error.response?.data?.message || "Failed to share quotation on WhatsApp");
+    }
+    throw error;
+  }
 }
 export async function getElevationPdfBlob(quotationId: string): Promise<Blob> {
   const response = await axios.get(

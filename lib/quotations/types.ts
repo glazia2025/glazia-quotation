@@ -1,6 +1,7 @@
 export interface OptionWithRate {
   name: string;
   rate: number;
+  color?: string;
 }
 
 export interface HandleOption {

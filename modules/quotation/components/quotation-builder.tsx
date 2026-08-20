@@ -39,7 +39,8 @@ import {
   getQuotationExcelBlob,
   getQuotation,
   calculateQuotationRates,
-  getGlassReportPdfBlob
+  getGlassReportPdfBlob,
+  shareQuotationPdf,
 } from "@/services/quotation-service";
 import type { BomOrderData } from "@/services/quotation-service";
 import { BomOrderPlacement } from "@/modules/quotation/components/bom-order-placement";
@@ -83,6 +84,13 @@ const isTabKey = (value: string | null): value is TabKey =>
 const formatDimensionMm = (value: number | string | undefined) => `${value ?? "-"} mm`;
 const formatSizeMm = (width: number | string | undefined, height: number | string | undefined) =>
   `${formatDimensionMm(width)} x ${formatDimensionMm(height)}`;
+const formatRateCurrency = (value: number) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
 const getQuotationItemIdentity = (item: QuotationItem) => {
   const withBackendId = item as QuotationItem & { _id?: string };
   return String(item.id || withBackendId._id || item.refCode || "");
@@ -290,7 +298,7 @@ function ItemCard({
 
         <div className="flex justify-between text-sm">
           <span className="text-gray-500">Rate</span>
-          <span className="font-medium">{formatCurrency(item.rate ?? 0)}</span>
+          <span className="font-medium">{formatRateCurrency(item.rate ?? 0)}</span>
         </div>
         {/*  Arch Note */}
         {item?.systemType?.toLowerCase() === "casement" &&
@@ -831,7 +839,24 @@ const currentItems = items.slice(startIndex, endIndex);
     return sum + amount;
   }, 0);
   const finalAmount = totalAmount + (totalAmount * profit) / 100;
-  const finalWithGSTBase = optimizedFinal ?? finalAmount;
+  const additionalCosts = quotation.globalConfig?.additionalCosts;
+  const installationCost = additionalCosts?.showInstallation === false
+    ? 0
+    : totalArea * (Number(additionalCosts?.installation) || 0);
+  const transportCost = additionalCosts?.showTransport === false
+    ? 0
+    : Number(additionalCosts?.transport) || 0;
+  const loadingUnloadingCost = additionalCosts?.showLoadingUnloading === false
+    ? 0
+    : Number(additionalCosts?.loadingUnloading) || 0;
+  const priceBeforeAdditionalCosts = optimizedFinal ?? finalAmount;
+  const priceBeforeDiscount =
+    priceBeforeAdditionalCosts + installationCost + transportCost + loadingUnloadingCost;
+  const discountPercent = additionalCosts?.showDiscount === false
+    ? 0
+    : Number(additionalCosts?.discountPercent) || 0;
+  const discountAmount = (priceBeforeDiscount * discountPercent) / 100;
+  const finalWithGSTBase = priceBeforeDiscount - discountAmount;
   const finalWithGST = finalWithGSTBase + (finalWithGSTBase * 18) / 100;
   const ratePerSqft = totalArea > 0 ? finalWithGST / totalArea : 0;
   useEffect(() => {
@@ -900,7 +925,7 @@ const currentItems = items.slice(startIndex, endIndex);
     <div className="space-y-4">
       <div className="rounded-2xl border bg-slate-950 px-5 py-4 text-white">
         <div className="flex flex-wrap items-start gap-5">
-          <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-7">
+          <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Quantity</div>
               <div className="mt-1 text-xl font-bold">{totalQuantity}</div>
@@ -931,6 +956,22 @@ const currentItems = items.slice(startIndex, endIndex);
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Selling Price<br />(Cost + Profit %)</div>
               <div className="mt-1 text-xl font-bold">{formatCurrency(finalAmount)}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Installation</div>
+              <div className="mt-1 text-xl font-bold">{formatCurrency(installationCost)}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Transport</div>
+              <div className="mt-1 text-xl font-bold">{formatCurrency(transportCost)}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Loading / Unloading</div>
+              <div className="mt-1 text-xl font-bold">{formatCurrency(loadingUnloadingCost)}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Discount ({formatNumber(discountPercent)}%)</div>
+              <div className="mt-1 text-xl font-bold">-{formatCurrency(discountAmount)}</div>
             </div>
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Customer Price<br />(Selling Price + GST)</div>
@@ -1752,6 +1793,7 @@ export function QuotationBuilder({
   const [isGeneratingGlassReport, setIsGeneratingGlassReport] = useState(false);
   const [isGeneratingElevation, setIsGeneratingElevation] = useState(false);
   const [isGeneratingExcel, setIsGeneratingExcel] = useState(false);
+  const [isSharingQuotation, setIsSharingQuotation] = useState(false);
   const [isExcelExportModalOpen, setIsExcelExportModalOpen] = useState(false);
   const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
@@ -2427,6 +2469,43 @@ console.log("SAVED ITEM", savedItem);
       setIsGeneratingPdf(false);
     }
   };
+  const shareQuotation = async () => {
+    try {
+      setIsSharingQuotation(true);
+      const savedQuotation = await getPersistedQuotation();
+      const quotationId =
+        savedQuotation?._id ??
+        quotationWithGlobalConfig._id ??
+        savedQuotation?.quotationDetails.id ??
+        quotationWithGlobalConfig.quotationDetails.id;
+
+      if (!quotationId) throw new Error("Save the quotation before sharing it.");
+
+      const phone = savedQuotation?.customerDetails.phone || quotationWithGlobalConfig.customerDetails.phone;
+      if (!phone) throw new Error("Add the customer's WhatsApp phone number before sharing.");
+
+      const effectiveQuotation = savedQuotation ?? quotationWithGlobalConfig;
+      const pdf = await getQuotationPdfBlob(quotationId);
+      await shareQuotationPdf({
+        pdf,
+        fileName: getQuotationPdfDownloadName({ ...effectiveQuotation, globalConfig }),
+        phone,
+        customerName: effectiveQuotation.customerDetails.name,
+        quotationNumber:
+          effectiveQuotation.generatedId || effectiveQuotation.quotationDetails.id || quotationId,
+      });
+      alert("Quotation shared successfully on WhatsApp.");
+    } catch (error) {
+      console.error("Failed to share quotation", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to share quotation on WhatsApp.";
+      alert(message);
+    } finally {
+      setIsSharingQuotation(false);
+    }
+  };
 const exportExcel = async () => {
   try {
     setIsGeneratingExcel(true);
@@ -2642,7 +2721,8 @@ const exportExcel = async () => {
     isGeneratingBom ||
     isGeneratingGlassReport ||
     isGeneratingElevation||
-    isGeneratingExcel;
+    isGeneratingExcel ||
+    isSharingQuotation;
 
   return (
     <PageShell
@@ -2692,9 +2772,13 @@ const exportExcel = async () => {
   <Download className="h-4 w-4" />
   {isGeneratingExcel ? "Generating..." : " Download Excel"}
 </Button> */}
-          <Button variant="outline" disabled={isSaveBlockingExports || isAnyExportInProgress}>
+          <Button
+            variant="outline"
+            onClick={shareQuotation}
+            disabled={isSaveBlockingExports || isAnyExportInProgress}
+          >
             <Share2 className="h-4 w-4" />
-            Share
+            {isSharingQuotation ? "Sharing..." : "Share"}
           </Button>
         </>
         
