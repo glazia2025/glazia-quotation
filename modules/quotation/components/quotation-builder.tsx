@@ -135,11 +135,13 @@ const EXHAUST_FAN_RATE_SURCHARGE = 10;
 
 function ItemCard({
   item,
+  index,
   configuratorBasePath,
   onDeleteItem,
   onDuplicateItem,
 }: {
   item: QuotationItem;
+  index:number;
   configuratorBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
   onDuplicateItem: (
@@ -271,6 +273,9 @@ function ItemCard({
   return (
     <>
       <div className="self-start space-y-2 rounded-2xl border bg-white p-3 shadow-sm transition hover:shadow-md">
+        <div className="px-1 text-xs font-medium text-gray-400">
+  {String(index + 1).padStart(2, "0")}
+</div>
         <div className="flex h-60 items-center justify-center overflow-hidden rounded-xl border bg-white p-1">
           {item.refImage ? (
             <img src={item.refImage} alt={item.refCode || item.productType || "Quotation item"} className="h-full w-full object-contain" />
@@ -287,7 +292,7 @@ function ItemCard({
           )}
         </div>
 
-        <div className="flex justify-between text-sm">
+        {/* <div className="flex justify-between text-sm">
           <span className="text-gray-500">Ref Code</span>
           <span className="font-semibold">{refCodeLabel}</span>
         </div>
@@ -310,7 +315,62 @@ function ItemCard({
         <div className="flex justify-between text-sm">
           <span className="text-gray-500">Rate</span>
           <span className="font-medium">{formatCurrency(item.rate ?? 0)}</span>
-        </div>
+        </div> */}
+        <div className="mt-3 space-y-3">
+
+  {/* Ref Code + Rate */}
+  <div className="grid grid-cols-2 gap-4">
+    <div>
+      <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">
+        REF CODE
+      </p>
+      <p className="mt-1 text-sm font-semibold text-gray-900">
+        {refCodeLabel}
+      </p>
+    </div>
+
+    <div className="text-right">
+      <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">
+        RATE
+      </p>
+      <p className="mt-1 text-sm font-semibold text-red-500">
+        {formatCurrency(item.rate ?? 0)}
+      </p>
+    </div>
+  </div>
+
+  {/* Location + Area */}
+  <div className="grid grid-cols-2 gap-4">
+    <div>
+      <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">
+        LOCATION
+      </p>
+      <p className="mt-1 text-xs font-semibold text-gray-900">
+        {locationLabel}
+      </p>
+    </div>
+
+    <div className="text-right">
+      <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">
+        AREA
+      </p>
+      <p className="mt-1 text-xs font-semibold text-gray-900">
+        {formatNumber(item.area ?? getArea(item))} sq.ft
+      </p>
+    </div>
+  </div>
+
+  {/* System */}
+  <div>
+    <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">
+      SYSTEM
+    </p>
+    <p className="mt-1 text-xs font-semibold text-gray-900">
+      {systemLabel}
+    </p>
+  </div>
+
+</div>
         {/*  Arch Note */}
         {item?.systemType?.toLowerCase() === "casement" &&
           item?.archType &&
@@ -693,11 +753,13 @@ function ItemCard({
 // function for drag and drop
 function SortableItem({
   item,
+  index,
   configuratorBasePath,
   onDeleteItem,
   onDuplicateItem,
 }: {
   item: QuotationItem;
+  index:number;
   configuratorBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
   onDuplicateItem: (
@@ -732,6 +794,7 @@ function SortableItem({
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <ItemCard
         item={item}
+        index={index}
         configuratorBasePath={configuratorBasePath}
         onDeleteItem={onDeleteItem}
         onDuplicateItem={onDuplicateItem}
@@ -971,10 +1034,11 @@ const currentItems = items.slice(startIndex, endIndex);
           <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
 
 
-            {currentItems.map((item) => (
+            {currentItems.map((item,index) => (
               <SortableItem
                 key={item.id}
                 item={item}
+                 index={index}
                 configuratorBasePath={configuratorBasePath}
                 onDeleteItem={onDeleteItem}
                 onDuplicateItem={onDuplicateItem}
