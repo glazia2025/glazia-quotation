@@ -132,6 +132,14 @@ const getCuttingScheduleKey = (horizontalAngle: CutAngle, verticalAngle: CutAngl
 const normalizeCutAngle = (value: unknown, fallback: CutAngle = "90"): CutAngle =>
   value === "45" || value === 45 ? "45" : value === "90" || value === 90 ? "90" : fallback;
 
+const defaultCutAngleForSystem = (systemType: string): CutAngle =>
+  systemType === "Casement" ? "45" : "90";
+
+const resolveCutAngleForSystem = (systemType: string, value: unknown): CutAngle =>
+  systemType === "Casement"
+    ? "45"
+    : normalizeCutAngle(value, defaultCutAngleForSystem(systemType));
+
 const AREA_SLABS = [
   { max: 20, index: 0 },
   { max: 40, index: 1 },
@@ -218,8 +226,8 @@ const createRoot = (baseSystem: SystemType): SectionNode => ({
   archHeightRatio: DEFAULT_ARCH_HEIGHT_RATIO,
   glass: "Yes",
   mesh: "No",
-  frameCutAngle: "45",
-  shutterCutAngle: "45",
+  frameCutAngle: defaultCutAngleForSystem(baseSystem),
+  shutterCutAngle: defaultCutAngleForSystem(baseSystem),
 });
 
 const createLeaf = (
@@ -250,8 +258,8 @@ const createLeaf = (
   // glass: "Yes",
   glass: isLouverSystem(systemType) ? "No" : glass,
   mesh,
-  frameCutAngle: "45",
-  shutterCutAngle: "45",
+  frameCutAngle: defaultCutAngleForSystem(systemType),
+  shutterCutAngle: defaultCutAngleForSystem(systemType),
 });
 
 const buildPreset = (systemType: SystemType, glass: YesNo, mesh: YesNo): SectionNode => {
@@ -560,8 +568,8 @@ const normalizeStoredSectionNode = (value: unknown, fallbackSystemType: SystemTy
     archHeightRatio: normalizeArchHeightRatio(source.archHeightRatio),
     glass: yesNoFromValue(source.glass as string | boolean | undefined),
     mesh: yesNoFromValue(source.mesh as string | boolean | undefined),
-    frameCutAngle: normalizeCutAngle(source.frameCutAngle, "45"),
-    shutterCutAngle: normalizeCutAngle(source.shutterCutAngle, "45"),
+    frameCutAngle: resolveCutAngleForSystem(systemType, source.frameCutAngle),
+    shutterCutAngle: resolveCutAngleForSystem(systemType, source.shutterCutAngle),
     dividerTypes,
     children: split === "none" ? undefined : children,
   };
@@ -815,8 +823,8 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
         child.exhaustFanX = typeof sub.exhaustFanX === "number" ? sub.exhaustFanX : DEFAULT_EXHAUST_FAN_X;
         child.exhaustFanY = typeof sub.exhaustFanY === "number" ? sub.exhaustFanY : DEFAULT_EXHAUST_FAN_Y;
         child.exhaustFanSize = typeof sub.exhaustFanSize === "number" ? sub.exhaustFanSize : DEFAULT_EXHAUST_FAN_SIZE;
-        child.frameCutAngle = normalizeCutAngle(sub.frameCutAngle, "45");
-        child.shutterCutAngle = normalizeCutAngle(sub.shutterCutAngle, "45");
+        child.frameCutAngle = resolveCutAngleForSystem(normalizedSystemType, sub.frameCutAngle);
+        child.shutterCutAngle = resolveCutAngleForSystem(normalizedSystemType, sub.shutterCutAngle);
         child.archType = normalizedSystemType === "Casement" ? normalizeArchType(sub.archType) : "none";
         child.archHeightRatio = normalizeArchHeightRatio(sub.archHeightRatio);
         child.description = normalizeLeafDescription(normalizedSystemType, sub.description || "", childHasExhaustFan);
@@ -866,8 +874,8 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
         child.exhaustFanX = typeof sub.exhaustFanX === "number" ? sub.exhaustFanX : DEFAULT_EXHAUST_FAN_X;
         child.exhaustFanY = typeof sub.exhaustFanY === "number" ? sub.exhaustFanY : DEFAULT_EXHAUST_FAN_Y;
         child.exhaustFanSize = typeof sub.exhaustFanSize === "number" ? sub.exhaustFanSize : DEFAULT_EXHAUST_FAN_SIZE;
-        child.frameCutAngle = normalizeCutAngle(sub.frameCutAngle, "45");
-        child.shutterCutAngle = normalizeCutAngle(sub.shutterCutAngle, "45");
+        child.frameCutAngle = resolveCutAngleForSystem(normalizedSystemType, sub.frameCutAngle);
+        child.shutterCutAngle = resolveCutAngleForSystem(normalizedSystemType, sub.shutterCutAngle);
         child.archType = normalizedSystemType === "Casement" ? normalizeArchType(sub.archType) : "none";
         child.archHeightRatio = normalizeArchHeightRatio(sub.archHeightRatio);
         child.description = normalizeLeafDescription(normalizedSystemType, sub.description || "", childHasExhaustFan);
@@ -905,8 +913,8 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
     root.description = normalizeLeafDescription(sourceSystem, item.description || "", root.hasExhaustFan);
     root.glass = "Yes";
     root.mesh = yesNoFromValue(item.meshPresent);
-    root.frameCutAngle = normalizeCutAngle(item.frameCutAngle, "45");
-    root.shutterCutAngle = normalizeCutAngle(item.shutterCutAngle, "45");
+    root.frameCutAngle = resolveCutAngleForSystem(sourceSystem, item.frameCutAngle);
+    root.shutterCutAngle = resolveCutAngleForSystem(sourceSystem, item.shutterCutAngle);
     root.sash =
       item.sash === "fixed" ||
         item.sash === "left" ||
@@ -940,8 +948,8 @@ const mapItemToConfiguratorState = (item: QuotationItem) => {
     refCode: item.refCode || "",
     remarks: item.remarks || item.specialNotes || "",
     rate: item.rate || 0,
-    frameCutAngle: normalizeCutAngle(item.frameCutAngle),
-    shutterCutAngle: normalizeCutAngle(item.shutterCutAngle),
+    frameCutAngle: resolveCutAngleForSystem(sourceSystem, item.frameCutAngle),
+    shutterCutAngle: resolveCutAngleForSystem(sourceSystem, item.shutterCutAngle),
   };
 
   return {
@@ -2432,17 +2440,8 @@ export function WindowDoorConfigurator({
     if (!louver && (!series || !description)) {
       throw new Error("Select a series and description before calculating the rate.");
     }
-    //     const frameCutAngle = normalizeCutAngle(leaf.frameCutAngle, "45");
-    // const shutterCutAngle = normalizeCutAngle(leaf.shutterCutAngle, "45");
-    const frameCutAngle =
-      leaf.systemType === "Casement"
-        ? "45"
-        : normalizeCutAngle(leaf.frameCutAngle, "45");
-
-    const shutterCutAngle =
-      leaf.systemType === "Casement"
-        ? "45"
-        : normalizeCutAngle(leaf.shutterCutAngle, "45");
+    const frameCutAngle = resolveCutAngleForSystem(leaf.systemType, leaf.frameCutAngle);
+    const shutterCutAngle = resolveCutAngleForSystem(leaf.systemType, leaf.shutterCutAngle);
 
     const cuttingScheduleKey = getCuttingScheduleKey(
       frameCutAngle,
@@ -2490,8 +2489,8 @@ export function WindowDoorConfigurator({
       const louver = isLouverSystem(leaf.systemType);
       const series = louver ? "" : leaf.series || "";
       const description = louver ? "" : leaf.description || getDefaultLeafDescription(leaf.systemType, meta.productType, leaf.hasExhaustFan);
-      const frameCutAngle = normalizeCutAngle(leaf.frameCutAngle, "45");
-      const shutterCutAngle = normalizeCutAngle(leaf.shutterCutAngle, "45");
+      const frameCutAngle = resolveCutAngleForSystem(leaf.systemType, leaf.frameCutAngle);
+      const shutterCutAngle = resolveCutAngleForSystem(leaf.systemType, leaf.shutterCutAngle);
       if (!louver && (!series || !description)) throw new Error("Select a series and description for every sub-item before calculating the rate.");
       return {
         leaf,
@@ -2502,15 +2501,8 @@ export function WindowDoorConfigurator({
       };
     });
     const regularRequests = inputs.map(({ leaf, height, area, series, description }) => {
-      const frameCutAngle = normalizeCutAngle(
-        leaf.frameCutAngle,
-        "45"
-      );
-
-      const shutterCutAngle = normalizeCutAngle(
-        leaf.shutterCutAngle,
-        "45"
-      );
+      const frameCutAngle = resolveCutAngleForSystem(leaf.systemType, leaf.frameCutAngle);
+      const shutterCutAngle = resolveCutAngleForSystem(leaf.systemType, leaf.shutterCutAngle);
 
       return {
 
@@ -2552,12 +2544,12 @@ export function WindowDoorConfigurator({
         width: widthMm,
         height: heightMm,
         area: effectiveAreaSqft,
-        frameCutAngle: normalizeCutAngle(source?.frameCutAngle, "45"),
-        shutterCutAngle: normalizeCutAngle(source?.shutterCutAngle, "45"),
+        frameCutAngle: resolveCutAngleForSystem(source?.systemType || "", source?.frameCutAngle),
+        shutterCutAngle: resolveCutAngleForSystem(source?.systemType || "", source?.shutterCutAngle),
         cuttingScheduleKey: String(
           getCuttingScheduleKey(
-            normalizeCutAngle(source?.frameCutAngle, "45"),
-            normalizeCutAngle(source?.shutterCutAngle, "45")
+            resolveCutAngleForSystem(source?.systemType || "", source?.frameCutAngle),
+            resolveCutAngleForSystem(source?.systemType || "", source?.shutterCutAngle)
           )
         ),
       };
@@ -2784,17 +2776,11 @@ export function WindowDoorConfigurator({
     const firstLeaf = leafNodesForMode[0];
 
     const itemFrameCutAngle = isCombinationDraft
-      ? normalizeCutAngle(firstLeaf?.frameCutAngle, "45")
-      : selectedNode.systemType === "Casement"
-        ? "45"
-        // : normalizeCutAngle(meta.frameCutAngle);
-        : normalizeCutAngle(selectedNode.frameCutAngle, "45");
+      ? resolveCutAngleForSystem(firstLeaf?.systemType || "", firstLeaf?.frameCutAngle)
+      : resolveCutAngleForSystem(selectedNode.systemType, selectedNode.frameCutAngle);
     const itemShutterCutAngle = isCombinationDraft
-      ? normalizeCutAngle(firstLeaf?.shutterCutAngle, "45")
-      : selectedNode.systemType === "Casement"
-        ? "45"
-        // : normalizeCutAngle(meta.shutterCutAngle);
-        : normalizeCutAngle(selectedNode.shutterCutAngle, "45");
+      ? resolveCutAngleForSystem(firstLeaf?.systemType || "", firstLeaf?.shutterCutAngle)
+      : resolveCutAngleForSystem(selectedNode.systemType, selectedNode.shutterCutAngle);
 
     const itemCuttingScheduleKey = getCuttingScheduleKey(
       itemFrameCutAngle,
@@ -2910,8 +2896,8 @@ export function WindowDoorConfigurator({
         const rateDetails = calculatedDetailsForSave[leaf.id] ?? childRateCalculations[leaf.id];
         const hasManualRate = manualCombinationRateForSave || Object.prototype.hasOwnProperty.call(manualChildRates, leaf.id);
         const quantity = 1;
-        const frameCutAngle = normalizeCutAngle(leaf.frameCutAngle, "45");
-        const shutterCutAngle = normalizeCutAngle(leaf.shutterCutAngle, "45");
+        const frameCutAngle = resolveCutAngleForSystem(leaf.systemType, leaf.frameCutAngle);
+        const shutterCutAngle = resolveCutAngleForSystem(leaf.systemType, leaf.shutterCutAngle);
         const cuttingScheduleKey = getCuttingScheduleKey(
           frameCutAngle,
           shutterCutAngle
@@ -3907,6 +3893,8 @@ export function WindowDoorConfigurator({
                                 const nextSystem = e.target.value as SystemType;
                                 updateSelectedLeaves((target) => {
                                   target.systemType = nextSystem;
+                                  target.frameCutAngle = defaultCutAngleForSystem(nextSystem);
+                                  target.shutterCutAngle = defaultCutAngleForSystem(nextSystem);
                                   if (nextSystem === "Louvers") {
                                     target.description = "Louvers";
                                   }
@@ -4114,7 +4102,7 @@ export function WindowDoorConfigurator({
                                     className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
                                   />
                                 ) : (
-                                  
+
                                   <select
                                     value={selectedNode.shutterCutAngle}
                                     onChange={(e) => {

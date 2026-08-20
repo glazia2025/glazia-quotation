@@ -124,8 +124,17 @@ function getQuotationNumber(quotation: QuotationPdfData) {
   return quotation.quotationNumber || quotation.generatedId || quotation.quotationDetails?.id || quotation._id || "quotation";
 }
 
+function sanitizePdfFilenamePart(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
 function getQuotationPdfFilename(quotation: QuotationPdfData) {
-  return `${getQuotationNumber(quotation)}.pdf`;
+  const quotationNumber = sanitizePdfFilenamePart(getQuotationNumber(quotation)) || "quotation";
+  const customerName = sanitizePdfFilenamePart(quotation.customerDetails?.name);
+  return `${quotationNumber}${customerName ? `_${customerName}` : ""}.pdf`;
 }
 
 export function getQuotationPdfDownloadName(quotation: QuotationPdfData) {
