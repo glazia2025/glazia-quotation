@@ -38,7 +38,8 @@ function toNameRateList(value: unknown): OptionWithRate[] {
 
       return {
         name,
-        rate: Number.isFinite(rate) ? rate : 0
+        rate: Number.isFinite(rate) ? rate : 0,
+        color: typeof record.color === "string" ? record.color : undefined
       };
     })
     .filter((entry): entry is OptionWithRate => Boolean(entry));

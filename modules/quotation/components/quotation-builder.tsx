@@ -57,7 +57,8 @@ import {
   getQuotationExcelBlob,
   getQuotation,
   calculateQuotationRates,
-  getGlassReportPdfBlob
+  getGlassReportPdfBlob,
+  shareQuotationPdf,
 } from "@/services/quotation-service";
 import type { BomOrderData } from "@/services/quotation-service";
 import { BomOrderPlacement } from "@/modules/quotation/components/bom-order-placement";
@@ -104,6 +105,13 @@ const isTabKey = (value: string | null): value is TabKey =>
 const formatDimensionMm = (value: number | string | undefined) => `${value ?? "-"} mm`;
 const formatSizeMm = (width: number | string | undefined, height: number | string | undefined) =>
   `${formatDimensionMm(width)} x ${formatDimensionMm(height)}`;
+const formatRateCurrency = (value: number) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
 const getQuotationItemIdentity = (item: QuotationItem) => {
   const withBackendId = item as QuotationItem & { _id?: string };
   return String(item.id || withBackendId._id || item.refCode || "");
@@ -316,6 +324,7 @@ function ItemCard({
 
         <div className="flex justify-between text-sm">
           <span className="text-gray-500">Rate</span>
+
           <span className="font-medium">{formatCurrency(item.rate ?? 0)}</span>
         </div> */}
         <div className="mt-3 space-y-3">
@@ -336,7 +345,8 @@ function ItemCard({
         RATE
       </p>
       <p className="mt-1 text-sm font-semibold text-red-500">
-        {formatCurrency(item.rate ?? 0)}
+        {/* {formatCurrency(item.rate ?? 0)} */}
+        {formatRateCurrency(item.rate ?? 0)}
       </p>
     </div>
   </div>
@@ -373,6 +383,8 @@ function ItemCard({
   </div>
 
 </div>
+          {/* <span className="font-medium">{formatRateCurrency(item.rate ?? 0)}</span> */}
+        </div>
         {/*  Arch Note */}
         {item?.systemType?.toLowerCase() === "casement" &&
           item?.archType &&
@@ -399,7 +411,7 @@ function ItemCard({
             Delete
           </Button>
         </div>
-      </div>
+      {/* </div> */}
       {showSections ? (
         <div className="fixed inset-0 z-[220] flex items-center justify-center bg-slate-950/60 p-4" onPointerDown={(event) => event.stopPropagation()}>
           <div className="w-full max-w-5xl rounded-2xl bg-white shadow-2xl">
@@ -929,8 +941,27 @@ useEffect(() => {
     }
     return sum + amount;
   }, 0);
-  const finalAmount = totalAmount + (totalAmount * profit) / 100;
-  const finalWithGSTBase = optimizedFinal ?? finalAmount;
+  const additionalCosts = quotation.globalConfig?.additionalCosts;
+  const installationCost = additionalCosts?.showInstallation === false
+    ? 0
+    : totalArea * (Number(additionalCosts?.installation) || 0);
+  const transportCost = additionalCosts?.showTransport === false
+    ? 0
+    : Number(additionalCosts?.transport) || 0;
+  const loadingUnloadingCost = additionalCosts?.showLoadingUnloading === false
+    ? 0
+    : Number(additionalCosts?.loadingUnloading) || 0;
+  const totalAdditionalCosts = installationCost + transportCost + loadingUnloadingCost;
+  const totalCost = totalAmount + totalAdditionalCosts;
+  const finalAmount = totalCost + (totalCost * profit) / 100;
+  const priceBeforeDiscount = optimizedFinal === null
+    ? finalAmount
+    : optimizedFinal + totalAdditionalCosts;
+  const discountPercent = additionalCosts?.showDiscount === false
+    ? 0
+    : Number(additionalCosts?.discountPercent) || 0;
+  const discountAmount = (priceBeforeDiscount * discountPercent) / 100;
+  const finalWithGSTBase = priceBeforeDiscount - discountAmount;
   const finalWithGST = finalWithGSTBase + (finalWithGSTBase * 18) / 100;
   const ratePerSqft = totalArea > 0 ? finalWithGST / totalArea : 0;
   useEffect(() => {
@@ -958,7 +989,7 @@ useEffect(() => {
   };
   const updateProfit = (nextProfit: number) => {
     const safeProfit = Number.isFinite(nextProfit) ? nextProfit : 0;
-    const nextFinalAmount = totalAmount + (totalAmount * safeProfit) / 100;
+    const nextFinalAmount = totalCost + (totalCost * safeProfit) / 100;
     const nextFinalWithGST = nextFinalAmount + (nextFinalAmount * 18) / 100;
 
     setQuotation({
@@ -997,9 +1028,15 @@ useEffect(() => {
 
   return (
     <div className="space-y-4">
+
       {/* <div className="rounded-2xl border bg-slate-950 px-5 py-4 text-white">
         <div className="flex flex-wrap items-start gap-5">
           <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-7">
+=======
+      <div className="overflow-x-auto rounded-2xl border bg-slate-950 px-4 py-4 text-white">
+        <div className="flex items-start">
+          <div className="grid min-w-[840px] flex-1 grid-cols-7 gap-x-3">
+>>>>>>> main
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Quantity</div>
               <div className="mt-1 text-xl font-bold">{totalQuantity}</div>
@@ -1010,7 +1047,7 @@ useEffect(() => {
             </div>
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Total Cost</div>
-              <div className="mt-1 text-xl font-bold">{formatCurrency(totalAmount)}</div>
+              <div className="mt-1 text-xl font-bold">{formatCurrency(totalCost)}</div>
             </div>
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Profit %</div>
@@ -1024,15 +1061,15 @@ useEffect(() => {
                   setProfitInput(value);
                   updateProfit(value.trim() === "" ? 0 : Number(value));
                 }}
-                className="mt-1 w-24 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                className="mt-1 w-20 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-white"
               />
             </div>
             <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Selling Price<br />(Cost + Profit %)</div>
+              <div className="whitespace-nowrap text-xs uppercase tracking-[0.12em] text-slate-400">Selling Price</div>
               <div className="mt-1 text-xl font-bold">{formatCurrency(finalAmount)}</div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Customer Price<br />(Selling Price + GST)</div>
+              <div className="whitespace-nowrap text-xs uppercase tracking-[0.12em] text-slate-400">Customer Price</div>
               <div className="mt-1 text-xl font-bold">{formatCurrency(finalWithGST)}</div>
             </div>
             <div>
@@ -1181,9 +1218,9 @@ useEffect(() => {
         Selling Price
       </div>
 
-      <div className="text-xs uppercase tracking-[0.14em] text-slate-400">
+      {/* <div className="text-xs uppercase tracking-[0.14em] text-slate-400">
         (Cost + Profit %)
-      </div>
+      </div> */}
     </div>
       </div>
 
@@ -1208,9 +1245,9 @@ useEffect(() => {
       Customer Price
     </div>
 
-    <div className="text-xs uppercase tracking-[0.14em] text-red-500">
+    {/* <div className="text-xs uppercase tracking-[0.14em] text-red-500">
       (Selling Price + GST)
-    </div>
+    </div> */}
   </div>
 </div>
 
@@ -2637,6 +2674,7 @@ export function QuotationBuilder({
   const [isGeneratingGlassReport, setIsGeneratingGlassReport] = useState(false);
   const [isGeneratingElevation, setIsGeneratingElevation] = useState(false);
   const [isGeneratingExcel, setIsGeneratingExcel] = useState(false);
+  const [isSharingQuotation, setIsSharingQuotation] = useState(false);
   const [isExcelExportModalOpen, setIsExcelExportModalOpen] = useState(false);
   const [activeExport, setActiveExport] = useState<
   "cutting" | "bom" | "glass" | "quotation" | "elevation" | "excel" | null
@@ -3336,6 +3374,43 @@ console.log("SAVED ITEM", savedItem);
       setIsGeneratingPdf(false);
     }
   };
+  const shareQuotation = async () => {
+    try {
+      setIsSharingQuotation(true);
+      const savedQuotation = await getPersistedQuotation();
+      const quotationId =
+        savedQuotation?._id ??
+        quotationWithGlobalConfig._id ??
+        savedQuotation?.quotationDetails.id ??
+        quotationWithGlobalConfig.quotationDetails.id;
+
+      if (!quotationId) throw new Error("Save the quotation before sharing it.");
+
+      const phone = savedQuotation?.customerDetails.phone || quotationWithGlobalConfig.customerDetails.phone;
+      if (!phone) throw new Error("Add the customer's WhatsApp phone number before sharing.");
+
+      const effectiveQuotation = savedQuotation ?? quotationWithGlobalConfig;
+      const pdf = await getQuotationPdfBlob(quotationId);
+      await shareQuotationPdf({
+        pdf,
+        fileName: getQuotationPdfDownloadName({ ...effectiveQuotation, globalConfig }),
+        phone,
+        customerName: effectiveQuotation.customerDetails.name,
+        quotationNumber:
+          effectiveQuotation.generatedId || effectiveQuotation.quotationDetails.id || quotationId,
+      });
+      alert("Quotation shared successfully on WhatsApp.");
+    } catch (error) {
+      console.error("Failed to share quotation", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to share quotation on WhatsApp.";
+      alert(message);
+    } finally {
+      setIsSharingQuotation(false);
+    }
+  };
 const exportExcel = async () => {
   try {
     setIsGeneratingExcel(true);
@@ -3551,7 +3626,8 @@ const exportExcel = async () => {
     isGeneratingBom ||
     isGeneratingGlassReport ||
     isGeneratingElevation||
-    isGeneratingExcel;
+    isGeneratingExcel ||
+    isSharingQuotation;
 
   return (
     <PageShell
@@ -3612,9 +3688,13 @@ const exportExcel = async () => {
   <Download className="h-4 w-4" />
   {isGeneratingExcel ? "Generating..." : " Download Excel"}
 </Button> */}
-          <Button variant="outline" disabled={isSaveBlockingExports || isAnyExportInProgress}>
+          <Button
+            variant="outline"
+            onClick={shareQuotation}
+            disabled={isSaveBlockingExports || isAnyExportInProgress}
+          >
             <Share2 className="h-4 w-4" />
-            Share
+            {isSharingQuotation ? "Sharing..." : "Share"}
           </Button>
         </>
         

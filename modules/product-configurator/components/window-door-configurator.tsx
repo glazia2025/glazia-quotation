@@ -1913,9 +1913,9 @@ const useHistory = (initial: SectionNode) => {
 const COLORS = {
   bg: "#FFFFFF",
   grid: "#E2E8F0",
-  frameDark: "#5B2200",
-  frameMid: "#7C2D12",
-  frameLight: "#A16207",
+  frameDark: "#C0C0C0",
+  frameMid: "#D1D5DB",
+  frameLight: "#E5E7EB",
   glass: "#D9F2FF",
   glassStroke: "#67AFC4",
   labelStroke: "#111827",
@@ -1925,6 +1925,10 @@ const COLORS = {
   selected: "#F97316",
   handleStroke: "#0F172A",
 };
+
+function validFrameColor(value?: string) {
+  return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value : COLORS.frameDark;
+}
 
 const PROFILE = { outer: 10, inner: 4, mullion: 12, sash: 6, gap: 2 };
 
@@ -1983,29 +1987,29 @@ const addArchShape = (
   );
 };
 
-function addProfileRect(layer: KonvaLayer | KonvaGroup, x: number, y: number, w: number, h: number, selected = false, archType: ArchType = "none", archHeightRatio = DEFAULT_ARCH_HEIGHT_RATIO) {
+function addProfileRect(layer: KonvaLayer | KonvaGroup, x: number, y: number, w: number, h: number, selected = false, archType: ArchType = "none", archHeightRatio = DEFAULT_ARCH_HEIGHT_RATIO, frameColor = COLORS.frameDark) {
   const safeW = safeDrawSize(w);
   const safeH = safeDrawSize(h);
   const normalizedArchType = normalizeArchType(archType);
   if (normalizedArchType === "none") {
-    layer.add(new Konva.Rect({ x, y, width: safeW, height: safeH, stroke: selected ? COLORS.selected : COLORS.frameDark, strokeWidth: PROFILE.outer, listening: false }));
-    layer.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + 2, y: y + PROFILE.outer / 2 + 2, width: safeDrawSize(safeW - (PROFILE.outer + 4)), height: safeDrawSize(safeH - (PROFILE.outer + 4)), stroke: COLORS.frameMid, strokeWidth: PROFILE.inner, listening: false }));
-    layer.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + 6, y: y + PROFILE.outer / 2 + 6, width: safeDrawSize(safeW - (PROFILE.outer + 12)), height: safeDrawSize(safeH - (PROFILE.outer + 12)), stroke: COLORS.frameLight, strokeWidth: 1, opacity: 0.6, listening: false }));
+    layer.add(new Konva.Rect({ x, y, width: safeW, height: safeH, stroke: selected ? COLORS.selected : frameColor, strokeWidth: PROFILE.outer, listening: false }));
+    layer.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + 2, y: y + PROFILE.outer / 2 + 2, width: safeDrawSize(safeW - (PROFILE.outer + 4)), height: safeDrawSize(safeH - (PROFILE.outer + 4)), stroke: frameColor, strokeWidth: PROFILE.inner, listening: false }));
+    layer.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + 6, y: y + PROFILE.outer / 2 + 6, width: safeDrawSize(safeW - (PROFILE.outer + 12)), height: safeDrawSize(safeH - (PROFILE.outer + 12)), stroke: frameColor, strokeWidth: 1, opacity: 0.6, listening: false }));
     return;
   }
 
-  addArchShape(layer, x, y, safeW, safeH, normalizedArchType, archHeightRatio, selected ? COLORS.selected : COLORS.frameDark, PROFILE.outer);
+  addArchShape(layer, x, y, safeW, safeH, normalizedArchType, archHeightRatio, selected ? COLORS.selected : frameColor, PROFILE.outer);
   const innerOffset = PROFILE.outer / 2 + 2;
-  addArchShape(layer, x + innerOffset, y + innerOffset, safeDrawSize(safeW - innerOffset * 2), safeDrawSize(safeH - innerOffset * 2), normalizedArchType, archHeightRatio, COLORS.frameMid, PROFILE.inner);
+  addArchShape(layer, x + innerOffset, y + innerOffset, safeDrawSize(safeW - innerOffset * 2), safeDrawSize(safeH - innerOffset * 2), normalizedArchType, archHeightRatio, frameColor, PROFILE.inner);
   const highlightOffset = PROFILE.outer / 2 + 6;
-  addArchShape(layer, x + highlightOffset, y + highlightOffset, safeDrawSize(safeW - highlightOffset * 2), safeDrawSize(safeH - highlightOffset * 2), normalizedArchType, archHeightRatio, COLORS.frameLight, 1, 0.6);
+  addArchShape(layer, x + highlightOffset, y + highlightOffset, safeDrawSize(safeW - highlightOffset * 2), safeDrawSize(safeH - highlightOffset * 2), normalizedArchType, archHeightRatio, frameColor, 1, 0.6);
 }
 
-function addMemberRect(layer: KonvaLayer | KonvaGroup, x: number, y: number, w: number, h: number) {
+function addMemberRect(layer: KonvaLayer | KonvaGroup, x: number, y: number, w: number, h: number, frameColor = COLORS.frameDark) {
   const safeW = safeDrawSize(w);
   const safeH = safeDrawSize(h);
-  layer.add(new Konva.Rect({ x, y, width: safeW, height: safeH, fill: "#FFFFFF", stroke: COLORS.frameDark, strokeWidth: 2, listening: false }));
-  layer.add(new Konva.Rect({ x: x + 2, y: y + 2, width: safeDrawSize(safeW - 4), height: safeDrawSize(safeH - 4), stroke: COLORS.frameMid, strokeWidth: 1, opacity: 0.7, listening: false }));
+  layer.add(new Konva.Rect({ x, y, width: safeW, height: safeH, fill: "#FFFFFF", stroke: frameColor, strokeWidth: 2, listening: false }));
+  layer.add(new Konva.Rect({ x: x + 2, y: y + 2, width: safeDrawSize(safeW - 4), height: safeDrawSize(safeH - 4), stroke: frameColor, strokeWidth: 1, opacity: 0.7, listening: false }));
 }
 
 function addTag(layer: KonvaLayer | KonvaGroup, x: number, y: number, text: string) {
@@ -2124,7 +2128,7 @@ export function WindowDoorConfigurator({
   >([]);
   const [editingDimensions, setEditingDimensions] = useState<Record<string, string>>({});
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>("root");
   const [selectedSlidingPanelIndex, setSelectedSlidingPanelIndex] = useState<number | null>(null);
   const [widthMm, setWidthMm] = useState(1500);
   const [heightMm, setHeightMm] = useState(1500);
@@ -3147,6 +3151,11 @@ export function WindowDoorConfigurator({
     push(next);
   }, [push, root, selectedId]);
 
+  const selectedFrameColor = validFrameColor(
+    (combinationOptionsQuery.data?.colorFinishes ?? metaOptionsQuery.data?.colorFinishes ?? [])
+      .find((option) => option.name === meta.colorFinish)?.color
+  );
+
   const renderCanvas = useCallback(() => {
     const stage = stageRef.current;
 
@@ -3183,7 +3192,7 @@ export function WindowDoorConfigurator({
     const selectedForRender = hideSelectionForExport ? null : selectedId;
     const rootArchType = normalizeArchType(root.archType);
     const rootArchHeightRatio = normalizeArchHeightRatio(root.archHeightRatio);
-    addProfileRect(layer, fx, fy, fw, fh, selectedForRender === "root", rootArchType, rootArchHeightRatio);
+    addProfileRect(layer, fx, fy, fw, fh, selectedForRender === "root", rootArchType, rootArchHeightRatio, selectedFrameColor);
     const rootHit = new Konva.Rect({ x: fx, y: fy, width: fw, height: fh, fill: "transparent" });
     rootHit.on("mousedown touchstart", () => { setSelectedDivider(null); setSelectedId("root"); setSelectedSlidingPanelIndex(null); });
     layer.add(rootHit);
@@ -3226,7 +3235,8 @@ export function WindowDoorConfigurator({
             x - PROFILE.mullion / 2,
             memberY,
             PROFILE.mullion,
-            memberHeight
+            memberHeight,
+            selectedFrameColor
           );
           dividerBadges.push({
             id: `divider-${dividerBadges.length}`,
@@ -3245,7 +3255,8 @@ export function WindowDoorConfigurator({
             memberX,
             y - PROFILE.mullion / 2,
             memberWidth,
-            PROFILE.mullion
+            PROFILE.mullion,
+            selectedFrameColor
           );
           dividerBadges.push({
             id: `divider-${dividerBadges.length}`,
@@ -3280,7 +3291,7 @@ export function WindowDoorConfigurator({
       });
       g.add(leafHit);
       if (leaf.systemType !== "Blank Area") {
-        g.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + PROFILE.gap, y: y + PROFILE.outer / 2 + PROFILE.gap, width: safeDrawSize(w - (PROFILE.outer + PROFILE.gap * 2)), height: safeDrawSize(h - (PROFILE.outer + PROFILE.gap * 2)), stroke: isSelected ? COLORS.selected : COLORS.frameDark, strokeWidth: PROFILE.sash, listening: false }))
+        g.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + PROFILE.gap, y: y + PROFILE.outer / 2 + PROFILE.gap, width: safeDrawSize(w - (PROFILE.outer + PROFILE.gap * 2)), height: safeDrawSize(h - (PROFILE.outer + PROFILE.gap * 2)), stroke: isSelected ? COLORS.selected : selectedFrameColor, strokeWidth: PROFILE.sash, listening: false }))
       };
       const inset = PROFILE.outer / 2 + PROFILE.sash + 6;
       const innerBounds = getPanelBounds(x, y, w, h, inset);
@@ -3308,7 +3319,7 @@ export function WindowDoorConfigurator({
           fractions.forEach((frac, idx) => {
             const pw = innerW * frac;
             fixedPanel(cursor, innerY, pw, innerH);
-            if (sashTypes?.[idx]) drawSashGlyph(g, cursor, innerY, pw, innerH, sashTypes[idx], COLORS.frameDark);
+            if (sashTypes?.[idx]) drawSashGlyph(g, cursor, innerY, pw, innerH, sashTypes[idx], selectedFrameColor);
             if (isPanelizedSliding) {
               const panelSash = panelSashes[idx] ?? "fixed";
               const arrowY = innerY + innerH / 2;
@@ -3341,7 +3352,7 @@ export function WindowDoorConfigurator({
         if (isOneOf("Right Openable", "Right Openable Door-Window", "Right Openable Window", "Right Openable Door", "Outward Window R", "Outward Door R", "Inward Door R", "Inward Window R")) { fixedPanel(innerX, innerY, innerW, innerH); drawCasementSwingGuide(g, innerX, innerY, innerW, innerH, "right"); return true; }
         if (desc === "Top Hung Window") { fixedPanel(innerX, innerY, innerW, innerH); drawTopHungGuide(g, innerX, innerY, innerW, innerH); return true; }
         if (desc === "Bottom Hung Window") { fixedPanel(innerX, innerY, innerW, innerH); drawBottomHungGuide(g, innerX, innerY, innerW, innerH); return true; }
-        if (desc === "Parallel Window") { fixedPanel(innerX, innerY, innerW, innerH); drawSashGlyph(g, innerX, innerY, innerW, innerH, "double", COLORS.frameDark); return true; }
+        if (desc === "Parallel Window") { fixedPanel(innerX, innerY, innerW, innerH); drawSashGlyph(g, innerX, innerY, innerW, innerH, "double", selectedFrameColor); return true; }
         if (desc === "Tilt and Turn Window") { fixedPanel(innerX, innerY, innerW, innerH); drawTiltTurnGuide(g, innerX, innerY, innerW, innerH); return true; }
         if (isOneOf("French Door-Window", "French Door", "French Window")) {
           const centerGap = Math.max(10, Math.min(22, innerW * 0.05));
@@ -3441,6 +3452,7 @@ export function WindowDoorConfigurator({
     });
 
 
+    const dividerBadgeOverlay = new Konva.Group();
     dividerBadges.forEach(({ id, x, y, leftId, rightId }) => {
       const badgeGroup = new Konva.Group({
         listening: true,
@@ -3486,7 +3498,7 @@ export function WindowDoorConfigurator({
           rightId,
         });
       });
-      contentGroup.add(badgeGroup);
+      dividerBadgeOverlay.add(badgeGroup);
 
     });
 
@@ -3518,6 +3530,10 @@ export function WindowDoorConfigurator({
         );
       }
     }
+
+    // Keep join controls above section-selection strokes so M/C stays visible
+    // and clickable when either adjoining section is selected.
+    layer.add(dividerBadgeOverlay);
 
     const splitDepths: Array<{ split: SplitDirection; depth: number }> = [];
     const collectSplitDepths = (node: SectionNode, depth = 0) => {
@@ -3562,7 +3578,7 @@ export function WindowDoorConfigurator({
     const rightMost = [...leaves2].sort((a, b) => (b.x + b.w) - (a.x + a.w) || (b.y + b.h) - (a.y + a.h))[0];
     if (rightMost) addTag(contentGroup, fx + rightMost.x * fw + rightMost.w * fw - 54, fy + rightMost.y * fh + rightMost.h * fh - 54, "F1");
     layer.draw();
-  }, [heightMm, hideSelectionForExport, panOffset, root, selectedId, selectedSlidingPanelIndex, stageSize.h, stageSize.w, view, widthMm, badgeValues]);
+  }, [heightMm, hideSelectionForExport, panOffset, root, selectedFrameColor, selectedId, selectedSlidingPanelIndex, stageSize.h, stageSize.w, view, widthMm, badgeValues]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -3729,7 +3745,7 @@ export function WindowDoorConfigurator({
   useEffect(() => {
     if (editingItem) return;
     reset(buildPreset(baseSystemType, baseGlass, baseMesh));
-    setSelectedId(null);
+    setSelectedId("root");
     setManualChildRates({});
     setAutoChildRates({});
     setChildSectionMeta({});
@@ -3807,7 +3823,7 @@ export function WindowDoorConfigurator({
               <div className="pointer-events-auto inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white/95 p-2 shadow">
                 <button type="button" onClick={undo} disabled={past.length === 0} className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 hover:bg-gray-50 disabled:opacity-50"><Undo2 className="h-4 w-4" /></button>
                 <button type="button" onClick={redo} disabled={future.length === 0} className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 hover:bg-gray-50 disabled:opacity-50"><Redo2 className="h-4 w-4" /></button>
-                <button type="button" onClick={() => reset(buildPreset(baseSystemType, baseGlass, baseMesh))} className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 hover:bg-gray-50"><RotateCcw className="h-4 w-4" /></button>
+                <button type="button" onClick={() => { reset(buildPreset(baseSystemType, baseGlass, baseMesh)); setSelectedId("root"); setSelectedDivider(null); setSelectedSlidingPanelIndex(null); }} className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 hover:bg-gray-50"><RotateCcw className="h-4 w-4" /></button>
               </div>
               <div className="pointer-events-auto inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white/95 p-2 shadow">
                 <label className="flex items-center gap-2 text-sm text-gray-700"><span>Split Count</span><select value={splitCount} onChange={(e) => setSplitCount(Number(e.target.value) || 2)} className="rounded-md border border-gray-400 px-2 py-1 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option><option value={5}>5</option></select></label>
