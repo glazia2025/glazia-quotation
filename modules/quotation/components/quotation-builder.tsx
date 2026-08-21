@@ -925,9 +925,9 @@ const currentItems = items.slice(startIndex, endIndex);
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border bg-slate-950 px-5 py-4 text-white">
-        <div className="flex flex-wrap items-start gap-5">
-          <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+      <div className="overflow-x-auto rounded-2xl border bg-slate-950 px-4 py-4 text-white">
+        <div className="flex items-start">
+          <div className="grid min-w-[840px] flex-1 grid-cols-7 gap-x-3">
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Quantity</div>
               <div className="mt-1 text-xl font-bold">{totalQuantity}</div>
@@ -952,15 +952,15 @@ const currentItems = items.slice(startIndex, endIndex);
                   setProfitInput(value);
                   updateProfit(value.trim() === "" ? 0 : Number(value));
                 }}
-                className="mt-1 w-24 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                className="mt-1 w-20 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-white"
               />
             </div>
             <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Selling Price<br />(Cost + Profit %)</div>
+              <div className="whitespace-nowrap text-xs uppercase tracking-[0.12em] text-slate-400">Selling Price</div>
               <div className="mt-1 text-xl font-bold">{formatCurrency(finalAmount)}</div>
             </div>
             <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Customer Price<br />(Selling Price + GST)</div>
+              <div className="whitespace-nowrap text-xs uppercase tracking-[0.12em] text-slate-400">Customer Price</div>
               <div className="mt-1 text-xl font-bold">{formatCurrency(finalWithGST)}</div>
             </div>
             <div>
