@@ -86,18 +86,20 @@ import type { DragEndEvent } from "@dnd-kit/core";
 import { rectSortingStrategy } from "@dnd-kit/sortable";
 
 
-type TabKey = "customer" | "quotation" | "global" | "item" | "bulk" | "export";
+type TabKey = "customer"  | "global" | "item" | "bulk" | "export";
 
 const tabs: { key: TabKey; label: string }[] = [
   { key: "customer", label: "Customer Details" },
-  { key: "quotation", label: "Quotation Details" },
+  // { key: "quotation", label: "Quotation Details" },
   { key: "global", label: "Global Config" },
   { key: "item", label: "Item List" },
   { key: "bulk", label: "Global Edit" },
   { key: "export", label: "Generate & Export" },
 ];
 const isTabKey = (value: string | null): value is TabKey =>
-  value === "customer" || value === "quotation" || value === "global" || value === "item" || value === "bulk" ||value === "export";
+  value === "customer" 
+// || value === "quotation"
+ || value === "global" || value === "item" || value === "bulk" ||value === "export";
 
 const formatDimensionMm = (value: number | string | undefined) => `${value ?? "-"} mm`;
 const formatSizeMm = (width: number | string | undefined, height: number | string | undefined) =>
@@ -893,6 +895,21 @@ const currentItems = items.slice(startIndex, endIndex);
   const [optimizedFinal, setOptimizedFinal] = useState<number | null>(null);
   const [isCalculatingOptimizedFinal, setIsCalculatingOptimizedFinal] = useState(false);
   const [optimizedFinalError, setOptimizedFinalError] = useState("");
+  const [isSummaryFixed, setIsSummaryFixed] = useState(false);
+
+useEffect(() => {
+  const handleScroll = () => {
+    setIsSummaryFixed(window.scrollY > 250);
+  };
+
+  handleScroll();
+
+  window.addEventListener("scroll", handleScroll);
+
+  return () => {
+    window.removeEventListener("scroll", handleScroll);
+  };
+}, []);
 
   const totalQuantity = items.reduce((sum, item) => sum + Math.max(1, item.quantity || 1), 0);
   const totalArea = items.reduce((sum, item) => 
@@ -980,7 +997,7 @@ const currentItems = items.slice(startIndex, endIndex);
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border bg-slate-950 px-5 py-4 text-white">
+      {/* <div className="rounded-2xl border bg-slate-950 px-5 py-4 text-white">
         <div className="flex flex-wrap items-start gap-5">
           <div className="grid flex-1 gap-4 sm:grid-cols-2 xl:grid-cols-7">
             <div>
@@ -1024,14 +1041,19 @@ const currentItems = items.slice(startIndex, endIndex);
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext
           items={items.map((item) => item.id)}
           strategy={rectSortingStrategy}
         >
-          <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {/* <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 lg:grid-cols-4"> */}
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-4">
+
+  {/* LEFT SIDE - ITEMS */}
+  <div className="lg:col-span-3">
+    <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
 
 
             {currentItems.map((item,index) => (
@@ -1044,6 +1066,192 @@ const currentItems = items.slice(startIndex, endIndex);
                 onDuplicateItem={onDuplicateItem}
               />
             ))}
+            </div>
+              </div>
+             {/* QUOTATION SUMMARY */}
+  {/* <div className="lg:col-span-1 self-start">
+    <div className="sticky top-6 self-start"> */}
+    {/* <div className="hidden lg:block lg:col-span-1 self-start">
+  <div className="sticky top-6 z-30 w-full max-w-[380px] justify-self-end"> */}
+{/* <div className="hidden lg:block lg:col-span-1">
+  <div className="fixed right-6 top-[300px] z-30 w-[calc((100vw-6rem)/4)] max-w-[380px]"> */}
+  <div className="lg:col-span-1">
+  <div
+    className={
+      isSummaryFixed
+        ? "fixed right-6 top-4 z-50 w-[320px]"
+        : ""
+    }
+  >
+      <div className="rounded-2xl bg-slate-950 p-4 text-white shadow-lg">
+  <div className="mb-4">
+    <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-white">
+      Quotation Summary
+    </h3>
+  </div>
+
+  <div className="space-y-4">
+
+    {/* Quantity */}
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span className="text-slate-400">◈</span>
+        <span className="text-xs uppercase tracking-wide text-slate-400">
+          Quantity
+        </span>
+      </div>
+
+      <span className="text-sm font-semibold">
+        {totalQuantity}
+      </span>
+    </div>
+
+    {/* Area */}
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span className="text-slate-400">↗</span>
+        <span className="text-xs uppercase tracking-wide text-slate-400">
+          Area
+        </span>
+      </div>
+
+      <span className="text-sm font-semibold">
+        {formatNumber(totalArea)}{" "}
+        <span className="text-[9px] font-normal text-slate-500">
+          sqft
+        </span>
+      </span>
+    </div>
+
+    {/* Total Cost */}
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span className="text-slate-400">▣</span>
+        <span className="text-xs uppercase tracking-wide text-slate-400">
+          Total Cost
+        </span>
+      </div>
+
+      <span className="text-sm font-semibold">
+        {formatCurrency(totalAmount)}
+      </span>
+    </div>
+
+    {/* Profit */}
+    <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2">
+      <div className="flex items-center gap-2">
+        <span className="text-emerald-400">⌁</span>
+        <span className="text-xs font-semibold uppercase tracking-wide text-emerald-400">
+          Profit
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+
+      <input
+        type="text"
+        inputMode="decimal"
+        value={profitInput}
+        onChange={(e) => {
+          const value = e.target.value;
+
+          if (!/^\d*(?:\.\d*)?$/.test(value)) return;
+
+          setProfitInput(value);
+          updateProfit(
+            value.trim() === "" ? 0 : Number(value)
+          );
+        }}
+        className="h-7 w-12 rounded-md border border-slate-700 bg-slate-900 px-2 text-center text-xs text-white outline-none focus:border-slate-500"
+      />
+
+      <span className="text-xs text-slate-400">%</span>
+    </div>
+    </div>
+
+    {/* Selling Price */}
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span className="text-slate-400">◇</span>
+
+        {/* <span className="text-[10px] uppercase tracking-wide text-slate-400">
+          Selling Price
+        </span> */}
+         <div>
+      <div className="text-xs uppercase tracking-[0.14em] text-slate-400">
+        Selling Price
+      </div>
+
+      <div className="text-xs uppercase tracking-[0.14em] text-slate-400">
+        (Cost + Profit %)
+      </div>
+    </div>
+      </div>
+
+      <span className="text-sm font-semibold">
+        {formatCurrency(finalAmount)}
+      </span>
+    </div>
+
+    {/* Customer Price */}
+    <div className="rounded-xl bg-slate-900 p-3">
+      {/* <div className="flex items-center gap-2">
+        <span className="text-red-500">♧</span>
+        <span className="text-[10px] uppercase tracking-wide text-red-500">
+          Customer Price
+        </span>
+      </div> */}
+      <div className="flex items-start gap-2">
+  <span className="mt-0.5 text-red-500">♧</span>
+
+  <div>
+    <div className="text-xs uppercase tracking-[0.14em] text-red-500">
+      Customer Price
+    </div>
+
+    <div className="text-xs uppercase tracking-[0.14em] text-red-500">
+      (Selling Price + GST)
+    </div>
+  </div>
+</div>
+
+      <div className="mt-1 text-lg font-bold text-red-500">
+        {formatCurrency(finalWithGST)}
+      </div>
+    </div>
+
+    {/* Rate */}
+    {/* <div className="border-t border-slate-800 pt-3 text-center">
+      <div className="text-[9px] uppercase tracking-wide text-slate-500">
+        Rate
+      </div>
+
+      <div className="mt-1 text-xs font-semibold text-slate-300">
+        {formatCurrency(ratePerSqft)} / SQFT
+      </div>
+    </div> */}
+
+    {/* Rate */}
+<div className="mt-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2.5">
+  <div className="flex items-center justify-center gap-2">
+    <span className="text-slate-400">▣</span>
+
+    <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+      Rate:
+    </span>
+
+    <span className="text-xs font-semibold text-slate-300">
+      {formatCurrency(ratePerSqft)} / SQFT
+    </span>
+  </div>
+</div>
+
+
+
+  </div>
+</div>
+
+    </div>
+  </div>
 
             {/* <button
         type="button"
@@ -1091,6 +1299,8 @@ const currentItems = items.slice(startIndex, endIndex);
 function CustomerTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSaving: boolean }) {
   const customer = useQuotationBuilderStore((state) => state.quotation.customerDetails);
   const updateCustomer = useQuotationBuilderStore((state) => state.updateCustomer);
+   const quotationDetails = useQuotationBuilderStore((s) => s.quotation.quotationDetails);
+  const updateQuotationField = useQuotationBuilderStore((s) => s.updateQuotationField);
   const customerValues = customer ?? {
     name: "",
     phone: "",
@@ -1134,7 +1344,7 @@ function CustomerTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSavi
     </div>
   </div>
 
-  <span className="pt-1 text-sm text-slate-400">
+  <span className="pt-1 text-sm text-slate-950">
     {expanded ? "▲" : "▼"}
   </span>
 </button>
@@ -1309,19 +1519,68 @@ function CustomerTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSavi
         </div>
       </div>
     </div>
+     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+     <div className="col-span-1 md:col-span-2 flex items-center gap-3">
+  <FileText className="h-7 w-7 text-slate-400" />
+
+  <h2 className="text-base font-semibold text-slate-900">
+    Quotation Details
+  </h2>
+</div>
+
+          <div>
+            <label className="mb-2 block text-xs font-medium text-slate-700">
+              Date
+            </label>
+            <input
+              type="date"
+              value={quotationDetails.date || ""}
+              onChange={(e) =>
+                updateQuotationField("date", e.target.value)
+              }
+              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-3 pr-3 text-sm text-slate-800 outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100"
+            />
+          </div>
+
+        
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-2">
+              Opportunity Stage
+            </label>
+            <select
+              value={quotationDetails.opportunity || "Enquiry"}
+              onChange={(e) =>
+                updateQuotationField("opportunity", e.target.value)
+              }
+              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-3 pr-3 text-sm text-slate-800 outline-none transition focus:border-red-400 focus:bg-white focus:ring-2 focus:ring-red-100"
+            >
+              <option value="Enquiry">Enquiry</option>
+              <option value="Quoted">Quoted</option>
+              <option value="Under Negotiation">Under Negotiation</option>
+              <option value="Order Confirmed">Order Confirmed</option>
+              <option value="Order Lost">Order Lost</option>
+            </select>
+          </div>
+
+        </div>
   </div>
+  
 )}
 
 
 
 
       <div className="mt-6 flex justify-end">
-        <Button type="button" onClick={() => void onSave()} disabled={isSaving} className="bg-[#EE1C25] text-white hover:bg-[#c9151d]">
+        <Button type="button" onClick={() => void onSave()} disabled={isSaving} className="bg-slate-950 text-white hover:bg-slate-950">
           {isSaving ? "Saving..." : "Save Customer Details"}
         </Button>
       </div>
+      
     </div>
+
+    
   );
+  
 }
 function GlobalConfigTab({ globalConfig,
   setGlobalConfig,
@@ -1619,8 +1878,9 @@ function GlobalConfigTab({ globalConfig,
       </div>
     </div>
 
-    <span className="text-sm text-slate-400">
-      {expanded ? "⌃" : "⌄"}
+    <span className="text-sm text-slate-950">
+      {/* {expanded ? "⌃" : "⌄"} */}
+       {expanded ? "▲" : "▼"}
     </span>
   </button>
 
@@ -1630,7 +1890,7 @@ function GlobalConfigTab({ globalConfig,
       <div className="mb-5 flex justify-end">
         <a
           href="/quotations/settings"
-          className="text-xs font-medium text-slate-500 transition hover:text-red-500"
+          className="text-0.5xl font-medium text-slate-500 transition hover:text-red-500"
         >
           Manage Presets
         </a>
@@ -1648,7 +1908,7 @@ function GlobalConfigTab({ globalConfig,
               <div className="mb-4 flex items-center gap-2">
                 <Building2 className="h-3.5 w-3.5 text-slate-500" />
 
-                <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
+                <h3 className="text-0.5xl font-semibold uppercase tracking-[0.08em] text-slate-700">
                   Brand Identity
                 </h3>
               </div>
@@ -1657,7 +1917,7 @@ function GlobalConfigTab({ globalConfig,
 
             
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-slate-700">
+                  <label className="mb-2 block text-0.5xl font-medium text-slate-700">
                     Company Logo
                   </label>
 
@@ -1719,7 +1979,7 @@ function GlobalConfigTab({ globalConfig,
 
               
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-slate-700">
+                  <label className="mb-2 block text-0.5xl font-medium text-slate-700">
                     Website URL
                   </label>
 
@@ -1744,7 +2004,7 @@ function GlobalConfigTab({ globalConfig,
               <div className="mb-4 flex items-center gap-2">
                 <FileText className="h-3.5 w-3.5 text-slate-500" />
 
-                <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
+                <h3 className="text-0.5xl font-semibold uppercase tracking-[0.08em] text-slate-700">
                   Document Content
                 </h3>
               </div>
@@ -1752,7 +2012,7 @@ function GlobalConfigTab({ globalConfig,
               <div className="space-y-5">
 
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-slate-700">
+                  <label className="mb-2 block text-0.5xl font-medium text-slate-700">
                     Prerequisites
                   </label>
 
@@ -1770,7 +2030,7 @@ function GlobalConfigTab({ globalConfig,
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-slate-700">
+                  <label className="mb-2 block text-0.5xl font-medium text-slate-700">
                     Terms & Conditions
                   </label>
 
@@ -1816,13 +2076,13 @@ function GlobalConfigTab({ globalConfig,
 
                 <div>
                   <div className="mb-2 flex items-center justify-between">
-                    <label className="text-xs font-medium text-slate-700">
-                      Installation
+                    <label className="text-0.5xl font-medium text-slate-700">
+                      Installation (₹/sqft)
                     </label>
 
-                    <span className="text-[11px] text-slate-400">
+                    {/* <span className="text-[11px] text-slate-400">
                       ₹/sqft
-                    </span>
+                    </span> */}
                   </div>
 
                   <div className="flex items-center justify-between gap-3">
@@ -1866,13 +2126,13 @@ function GlobalConfigTab({ globalConfig,
 
                 <div>
                   <div className="mb-2 flex items-center justify-between">
-                    <label className="text-xs font-medium text-slate-700">
-                      Transport
+                    <label className="text-0.5xl font-medium text-slate-700">
+                      Transport ( ₹)
                     </label>
 
-                    <span className="text-[11px] text-slate-400">
+                    {/* <span className="text-[11px] text-slate-400">
                       ₹
-                    </span>
+                    </span> */}
                   </div>
 
                   <div className="flex items-center justify-between gap-3">
@@ -1916,13 +2176,13 @@ function GlobalConfigTab({ globalConfig,
 
                 <div>
                   <div className="mb-2 flex items-center justify-between">
-                    <label className="text-xs font-medium text-slate-700">
-                      Loading & Unloading
+                    <label className="text-0.5xl font-medium text-slate-700">
+                      Loading & Unloading (₹)
                     </label>
 
-                    <span className="text-[11px] text-slate-400">
+                    {/* <span className="text-[11px] text-slate-400">
                       ₹
-                    </span>
+                    </span> */}
                   </div>
 
                   <div className="flex items-center justify-between gap-3">
@@ -1970,13 +2230,13 @@ function GlobalConfigTab({ globalConfig,
 
                 <div>
                   <div className="mb-2 flex items-center justify-between">
-                    <label className="text-xs font-medium text-slate-700">
-                      Discount
+                    <label className="text-0.5xl font-medium text-slate-700">
+                      Discount (%)
                     </label>
 
-                    <span className="text-[11px] text-slate-400">
+                    {/* <span className="text-[11px] text-slate-400">
                       %
-                    </span>
+                    </span> */}
                   </div>
 
                   <div className="flex items-center justify-between gap-3">
@@ -2036,7 +2296,7 @@ function GlobalConfigTab({ globalConfig,
       type="button"
       onClick={() => void onSave()}
       disabled={isSaving}
-      className="rounded-lg bg-[#EE1C25] px-5 text-sm font-medium text-white hover:bg-[#c9151d]"
+      className="rounded-lg bg-slate-950 px-5 text-sm font-medium text-white hover:bg-slate-950"
     >
       {isSaving ? "Saving..." : "Save Global Configuration"}
     </Button>
@@ -2047,70 +2307,70 @@ function GlobalConfigTab({ globalConfig,
 
   );
 }
-function QuotationDetailsTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSaving: boolean }) {
-  const quotationDetails = useQuotationBuilderStore((s) => s.quotation.quotationDetails);
-  const updateQuotationField = useQuotationBuilderStore((s) => s.updateQuotationField);
+// function QuotationDetailsTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSaving: boolean }) {
+//   const quotationDetails = useQuotationBuilderStore((s) => s.quotation.quotationDetails);
+//   const updateQuotationField = useQuotationBuilderStore((s) => s.updateQuotationField);
 
-  const [expanded, setExpanded] = useState(true);
+//   const [expanded, setExpanded] = useState(true);
 
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-black-200 p-6">
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="mb-6 flex w-full items-center justify-between text-left"
-      >
-        <h2 className="text-xl font-bold text-gray-900">Quotation Details</h2>
-        {expanded ? <span>▲</span> : <span>▼</span>}
-      </button>
+//   return (
+//     <div className="bg-white rounded-2xl shadow-sm border border-black-200 p-6">
+//       <button
+//         type="button"
+//         onClick={() => setExpanded(!expanded)}
+//         className="mb-6 flex w-full items-center justify-between text-left"
+//       >
+//         <h2 className="text-xl font-bold text-gray-900">Quotation Details</h2>
+//         {expanded ? <span>▲</span> : <span>▼</span>}
+//       </button>
 
-      {expanded && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+//       {expanded && (
+//         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Date
-            </label>
-            <input
-              type="date"
-              value={quotationDetails.date || ""}
-              onChange={(e) =>
-                updateQuotationField("date", e.target.value)
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
+//           <div>
+//             <label className="block text-sm font-medium text-gray-700 mb-2">
+//               Date
+//             </label>
+//             <input
+//               type="date"
+//               value={quotationDetails.date || ""}
+//               onChange={(e) =>
+//                 updateQuotationField("date", e.target.value)
+//               }
+//               className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+//             />
+//           </div>
 
         
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Opportunity Stage
-            </label>
-            <select
-              value={quotationDetails.opportunity || "Enquiry"}
-              onChange={(e) =>
-                updateQuotationField("opportunity", e.target.value)
-              }
-              className="w-full px-3 py-2 border border-gray-200 rounded"
-            >
-              <option value="Enquiry">Enquiry</option>
-              <option value="Quoted">Quoted</option>
-              <option value="Under Negotiation">Under Negotiation</option>
-              <option value="Order Confirmed">Order Confirmed</option>
-              <option value="Order Lost">Order Lost</option>
-            </select>
-          </div>
+//           <div>
+//             <label className="block text-sm font-medium text-gray-700 mb-2">
+//               Opportunity Stage
+//             </label>
+//             <select
+//               value={quotationDetails.opportunity || "Enquiry"}
+//               onChange={(e) =>
+//                 updateQuotationField("opportunity", e.target.value)
+//               }
+//               className="w-full px-3 py-2 border border-gray-200 rounded"
+//             >
+//               <option value="Enquiry">Enquiry</option>
+//               <option value="Quoted">Quoted</option>
+//               <option value="Under Negotiation">Under Negotiation</option>
+//               <option value="Order Confirmed">Order Confirmed</option>
+//               <option value="Order Lost">Order Lost</option>
+//             </select>
+//           </div>
 
-        </div>
-      )}
-      <div className="mt-6 flex justify-end">
-        <Button type="button" onClick={() => void onSave()} disabled={isSaving} className="bg-[#EE1C25] text-white hover:bg-[#c9151d]">
-          {isSaving ? "Saving..." : "Save Quotation Details"}
-        </Button>
-      </div>
-    </div>
-  );
-}
+//         </div>
+//       )}
+//       <div className="mt-6 flex justify-end">
+//         <Button type="button" onClick={() => void onSave()} disabled={isSaving} className="bg-slate-950 text-white hover:bg-slate-950">
+//           {isSaving ? "Saving..." : "Save Quotation Details"}
+//         </Button>
+//       </div>
+//     </div>
+//   );
+// }
 
 type BulkUpdateField = "glass" | "colorFinish";
 
@@ -2275,7 +2535,7 @@ function BulkUpdateTab({
           type="button"
           onClick={() => void applyUpdate()}
           disabled={!from || !to || isSaving}
-          className="bg-[#EE1C25] text-white hover:bg-[#c9151d]"
+          className="bg-slate-950 text-white hover:bg-slate-950"
         >
           {isSaving ? "Saving..." : "Save Bulk Update"}
         </Button>
@@ -3297,16 +3557,17 @@ const exportExcel = async () => {
     <PageShell
       title={pageTitle}
       description={pageDescription}
-       backButton={
-    <button
+      backButton={
+         <button
       type="button"
       onClick={() => router.back()}
-      className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100"
+       className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100"
       aria-label="Go back"
     >
       <ArrowLeft className="h-4 w-4" />
     </button>
-  }
+      }
+      
       actions={
         <>
           <Badge variant={metadataSaveStatus === "failed" ? "danger" : itemMutationsInProgress > 0 ? "warning" : "success"}>
@@ -3446,12 +3707,12 @@ const exportExcel = async () => {
                 isSaving={metadataSaveStatus === "saving"}
               />
             )}
-            {activeTab === "quotation" && (
+            {/* {activeTab === "quotation" && (
               <QuotationDetailsTab
                 onSave={saveCurrentMetadata}
                 isSaving={metadataSaveStatus === "saving"}
               />
-            )}
+            )} */}
             {activeTab === "global" && (
               <GlobalConfigTab
                 globalConfig={globalConfig}
