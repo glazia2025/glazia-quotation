@@ -838,7 +838,6 @@ const currentItems = items.slice(startIndex, endIndex);
     }
     return sum + amount;
   }, 0);
-  const finalAmount = totalAmount + (totalAmount * profit) / 100;
   const additionalCosts = quotation.globalConfig?.additionalCosts;
   const installationCost = additionalCosts?.showInstallation === false
     ? 0
@@ -849,9 +848,12 @@ const currentItems = items.slice(startIndex, endIndex);
   const loadingUnloadingCost = additionalCosts?.showLoadingUnloading === false
     ? 0
     : Number(additionalCosts?.loadingUnloading) || 0;
-  const priceBeforeAdditionalCosts = optimizedFinal ?? finalAmount;
-  const priceBeforeDiscount =
-    priceBeforeAdditionalCosts + installationCost + transportCost + loadingUnloadingCost;
+  const totalAdditionalCosts = installationCost + transportCost + loadingUnloadingCost;
+  const totalCost = totalAmount + totalAdditionalCosts;
+  const finalAmount = totalCost + (totalCost * profit) / 100;
+  const priceBeforeDiscount = optimizedFinal === null
+    ? finalAmount
+    : optimizedFinal + totalAdditionalCosts;
   const discountPercent = additionalCosts?.showDiscount === false
     ? 0
     : Number(additionalCosts?.discountPercent) || 0;
@@ -884,7 +886,7 @@ const currentItems = items.slice(startIndex, endIndex);
   };
   const updateProfit = (nextProfit: number) => {
     const safeProfit = Number.isFinite(nextProfit) ? nextProfit : 0;
-    const nextFinalAmount = totalAmount + (totalAmount * safeProfit) / 100;
+    const nextFinalAmount = totalCost + (totalCost * safeProfit) / 100;
     const nextFinalWithGST = nextFinalAmount + (nextFinalAmount * 18) / 100;
 
     setQuotation({
@@ -936,7 +938,7 @@ const currentItems = items.slice(startIndex, endIndex);
             </div>
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Total Cost</div>
-              <div className="mt-1 text-xl font-bold">{formatCurrency(totalAmount)}</div>
+              <div className="mt-1 text-xl font-bold">{formatCurrency(totalCost)}</div>
             </div>
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Profit %</div>
@@ -956,22 +958,6 @@ const currentItems = items.slice(startIndex, endIndex);
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Selling Price<br />(Cost + Profit %)</div>
               <div className="mt-1 text-xl font-bold">{formatCurrency(finalAmount)}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Installation</div>
-              <div className="mt-1 text-xl font-bold">{formatCurrency(installationCost)}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Transport</div>
-              <div className="mt-1 text-xl font-bold">{formatCurrency(transportCost)}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Loading / Unloading</div>
-              <div className="mt-1 text-xl font-bold">{formatCurrency(loadingUnloadingCost)}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Discount ({formatNumber(discountPercent)}%)</div>
-              <div className="mt-1 text-xl font-bold">-{formatCurrency(discountAmount)}</div>
             </div>
             <div>
               <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Customer Price<br />(Selling Price + GST)</div>
