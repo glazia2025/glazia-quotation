@@ -11,6 +11,7 @@ import {
   Square,
   X,
 } from "lucide-react";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import { useDescriptionsQuery, useOptionsQuery, useSeriesQuery, useSystemsQuery } from "@/lib/quotations/queries";
 import { fetchDescriptions, fetchOptions } from "@/lib/quotations/api";
 import type { Description, HandleOption, OptionWithRate, OptionsResponse } from "@/lib/quotations/types";
@@ -659,7 +660,7 @@ function RateCalculationAction({
         type="button"
         onClick={() => void onCalculate()}
         disabled={isCalculating}
-        className="w-full rounded-md bg-[#124657] px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full rounded-md bg-[#0f172A] px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isCalculating ? "Calculating…" : "Calculate Rate"}
       </button>
@@ -2105,7 +2106,7 @@ export function WindowDoorConfigurator({
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<KonvaStage | null>(null);
   const layerRef = useRef<KonvaLayer | null>(null);
-  const gridGroupRef = useRef<KonvaGroup | null>(null);
+  // const gridGroupRef = useRef<KonvaGroup | null>(null);
   const isPanningRef = useRef(false);
   const panStartRef = useRef({ x: 0, y: 0 });
   const panOriginRef = useRef({ x: 0, y: 0 });
@@ -2842,7 +2843,7 @@ export function WindowDoorConfigurator({
       setRateIsStale(false);
       setHideSelectionForExport(true);
       await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-      gridGroupRef.current?.visible(false);
+      // gridGroupRef.current?.visible(false);
       layerRef.current?.draw();
       const cropLeft = Math.max(0, view.offsetX - 140);
       const cropTop = Math.max(0, view.offsetY - 10);
@@ -2855,7 +2856,7 @@ export function WindowDoorConfigurator({
         height: Math.max(1, cropBottom - cropTop),
         pixelRatio: 3
       }) ?? "";
-      gridGroupRef.current?.visible(true);
+      // gridGroupRef.current?.visible(true);
       layerRef.current?.draw();
       setHideSelectionForExport(false);
       const leafNodes: SectionNode[] = [];
@@ -3179,12 +3180,12 @@ export function WindowDoorConfigurator({
     panHit.on("mouseenter", () => { if (!isPanningRef.current) stage.container().style.cursor = "grab"; });
     panHit.on("mouseleave", () => { if (!isPanningRef.current) stage.container().style.cursor = "default"; });
     layer.add(panHit);
-    const gridGroup = new Konva.Group();
-    gridGroupRef.current = gridGroup;
-    layer.add(gridGroup);
-    const gridSize = 20;
-    for (let x = 0; x <= stageSize.w; x += gridSize) gridGroup.add(new Konva.Line({ points: [x, 0, x, stageSize.h], stroke: COLORS.grid, strokeWidth: x % (gridSize * 5) === 0 ? 1.2 : 0.6, listening: false }));
-    for (let y = 0; y <= stageSize.h; y += gridSize) gridGroup.add(new Konva.Line({ points: [0, y, stageSize.w, y], stroke: COLORS.grid, strokeWidth: y % (gridSize * 5) === 0 ? 1.2 : 0.6, listening: false }));
+    // const gridGroup = new Konva.Group();
+    // gridGroupRef.current = gridGroup;
+    // layer.add(gridGroup);
+    // const gridSize = 20;
+    // for (let x = 0; x <= stageSize.w; x += gridSize) gridGroup.add(new Konva.Line({ points: [x, 0, x, stageSize.h], stroke: COLORS.grid, strokeWidth: x % (gridSize * 5) === 0 ? 1.2 : 0.6, listening: false }));
+    // for (let y = 0; y <= stageSize.h; y += gridSize) gridGroup.add(new Konva.Line({ points: [0, y, stageSize.w, y], stroke: COLORS.grid, strokeWidth: y % (gridSize * 5) === 0 ? 1.2 : 0.6, listening: false }));
     const fx = view.offsetX;
     const fy = view.offsetY;
     const fw = view.drawW;
@@ -3761,7 +3762,7 @@ export function WindowDoorConfigurator({
 
   const archControls = canConfigureArch ? (
     <>
-      <label className="text-xs text-gray-600">Arch Type<select value={normalizeArchType(root.archType)} onChange={(e) => { const archType = e.target.value as ArchType; updateSelectedNode((target) => { target.archType = archType; target.archHeightRatio = archType === "none" ? DEFAULT_ARCH_HEIGHT_RATIO : normalizeArchHeightRatio(target.archHeightRatio); }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="none">None</option><option value="circular">Circular</option><option value="triangle">Triangle</option></select></label>
+      <label className="text-xs text-gray-600">Arch Type<CustomSelect value={normalizeArchType(root.archType)} onChange={(e) => { const archType = e.target.value as ArchType; updateSelectedNode((target) => { target.archType = archType; target.archHeightRatio = archType === "none" ? DEFAULT_ARCH_HEIGHT_RATIO : normalizeArchHeightRatio(target.archHeightRatio); }); }} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="none">None</option><option value="circular">Circular</option><option value="triangle">Triangle</option></CustomSelect></label>
       {normalizeArchType(root.archType) !== "none" ? (
         <label className="text-xs text-gray-600">Arch Rise<input type="range" min={8} max={45} step={1} value={Math.round(normalizeArchHeightRatio(root.archHeightRatio) * 100)} onChange={(e) => { const value = Number(e.target.value) / 100; updateSelectedNode((target) => { target.archHeightRatio = normalizeArchHeightRatio(value); }); }} className="mt-2 w-full" /><div className="mt-1 text-[11px] text-gray-500">{Math.round(normalizeArchHeightRatio(root.archHeightRatio) * 100)}% of frame height</div></label>
       ) : null}
@@ -3818,17 +3819,54 @@ export function WindowDoorConfigurator({
                 </div>
               ))}
             </div>
-            <div className="pointer-events-none absolute right-4 top-4 z-10 text-xs text-gray-500">Use the dimension boxes to edit sizes</div>
-            <div className="pointer-events-none absolute left-4 top-4 z-10 flex flex-col gap-2">
+            {/* <div className="pointer-events-none absolute right-4 top-4 z-10 text-xs text-gray-500">Use the dimension boxes to edit sizes</div> */}
+            <div
+              // className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 text-xs text-gray-500">
+              className="pointer-events-none absolute bottom-4 left-[18%] z-10 -translate-x-1/2 text-xs text-gray-500">
+              Use the dimension boxes to edit sizes
+            </div>
+
+            <div className="pointer-events-none absolute left-[20%] top-4 z-10 flex flex-col gap-2">
               <div className="pointer-events-auto inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white/95 p-2 shadow">
                 <button type="button" onClick={undo} disabled={past.length === 0} className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 hover:bg-gray-50 disabled:opacity-50"><Undo2 className="h-4 w-4" /></button>
                 <button type="button" onClick={redo} disabled={future.length === 0} className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 hover:bg-gray-50 disabled:opacity-50"><Redo2 className="h-4 w-4" /></button>
                 <button type="button" onClick={() => { reset(buildPreset(baseSystemType, baseGlass, baseMesh)); setSelectedId("root"); setSelectedDivider(null); setSelectedSlidingPanelIndex(null); }} className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 hover:bg-gray-50"><RotateCcw className="h-4 w-4" /></button>
-              </div>
-              <div className="pointer-events-auto inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white/95 p-2 shadow">
-                <label className="flex items-center gap-2 text-sm text-gray-700"><span>Split Count</span><select value={splitCount} onChange={(e) => setSplitCount(Number(e.target.value) || 2)} className="rounded-md border border-gray-400 px-2 py-1 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option><option value={5}>5</option></select></label>
-                <label className="flex items-center gap-2 text-sm text-gray-700"><span>Direction</span><select value={splitDirection} onChange={(e) => setSplitDirection(e.target.value as SplitDirection)} className="rounded-md border border-gray-400 px-2 py-1 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="vertical">Vertical</option><option value="horizontal">Horizontal</option></select></label>
-                <button type="button" onClick={() => splitSelected(splitDirection)} disabled={selectedNode.systemType === "Sliding"} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50">{splitDirection === "vertical" ? <SplitSquareVertical className="h-4 w-4" /> : <SplitSquareHorizontal className="h-4 w-4" />}Split</button>
+                <label className="flex items-center gap-2 whitespace-nowrap text-sm text-gray-700"><span>Split Count</span>
+
+                  <CustomSelect
+                    value={splitCount}
+                    onChange={(e) => setSplitCount(Number(e.target.value) || 2)}
+                    className="w-[70px]"
+                  >
+                    <option value={2}>2</option>
+                    <option value={3}>3</option>
+                    <option value={4}>4</option>
+                    <option value={5}>5</option>
+                  </CustomSelect>
+                </label>
+                <label className="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm text-gray-700"><span>Direction</span>
+
+                  <CustomSelect
+                    value={splitDirection}
+                    onChange={(e) => setSplitDirection(e.target.value as SplitDirection)}
+                    className="w-[130px]"
+                  >
+                    <option value="vertical">Vertical</option>
+                    <option value="horizontal">Horizontal</option>
+                  </CustomSelect>
+                </label>
+                <button type="button"
+                  // onClick={() => splitSelected(splitDirection)}
+                  onClick={() => {
+                    if (!meta.refCode.trim()) {
+                      alert("Please fill the Ref Code.");
+                      return;
+                    }
+
+                    splitSelected(splitDirection);
+                  }}
+
+                  disabled={selectedNode.systemType === "Sliding"} className="flex items-center gap-2 rounded-lg border border-gray-200  bg-[#0f172A] px-3 py-2 text-sm text-white hover:bg-[#0f172A] disabled:cursor-not-allowed disabled:opacity-50">{splitDirection === "vertical" ? <SplitSquareVertical className="h-4 w-4" /> : <SplitSquareHorizontal className="h-4 w-4" />}Split</button>
                 <button type="button" onClick={mergeSelected} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"><Square className="h-4 w-4" />Merge</button>
               </div>
             </div>
@@ -3845,7 +3883,7 @@ export function WindowDoorConfigurator({
                   <label className="text-xs text-gray-600">
                     Divider Type
 
-                    <select
+                    <CustomSelect
                       value={dividerValue}
                       onChange={(e) => {
                         const value = e.target.value as "C" | "M";
@@ -3855,23 +3893,26 @@ export function WindowDoorConfigurator({
                           [selectedDivider.id]: value,
                         }));
                       }}
-                      className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm"
+                      className="mt-1 w-full focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
                     >
                       <option value="C">Coupler</option>
                       <option value="M">Mullion</option>
-                    </select>
+                    </CustomSelect>
+
                   </label>
                 )}
                 {!selectedDivider && (
                   isCombinationParentSelection ? (
                     <>
-                      <label className="text-xs text-gray-600">Ref Code<input value={meta.refCode} onChange={(e) => setMeta((prev) => ({ ...prev, refCode: e.target.value }))} required className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
-                      <label className="text-xs text-gray-600">Location<input value={meta.location} placeholder="Living Room" onChange={(e) => setMeta((prev) => ({ ...prev, location: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
-                      <label className="text-xs text-gray-600">System<input value={COMBINATION_SYSTEM} readOnly className="mt-1 w-full rounded-md border border-gray-400 bg-gray-50 px-2 py-2 text-sm text-gray-600" /></label>
+                      <label className="text-xs text-gray-600">Ref Code<input value={meta.refCode} onChange={(e) => setMeta((prev) => ({ ...prev, refCode: e.target.value }))} required className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                      <label className="text-xs text-gray-600">Location<input value={meta.location} placeholder="Living Room" onChange={(e) => setMeta((prev) => ({ ...prev, location: e.target.value }))} className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                      <label className="text-xs text-gray-600">System<input value={COMBINATION_SYSTEM} readOnly className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                       {archControls}
-                      <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                      <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
 
-                      <label className="text-xs text-gray-600">Colour Finish<select value={meta.colorFinish} onChange={(e) => setMeta((prev) => ({ ...prev, colorFinish: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{combinationOptionsQuery.data?.colorFinishes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
+                      <label className="text-xs text-gray-600">Colour Finish
+                        <CustomSelect value={meta.colorFinish} onChange={(e) => setMeta((prev) => ({ ...prev, colorFinish: e.target.value }))} className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{combinationOptionsQuery.data?.colorFinishes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</CustomSelect>
+                      </label>
                       {editingItem && (
                         <>
                           <RateCalculationAction
@@ -3881,29 +3922,29 @@ export function WindowDoorConfigurator({
                             result={singleRateCalculation}
                             onCalculate={handleCalculateRate}
                           />
-                          <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={meta.rate} onChange={(e) => { setIsManualRate(true); setMeta((prev) => ({ ...prev, rate: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                          <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={meta.rate} onChange={(e) => { setIsManualRate(true); setMeta((prev) => ({ ...prev, rate: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                         </>
                       )}
-                      <label className="text-xs text-gray-600">Remarks<textarea value={meta.remarks} onChange={(e) => setMeta((prev) => ({ ...prev, remarks: e.target.value }))} rows={2} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657] resize-none" /></label>
+                      <label className="text-xs text-gray-600">Remarks<textarea value={meta.remarks} onChange={(e) => setMeta((prev) => ({ ...prev, remarks: e.target.value }))} rows={2} className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                     </>
                   ) : (
                     <>
                       {isCombinationChildSelection ? (
-                        <label className="text-xs text-gray-600">Ref Code (Auto)<input value={childAutoRef || "Will be generated from parent ref"} readOnly className="mt-1 w-full rounded-md border border-gray-400 bg-gray-50 px-2 py-2 text-sm text-gray-600" /></label>
+                        <label className="text-xs text-gray-600">Ref Code (Auto)<input value={childAutoRef || "Will be generated from parent ref"} readOnly className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                       ) : (
                         <>
-                          <label className="text-xs text-gray-600">Ref Code<input value={meta.refCode} onChange={(e) => setMeta((prev) => ({ ...prev, refCode: e.target.value }))} required className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
-                          <label className="text-xs text-gray-600">Location<input value={meta.location} placeholder="Living Room" onChange={(e) => setMeta((prev) => ({ ...prev, location: e.target.value }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                          <label className="text-xs text-gray-600">Ref Code<input value={meta.refCode} onChange={(e) => setMeta((prev) => ({ ...prev, refCode: e.target.value }))} required className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                          <label className="text-xs text-gray-600">Location<input value={meta.location} placeholder="Living Room" onChange={(e) => setMeta((prev) => ({ ...prev, location: e.target.value }))} className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                         </>
                       )}
                       {isSlidingPanelSelection ? (
-                        <label className="text-xs text-gray-600">Sliding Movement<select value={selectedNode.panelSashes && selectedNode.panelSashes.length === (selectedNode.panelFractions?.length ?? 0) && selectedSlidingPanelIndex !== null ? (selectedNode.panelSashes[selectedSlidingPanelIndex] ?? "fixed") : "fixed"} onChange={(e) => { const sash = e.target.value as SashType; if (selectedSlidingPanelIndex === null) return; updateSelectedNode((target) => { const panelCount = target.panelFractions?.length ?? 0; if (panelCount < 2) return; const nextSashes = target.panelSashes && target.panelSashes.length === panelCount ? [...target.panelSashes] : buildDefaultSlidingPanelSashes(panelCount); nextSashes[selectedSlidingPanelIndex] = sash; target.panelSashes = nextSashes; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="left">Left Sliding</option><option value="right">Right Sliding</option><option value="double">Both Ways</option><option value="fixed">Fixed</option></select></label>
+                        <label className="text-xs text-gray-600">Sliding Movement<CustomSelect value={selectedNode.panelSashes && selectedNode.panelSashes.length === (selectedNode.panelFractions?.length ?? 0) && selectedSlidingPanelIndex !== null ? (selectedNode.panelSashes[selectedSlidingPanelIndex] ?? "fixed") : "fixed"} onChange={(e) => { const sash = e.target.value as SashType; if (selectedSlidingPanelIndex === null) return; updateSelectedNode((target) => { const panelCount = target.panelFractions?.length ?? 0; if (panelCount < 2) return; const nextSashes = target.panelSashes && target.panelSashes.length === panelCount ? [...target.panelSashes] : buildDefaultSlidingPanelSashes(panelCount); nextSashes[selectedSlidingPanelIndex] = sash; target.panelSashes = nextSashes; }); }} className="mt-1 w-full  focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="left">Left Sliding</option><option value="right">Right Sliding</option><option value="double">Both Ways</option><option value="fixed">Fixed</option></CustomSelect></label>
                       ) : (
                         <>
 
                           <label className="text-xs text-gray-600">
                             Section System
-                            <select
+                            <CustomSelect
                               value={selectedNode.systemType}
                               onChange={(e) => {
                                 const nextSystem = e.target.value as SystemType;
@@ -3958,7 +3999,7 @@ export function WindowDoorConfigurator({
                                   }
                                 });
                               }}
-                              className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+                              className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
                             >
                               {[
                                 ...(systems?.systems || []).filter((sys) => sys !== "Exhaust Fan"),
@@ -3969,18 +4010,147 @@ export function WindowDoorConfigurator({
                                   {sys}
                                 </option>
                               ))}
-                            </select>
+                            </CustomSelect>
                           </label>
                           {selectedSystemSupportsCatalog && (
                             <>
-                              <label className="text-xs text-gray-600">Section Series<select value={selectedNode.series} onChange={(e) => { const nextSeries = e.target.value; updateSelectedLeaves((target) => { target.series = nextSeries; target.description = ""; target.hasExhaustFan = false; target.panelFractions = undefined; target.panelMeshCount = undefined; target.panelSashes = undefined; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{seriesOptions.map((series) => <option key={series} value={series}>{series}</option>)}</select></label>
-                              <label className="text-xs text-gray-600">Section Description<select value={selectedNode.description} onChange={(e) => { const nextDescription = e.target.value; updateSelectedSectionMeta({ meshType: "" }); if (selectedNode.systemType === "Sliding") { updateSelectedNode((target) => { target.description = nextDescription; target.hasExhaustFan = false; target.split = "none"; target.children = undefined; const pattern = parsePanelPattern(nextDescription); if (pattern) { target.panelFractions = pattern.fractions; target.panelMeshCount = pattern.meshCount; target.mesh = (pattern.meshCount ?? 0) > 0 ? "Yes" : "No"; target.panelSashes = target.panelSashes && target.panelSashes.length === pattern.fractions.length ? target.panelSashes : buildDefaultSlidingPanelSashes(pattern.fractions.length); } else { target.panelFractions = undefined; target.panelMeshCount = undefined; target.mesh = "No"; target.panelSashes = undefined; } }); return; } updateSelectedLeaves((target) => { target.description = nextDescription; target.hasExhaustFan = false; const pattern = parsePanelPattern(nextDescription); if (pattern) { target.panelFractions = pattern.fractions; target.panelMeshCount = pattern.meshCount; target.panelSashes = undefined; } else { target.panelFractions = undefined; target.panelMeshCount = undefined; target.panelSashes = undefined; } }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{descriptionOptions.map((desc: Description) => <option key={desc.name} value={desc.name}>{desc.name}</option>)}</select></label>
-                              <label className="text-xs text-gray-600">Section Glass<select value={selectedNode.glass} onChange={(e) => { const value = e.target.value as YesNo; updateSelectedLeaves((target) => { target.glass = value; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="Yes">Yes</option><option value="No">No</option></select></label>
-                              <label className="text-xs text-gray-600">Section Mesh<select value={selectedNode.mesh} onChange={(e) => { if (selectedNode.systemType === "Sliding") return; const value = e.target.value as YesNo; updateSelectedLeaves((target) => { target.mesh = value; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" disabled={selectedNode.systemType === "Sliding"}><option value="No">No</option><option value="Yes">Yes</option></select></label>
+                              <label className="text-xs text-gray-600">Section Series<CustomSelect value={selectedNode.series} onChange={(e) => { const nextSeries = e.target.value; updateSelectedLeaves((target) => { target.series = nextSeries; target.description = ""; target.hasExhaustFan = false; target.panelFractions = undefined; target.panelMeshCount = undefined; target.panelSashes = undefined; }); }} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{seriesOptions.map((series) => <option key={series} value={series}>{series}</option>)}</CustomSelect></label>
+                              <label className="text-xs text-gray-600">Section Description<CustomSelect value={selectedNode.description} onChange={(e) => { const nextDescription = e.target.value; updateSelectedSectionMeta({ meshType: "" }); if (selectedNode.systemType === "Sliding") { updateSelectedNode((target) => { target.description = nextDescription; target.hasExhaustFan = false; target.split = "none"; target.children = undefined; const pattern = parsePanelPattern(nextDescription); if (pattern) { target.panelFractions = pattern.fractions; target.panelMeshCount = pattern.meshCount; target.mesh = (pattern.meshCount ?? 0) > 0 ? "Yes" : "No"; target.panelSashes = target.panelSashes && target.panelSashes.length === pattern.fractions.length ? target.panelSashes : buildDefaultSlidingPanelSashes(pattern.fractions.length); } else { target.panelFractions = undefined; target.panelMeshCount = undefined; target.mesh = "No"; target.panelSashes = undefined; } }); return; } updateSelectedLeaves((target) => { target.description = nextDescription; target.hasExhaustFan = false; const pattern = parsePanelPattern(nextDescription); if (pattern) { target.panelFractions = pattern.fractions; target.panelMeshCount = pattern.meshCount; target.panelSashes = undefined; } else { target.panelFractions = undefined; target.panelMeshCount = undefined; target.panelSashes = undefined; } }); }} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{descriptionOptions.map((desc: Description) => <option key={desc.name} value={desc.name}>{desc.name}</option>)}</CustomSelect></label>
+                              {/* <label className="text-xs text-gray-600">Section Glass<select value={selectedNode.glass} onChange={(e) => { const value = e.target.value as YesNo; updateSelectedLeaves((target) => { target.glass = value; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="Yes">Yes</option><option value="No">No</option></select></label> */}
+                              <div className="text-xs text-gray-600">
+                                <span>Section Glass</span>
+
+                                <div className="mt-2 flex items-center gap-5">
+                                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                                    <input
+                                      type="radio"
+                                      name="section-glass"
+                                      value="Yes"
+                                      checked={selectedNode.glass === "Yes"}
+                                      onChange={() => {
+                                        updateSelectedLeaves((target) => {
+                                          target.glass = "Yes";
+                                        });
+                                      }}
+                                      className="h-4 w-4 accent-[#ef0b0b]"
+                                    />
+                                    Yes
+                                  </label>
+
+                                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                                    <input
+                                      type="radio"
+                                      name="section-glass"
+                                      value="No"
+                                      checked={selectedNode.glass === "No"}
+                                      onChange={() => {
+                                        updateSelectedLeaves((target) => {
+                                          target.glass = "No";
+                                        });
+                                      }}
+                                      className="h-4 w-4 accent-[#ef0b0b]"
+                                    />
+                                    No
+                                  </label>
+                                </div>
+                              </div>
+
+                              <div className="text-xs text-gray-600">
+                                <span>Section Mesh</span>
+
+                                <div className="mt-2 flex items-center gap-5">
+                                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                                    <input
+                                      type="radio"
+                                      name="section-mesh"
+                                      value="Yes"
+                                      checked={selectedNode.mesh === "Yes"}
+                                      disabled={selectedNode.systemType === "Sliding"}
+                                      onChange={() => {
+                                        if (selectedNode.systemType === "Sliding") return;
+
+                                        updateSelectedLeaves((target) => {
+                                          target.mesh = "Yes";
+                                        });
+                                      }}
+                                      className="h-4 w-4 accent-[#ef0b0b]"
+                                    />
+                                    Yes
+                                  </label>
+
+                                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                                    <input
+                                      type="radio"
+                                      name="section-mesh"
+                                      value="No"
+                                      checked={selectedNode.mesh === "No"}
+                                      disabled={selectedNode.systemType === "Sliding"}
+                                      onChange={() => {
+                                        if (selectedNode.systemType === "Sliding") return;
+
+                                        updateSelectedLeaves((target) => {
+                                          target.mesh = "No";
+                                        });
+                                      }}
+                                      className="h-4 w-4 accent-[#ef0b0b]"
+                                    />
+                                    No
+                                  </label>
+                                </div>
+                              </div>
+
                               {archControls}
                             </>
                           )}
-                          {canInsertExhaustFan && <label className="text-xs text-gray-600">Exhaust Fan Insert<select value={selectedNode.hasExhaustFan ? "Yes" : "No"} onChange={(e) => { const shouldInsert = e.target.value === "Yes"; updateSelectedLeaves((target) => { target.hasExhaustFan = shouldInsert; target.glass = "Yes"; target.mesh = "No"; target.exhaustFanX = DEFAULT_EXHAUST_FAN_X; target.exhaustFanY = DEFAULT_EXHAUST_FAN_Y; target.exhaustFanSize = DEFAULT_EXHAUST_FAN_SIZE; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="No">No</option><option value="Yes">Yes</option></select><div className="mt-1 text-[11px] text-gray-500">Fixed glass section will include the exhaust fan cut-out.</div></label>}
+
+                          {canInsertExhaustFan && (
+                            <div className="text-xs text-gray-600">
+                              <span>Exhaust Fan Insert</span>
+
+                              <div className="mt-2 flex items-center gap-5">
+                                <label className="flex items-center gap-2 text-sm text-gray-700">
+                                  <input
+                                    type="radio"
+                                    name="exhaust-fan"
+                                    value="Yes"
+                                    checked={selectedNode.hasExhaustFan}
+                                    onChange={() => {
+                                      updateSelectedLeaves((target) => {
+                                        target.hasExhaustFan = true;
+                                        target.glass = "Yes";
+                                        target.mesh = "No";
+                                        target.exhaustFanX = DEFAULT_EXHAUST_FAN_X;
+                                        target.exhaustFanY = DEFAULT_EXHAUST_FAN_Y;
+                                        target.exhaustFanSize = DEFAULT_EXHAUST_FAN_SIZE;
+                                      });
+                                    }}
+                                    className="h-4 w-4 accent-[#ef0b0b]"
+                                  />
+                                  Yes
+                                </label>
+
+                                <label className="flex items-center gap-2 text-sm text-gray-700">
+                                  <input
+                                    type="radio"
+                                    name="exhaust-fan"
+                                    value="No"
+                                    checked={!selectedNode.hasExhaustFan}
+                                    onChange={() => {
+                                      updateSelectedLeaves((target) => {
+                                        target.hasExhaustFan = false;
+                                      });
+                                    }}
+                                    className="h-4 w-4 accent-[#ef0b0b]"
+                                  />
+                                  No
+                                </label>
+                              </div>
+
+                              <div className="mt-1 text-[11px] text-gray-500">
+                                Fixed glass section will include the exhaust fan cut-out.
+                              </div>
+                            </div>
+                          )}
                           {hasAdjustableExhaustFan && (
                             <>
                               <label className="text-xs text-gray-600">Fan Horizontal Position<input type="range" min={18} max={82} step={1} value={Math.round((selectedNode.exhaustFanX ?? DEFAULT_EXHAUST_FAN_X) * 100)} onChange={(e) => { const value = Number(e.target.value) / 100; updateSelectedNode((target) => { target.exhaustFanX = clampValue(value, 0.18, 0.82); }); }} className="mt-2 w-full" /><div className="mt-1 text-[11px] text-gray-500">{Math.round((selectedNode.exhaustFanX ?? DEFAULT_EXHAUST_FAN_X) * 100)}%</div></label>
@@ -3990,14 +4160,14 @@ export function WindowDoorConfigurator({
                           )}
                           {selectedSystemSupportsCatalog && (
                             <>
-                              {!isCombinationChildSelection && <label className="text-xs text-gray-600">Color Finish<select value={selectedSectionMeta.colorFinish} onChange={(e) => updateSelectedSectionMeta({ colorFinish: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.colorFinishes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>}
-                              <label className="text-xs text-gray-600">Glass Spec<select value={selectedSectionMeta.glassSpec} onChange={(e) => updateSelectedSectionMeta({ glassSpec: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.glassSpecs.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
-                              {selectedNode.systemType === "Casement" && selectedNode.description !== "Fix" && (<label className="text-xs text-gray-600">Shutter Hardware<select value={selectedSectionMeta.hardwareOpeningType} onChange={(e) => updateSelectedSectionMeta({ hardwareOpeningType: e.target.value as "hinges" | "frictionStay" })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="hinges">Hinges</option><option value="frictionStay">Friction Stay</option></select></label>)}
-                              <label className="text-xs text-gray-600">Handle Type<select value={selectedSectionMeta.handleType} onChange={(e) => updateSelectedSectionMeta({ handleType: e.target.value, handleColor: DEFAULT_HANDLE_COLOR })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.handleOptions.map((opt: HandleOption) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
-                              <label className="text-xs text-gray-600">Handle Color<select value={selectedSectionMeta.handleColor} onChange={(e) => updateSelectedSectionMeta({ handleColor: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{(metaHandleOption?.colors ?? []).map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>
+                              {!isCombinationChildSelection && <label className="text-xs text-gray-600">Color Finish<CustomSelect value={selectedSectionMeta.colorFinish} onChange={(e) => updateSelectedSectionMeta({ colorFinish: e.target.value })} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.colorFinishes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</CustomSelect></label>}
+                              <label className="text-xs text-gray-600">Glass Spec<CustomSelect value={selectedSectionMeta.glassSpec} onChange={(e) => updateSelectedSectionMeta({ glassSpec: e.target.value })} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.glassSpecs.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</CustomSelect></label>
+                              {selectedNode.systemType === "Casement" && selectedNode.description !== "Fix" && (<label className="text-xs text-gray-600">Shutter Hardware<CustomSelect value={selectedSectionMeta.hardwareOpeningType} onChange={(e) => updateSelectedSectionMeta({ hardwareOpeningType: e.target.value as "hinges" | "frictionStay" })} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="hinges">Hinges</option><option value="frictionStay">Friction Stay</option></CustomSelect></label>)}
+                              <label className="text-xs text-gray-600">Handle Type<CustomSelect value={selectedSectionMeta.handleType} onChange={(e) => updateSelectedSectionMeta({ handleType: e.target.value, handleColor: DEFAULT_HANDLE_COLOR })} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.handleOptions.map((opt: HandleOption) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</CustomSelect></label>
+                              <label className="text-xs text-gray-600">Handle Color<CustomSelect value={selectedSectionMeta.handleColor} onChange={(e) => updateSelectedSectionMeta({ handleColor: e.target.value })} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{(metaHandleOption?.colors ?? []).map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</CustomSelect></label>
                             </>
                           )}
-                          {selectedSystemSupportsCatalog && (!isCombinationChildSelection || selectedNode.systemType === "Sliding") && <label className="text-xs text-gray-600">Mesh Type<select value={selectedSectionMeta.meshType} onChange={(e) => updateSelectedSectionMeta({ meshType: e.target.value })} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" disabled={selectedNode.mesh !== "Yes"}><option value="">Select</option>{metaOptionsQuery.data?.meshTypes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</select></label>}
+                          {selectedSystemSupportsCatalog && (!isCombinationChildSelection || selectedNode.systemType === "Sliding") && <label className="text-xs text-gray-600">Mesh Type<CustomSelect value={selectedSectionMeta.meshType} onChange={(e) => updateSelectedSectionMeta({ meshType: e.target.value })} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" disabled={selectedNode.mesh !== "Yes"}><option value="">Select</option>{metaOptionsQuery.data?.meshTypes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</CustomSelect></label>}
                           {isCombinationChildSelection ? (
                             <>
                               {selectedNode.systemType !== "Blank Area" && (
@@ -4013,7 +4183,7 @@ export function WindowDoorConfigurator({
                                         className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
                                       />
                                     ) : (
-                                      <select
+                                      <CustomSelect
                                         value={selectedNode.frameCutAngle}
                                         onChange={(e) => {
                                           const value = e.target.value as CutAngle;
@@ -4026,11 +4196,11 @@ export function WindowDoorConfigurator({
                                           target.frameCutAngle = value;
                                           push(next);
                                         }}
-                                        className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+                                        className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
                                       >
                                         <option value="45">45°</option>
                                         <option value="90">90°</option>
-                                      </select>
+                                      </CustomSelect>
                                     )}
                                   </label>
 
@@ -4045,7 +4215,7 @@ export function WindowDoorConfigurator({
                                         className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
                                       />
                                     ) : (
-                                      <select
+                                      <CustomSelect
                                         value={selectedNode.shutterCutAngle}
                                         onChange={(e) => {
                                           const value = e.target.value as CutAngle;
@@ -4058,11 +4228,11 @@ export function WindowDoorConfigurator({
                                           target.shutterCutAngle = value;
                                           push(next);
                                         }}
-                                        className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+                                        className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
                                       >
                                         <option value="45">45°</option>
                                         <option value="90">90°</option>
-                                      </select>
+                                      </CustomSelect>
                                     )}
                                   </label>
                                 </>
@@ -4074,7 +4244,7 @@ export function WindowDoorConfigurator({
 
                           ) : (
                             <>
-                              <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                              <label className="text-xs text-gray-600">Quantity<input type="number" min={1} value={meta.quantity} onChange={(e) => setMeta((prev) => ({ ...prev, quantity: Math.max(1, Number(e.target.value) || 1) }))} className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
 
                               <label className="text-xs text-gray-600">
                                 Frame Cut Angle
@@ -4083,11 +4253,11 @@ export function WindowDoorConfigurator({
                                     type="text"
                                     value="45°"
                                     disabled
-                                    className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
+                                    className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
                                   />
                                 ) : (
 
-                                  <select
+                                  <CustomSelect
                                     value={selectedNode.frameCutAngle}
                                     onChange={(e) => {
                                       const value = e.target.value as CutAngle;
@@ -4100,11 +4270,11 @@ export function WindowDoorConfigurator({
                                       target.frameCutAngle = value;
                                       push(next);
                                     }}
-                                    className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+                                    className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
                                   >
                                     <option value="45">45°</option>
                                     <option value="90">90°</option>
-                                  </select>
+                                  </CustomSelect>
                                 )}
                               </label>
 
@@ -4115,11 +4285,11 @@ export function WindowDoorConfigurator({
                                     type="text"
                                     value="45°"
                                     disabled
-                                    className="mt-1 w-full rounded-md border border-gray-400 bg-gray-100 px-2 py-2 text-sm cursor-not-allowed"
+                                    className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
                                   />
                                 ) : (
 
-                                  <select
+                                  <CustomSelect
                                     value={selectedNode.shutterCutAngle}
                                     onChange={(e) => {
                                       const value = e.target.value as CutAngle;
@@ -4132,11 +4302,11 @@ export function WindowDoorConfigurator({
                                       target.shutterCutAngle = value;
                                       push(next);
                                     }}
-                                    className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+                                    className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
                                   >
                                     <option value="45">45°</option>
                                     <option value="90">90°</option>
-                                  </select>
+                                  </CustomSelect>
                                 )}
                               </label>
 
@@ -4150,9 +4320,9 @@ export function WindowDoorConfigurator({
                                     result={singleRateCalculation}
                                     onCalculate={handleCalculateRate}
                                   />
-                                  <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={meta.rate} onChange={(e) => { setIsManualRate(true); setMeta((prev) => ({ ...prev, rate: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                                  <label className="text-xs text-gray-600">Rate<input type="number" min={0} value={meta.rate} onChange={(e) => { setIsManualRate(true); setMeta((prev) => ({ ...prev, rate: Number(e.target.value) || 0 })); }} className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                                 </>)}
-                              <label className="text-xs text-gray-600">Remarks<textarea value={meta.remarks} onChange={(e) => setMeta((prev) => ({ ...prev, remarks: e.target.value }))} rows={2} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657] resize-none" /></label>
+                              <label className="text-xs text-gray-600">Remarks<textarea value={meta.remarks} onChange={(e) => setMeta((prev) => ({ ...prev, remarks: e.target.value }))} rows={2} className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                             </>
                           )}
                         </>
@@ -4169,7 +4339,7 @@ export function WindowDoorConfigurator({
               <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"><span className="text-gray-500">Height</span><span className="font-semibold">{heightMm} mm</span></div>
               <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"><span className="text-gray-500">Area</span><span className="font-semibold">{effectiveAreaSqft} sq ft</span></div>
               <div className="pt-2">
-                <button type="button" onClick={handleSaveItem} disabled={isSaving} className="w-full rounded-lg bg-[#124657] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0b3642] disabled:opacity-60">{isSaving ? "Saving..." : editingItem ? "Update Item" : "Add to Quotation"}</button>
+                <button type="button" onClick={handleSaveItem} disabled={isSaving} className="w-full rounded-lg bg-[#0f172A] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0f172A] disabled:opacity-60">{isSaving ? "Saving..." : editingItem ? "Update Item" : "Add to Quotation"}</button>
                 <button type="button" onClick={onClose} className="mt-2 w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
               </div>
               <div className="text-xs text-gray-400">Selected: <span className="font-medium text-gray-600">{selectedId === null ? "None" : selectedNode.id === "root" ? "Whole Frame" : isSlidingPanelSelection ? `Sliding Panel ${selectedSlidingPanelIndex! + 1}` : "Section"}</span></div>

@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { AnimatePresence, motion } from "framer-motion";
+import { CustomSelect } from "@/components/ui/CustomSelect";
+
 import {
   Copy,
   Download,
@@ -13,6 +15,24 @@ import {
   Share2,
   Upload,
   ShoppingCart,
+  Scissors,
+  Box,
+  FileText,
+  Monitor,
+  ArrowLeft,
+  UserRound,
+  Mail,
+  Phone,
+  MapPin,
+  Building2,
+  MapPinned,
+  Hash,
+  X,
+  Image as ImageIcon,
+  Settings2,
+  Trash2
+
+
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -69,17 +89,17 @@ import type { DragEndEvent } from "@dnd-kit/core";
 import { rectSortingStrategy } from "@dnd-kit/sortable";
 
 
-type TabKey = "customer" | "quotation" | "global" | "item" | "bulk";
+type TabKey = "Details" | "global" | "item" | "bulk";
 
 const tabs: { key: TabKey; label: string }[] = [
-  { key: "customer", label: "Customer Details" },
-  { key: "quotation", label: "Quotation Details" },
+  { key: "Details", label: " Details" },
   { key: "global", label: "Global Config" },
   { key: "item", label: "Item List" },
   { key: "bulk", label: "Global Edit" },
 ];
 const isTabKey = (value: string | null): value is TabKey =>
-  value === "customer" || value === "quotation" || value === "global" || value === "item" || value === "bulk";
+  value === "Details" || value === "global" || value === "item" || value === "bulk";
+
 
 const formatDimensionMm = (value: number | string | undefined) => `${value ?? "-"} mm`;
 const formatSizeMm = (width: number | string | undefined, height: number | string | undefined) =>
@@ -124,33 +144,35 @@ const EXHAUST_FAN_RATE_SURCHARGE = 10;
 
 function ItemCard({
   item,
+  index,
   configuratorBasePath,
   onDeleteItem,
   onDuplicateItem,
 }: {
   item: QuotationItem;
+  index: number;
   configuratorBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
   onDuplicateItem: (
-  item: QuotationItem,
-  refCode: string,
-  dimensions?: {
-    parent: {
-      width: string;
-      height: string;
-    };
-    sections: {
-      width: string;
-      height: string;
-    }[];
-  }
-) => Promise<void>;
+    item: QuotationItem,
+    refCode: string,
+    dimensions?: {
+      parent: {
+        width: string;
+        height: string;
+      };
+      sections: {
+        width: string;
+        height: string;
+      }[];
+    }
+  ) => Promise<void>;
 }) {
   console.log("CARD ITEM", item);
   console.log(
-  "CONFIG LAYOUT",
-  item.configuratorLayout
-);
+    "CONFIG LAYOUT",
+    item.configuratorLayout
+  );
 
   const [showSections, setShowSections] = useState(false);
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
@@ -160,17 +182,17 @@ function ItemCard({
   const [duplicateCountInput, setDuplicateCountInput] = useState("1");
   const [duplicateRefCodes, setDuplicateRefCodes] = useState([""]);
   const [duplicateWindows, setDuplicateWindows] = useState<
-  {
-    parent: {
-      width: string;
-      height: string;
-    };
-    sections: {
-      width: string;
-      height: string;
-    }[];
-  }[]
->([]);
+    {
+      parent: {
+        width: string;
+        height: string;
+      };
+      sections: {
+        width: string;
+        height: string;
+      }[];
+    }[]
+  >([]);
   const [duplicateError, setDuplicateError] = useState("");
   const [isMutating, setIsMutating] = useState(false);
   const systemLabel = item.systemType || item.series || item.openingType || "Not configured";
@@ -202,64 +224,67 @@ function ItemCard({
     setDuplicateCountInput("1");
     setDuplicateRefCodes([""]);
     setDuplicateWindows([
-  {
-    parent: {
-      width: String(item.width),
-      height: String(item.height),
-    },
-    sections: (item.subItems ?? []).map((subItem) => ({
-      width: String(subItem.width),
-      height: String(subItem.height),
-    })),
-  },
-]);
+      {
+        parent: {
+          width: String(item.width),
+          height: String(item.height),
+        },
+        sections: (item.subItems ?? []).map((subItem) => ({
+          width: String(subItem.width),
+          height: String(subItem.height),
+        })),
+      },
+    ]);
     setDuplicateError("");
     setIsDuplicateModalOpen(true);
   };
 
 
   const confirmDuplicate = async () => {
-  const refCodes = duplicateRefCodes.map((code) => code.trim());
+    const refCodes = duplicateRefCodes.map((code) => code.trim());
 
-  if (refCodes.some((code) => !code)) {
-    setDuplicateError("Please enter all Ref Codes.");
-    return;
-  }
+    if (refCodes.some((code) => !code)) {
+      setDuplicateError("Please enter all Ref Codes.");
+      return;
+    }
 
-  const uniqueRefCodes = new Set(refCodes);
+    const uniqueRefCodes = new Set(refCodes);
 
-  if (uniqueRefCodes.size !== refCodes.length) {
-    setDuplicateError("Ref Codes must be unique.");
-    return;
-  }
+    if (uniqueRefCodes.size !== refCodes.length) {
+      setDuplicateError("Ref Codes must be unique.");
+      return;
+    }
 
-  setIsMutating(true);
+    setIsMutating(true);
 
-  try {
-    for (let index = 0; index < refCodes.length; index++) {
-  await onDuplicateItem(
-    item,
-    refCodes[index],
-    duplicateWindows[index]
-  );
-}
+    try {
+      for (let index = 0; index < refCodes.length; index++) {
+        await onDuplicateItem(
+          item,
+          refCodes[index],
+          duplicateWindows[index]
+        );
+      }
 
-    setIsDuplicateModalOpen(false);
-    setDuplicateStep(1);
-    setDuplicateCount(1);
-    setDuplicateCountInput("1");
-    setDuplicateRefCodes([""]);
-    setDuplicateError("");
-  } catch (error) {
-    console.error("Failed to duplicate quotation item", error);
-    setDuplicateError("Failed to duplicate this item.");
-  } finally {
-    setIsMutating(false);
-  }
-};
+      setIsDuplicateModalOpen(false);
+      setDuplicateStep(1);
+      setDuplicateCount(1);
+      setDuplicateCountInput("1");
+      setDuplicateRefCodes([""]);
+      setDuplicateError("");
+    } catch (error) {
+      console.error("Failed to duplicate quotation item", error);
+      setDuplicateError("Failed to duplicate this item.");
+    } finally {
+      setIsMutating(false);
+    }
+  };
   return (
     <>
       <div className="self-start space-y-2 rounded-2xl border bg-white p-3 shadow-sm transition hover:shadow-md">
+        <div className="px-1 text-xs font-medium text-gray-400">
+          {String(index + 1).padStart(2, "0")}
+        </div>
         <div className="flex h-60 items-center justify-center overflow-hidden rounded-xl border bg-white p-1">
           {item.refImage ? (
             <img src={item.refImage} alt={item.refCode || item.productType || "Quotation item"} className="h-full w-full object-contain" />
@@ -275,30 +300,58 @@ function ItemCard({
             </div>
           )}
         </div>
+        <div className="mt-3 space-y-3">
 
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-500">Ref Code</span>
-          <span className="font-semibold">{refCodeLabel}</span>
-        </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">
+                REF CODE
+              </p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">
+                {refCodeLabel}
+              </p>
+            </div>
 
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-500">Location</span>
-          <span className="text-right font-medium">{locationLabel}</span>
-        </div>
+            <div className="text-right">
+              <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">
+                RATE
+              </p>
+              <p className="mt-1 text-sm font-semibold text-red-500">
+                {/* {formatCurrency(item.rate ?? 0)} */}
+                {formatRateCurrency(item.rate ?? 0)}
+              </p>
+            </div>
+          </div>
 
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-500">System</span>
-          <span className="font-medium">{systemLabel}</span>
-        </div>
+          {/* Location + Area */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">
+                LOCATION
+              </p>
+              <p className="mt-1 text-xs font-semibold text-gray-900">
+                {locationLabel}
+              </p>
+            </div>
 
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-500">Area</span>
-          <span className="font-medium">{formatNumber(item.area ?? getArea(item))} sq.ft</span>
-        </div>
+            <div className="text-right">
+              <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">
+                AREA
+              </p>
+              <p className="mt-1 text-xs font-semibold text-gray-900">
+                {formatNumber(item.area ?? getArea(item))} sq.ft
+              </p>
+            </div>
+          </div>
+          <div>
+            <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">
+              SYSTEM
+            </p>
+            <p className="mt-1 text-xs font-semibold text-gray-900">
+              {systemLabel}
+            </p>
+          </div>
 
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-500">Rate</span>
-          <span className="font-medium">{formatRateCurrency(item.rate ?? 0)}</span>
         </div>
         {/*  Arch Note */}
         {item?.systemType?.toLowerCase() === "casement" &&
@@ -309,24 +362,25 @@ function ItemCard({
             </div>
           )}
 
-        <div className="flex flex-wrap items-center gap-2 border-t pt-2" onPointerDown={(event) => event.stopPropagation()}>
-          <Button size="sm" asChild className="bg-[#124657] hover:bg-[#0b3642]">
+        <div className="flex flex-nowwrap items-center gap-1 border-t pt-2" onPointerDown={(event) => event.stopPropagation()}>
+          <Button size="sm" asChild className=" h-8 shrink-0 px-2.5 bg-[#0F172A] hover:bg-[#0F172A]">
             <Link href={`${configuratorBasePath}/${itemIdentity}`}>Edit</Link>
           </Button>
-          <Button size="sm" variant="outline" onClick={handleDuplicate} title="Duplicate item">
+          <Button size="sm" variant="outline" onClick={handleDuplicate} title="Duplicate item" className=" h-8 shrink-0  gap-1 px-2.5 whitespace-nowrap">
             <Copy className="h-4 w-4" />
             Duplicate
           </Button>
           {hasSections ? (
-            <Button size="sm" variant="outline" onClick={() => setShowSections(true)}>
+            <Button size="sm" variant="outline" onClick={() => setShowSections(true)} className="h-8 shrink-0 px-2.5 whitespace-nowrap">
               Show Sections
             </Button>
           ) : null}
-          <Button size="sm" variant="outline" onClick={handleDelete} className="text-red-600 hover:text-red-700">
-            Delete
+          <Button size="sm" variant="outline" onClick={handleDelete} className="h-10 w-10 shrink-0 text-red-600 hover:text-red-700">
+            <Trash2 className="h-6 w-6" />
           </Button>
         </div>
       </div>
+      {/* </div> */}
       {showSections ? (
         <div className="fixed inset-0 z-[220] flex items-center justify-center bg-slate-950/60 p-4" onPointerDown={(event) => event.stopPropagation()}>
           <div className="w-full max-w-5xl rounded-2xl bg-white shadow-2xl">
@@ -335,14 +389,14 @@ function ItemCard({
                 <h3 className="text-lg font-semibold text-slate-900">Sections</h3>
                 <p className="text-sm text-slate-500">{refCodeLabel} | {locationLabel}</p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => setShowSections(false)}>
+              <Button variant="outline" size="sm" onClick={() => setShowSections(false)} className="border-[#0F172A] bg-[#0F172A] text-white hover:bg-[#0F172A] hover:text-white">
                 Close
               </Button>
             </div>
             <div className="max-h-[70vh] overflow-auto p-6">
               <table className="w-full min-w-[760px] border-collapse text-sm">
                 <thead>
-                  <tr className="border-b text-left text-slate-500">
+                  <tr className="border-b text-left text-slate-900">
                     <th className="px-3 py-2 font-medium">Ref Code</th>
                     <th className="px-3 py-2 font-medium">Location</th>
                     <th className="px-3 py-2 font-medium">System</th>
@@ -386,293 +440,292 @@ function ItemCard({
       ) : null}
       {isDuplicateModalOpen ? (
         <div className="fixed inset-0 z-[230] flex items-center justify-center bg-slate-950/60 p-4" onPointerDown={(event) => event.stopPropagation()}>
-          {/* <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"> */}
           <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl">
-             <div className="overflow-y-auto p-6">
-            <h3 className="text-lg font-semibold text-slate-900">Duplicate Item</h3>
-            <p className="mt-1 text-sm text-slate-500">Enter a new ref code for {refCodeLabel}.</p>
-            {duplicateStep === 1 && (
-            <label className="mt-5 block text-sm font-medium text-slate-700">
-  Number of  Duplicate Windows you want to make?
-<input
-  type="number"
-  min={1}
-  max={100}
-  value={duplicateCountInput}
-  onFocus={(event) => event.target.select()}
-  onChange={(event) => {
-    const value = event.target.value;
-    setDuplicateCountInput(value);
-    if (value === "") {
-      return;
-    }
+            <div className="overflow-y-auto p-6">
+              <h3 className="text-lg font-semibold text-slate-900">Duplicate Item</h3>
+              <p className="mt-1 text-sm text-slate-500">Enter a new ref code for {refCodeLabel}.</p>
+              {duplicateStep === 1 && (
+                <label className="mt-5 block text-sm font-medium text-slate-700">
+                  Number of  Duplicate Windows you want to make?
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={duplicateCountInput}
+                    onFocus={(event) => event.target.select()}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setDuplicateCountInput(value);
+                      if (value === "") {
+                        return;
+                      }
 
-    const count = Math.max(
-      1,
-      Math.min(100, Number(value))
-    );
-    setDuplicateCount(count);
+                      const count = Math.max(
+                        1,
+                        Math.min(100, Number(value))
+                      );
+                      setDuplicateCount(count);
 
-    setDuplicateRefCodes((prev) => {
-      const next = [...prev];
+                      setDuplicateRefCodes((prev) => {
+                        const next = [...prev];
 
-      while (next.length < count) {
-        next.push("");
-      }
+                        while (next.length < count) {
+                          next.push("");
+                        }
 
-      return next.slice(0, count);
-    });
+                        return next.slice(0, count);
+                      });
 
-    setDuplicateError("");
-  }}
-  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
-/>
-</label>
-)}
-            {duplicateStep === 2 && (
+                      setDuplicateError("");
+                    }}
+                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+                  />
+                </label>
+              )}
+              {duplicateStep === 2 && (
 
-            <div className="mt-5 space-y-4">
+                <div className="mt-5 space-y-4">
 
-  {duplicateRefCodes.map((refCode, index) => (
-  <div
-    key={index}
-    className="rounded-lg border border-slate-200 p-4"
-  >
-    <div className="grid grid-cols-3 gap-4">
-      <label className="text-sm font-medium text-slate-700">
-        Ref Code {index + 1}
-        <input
-          value={refCode}
-          onChange={(event) => {
-            const value = event.target.value;
+                  {duplicateRefCodes.map((refCode, index) => (
+                    <div
+                      key={index}
+                      className="rounded-lg border border-slate-200 p-4"
+                    >
+                      <div className="grid grid-cols-3 gap-4">
+                        <label className="text-sm font-medium text-slate-700">
+                          Ref Code {index + 1}
+                          <input
+                            value={refCode}
+                            onChange={(event) => {
+                              const value = event.target.value;
 
-            setDuplicateRefCodes((prev) => {
-              const next = [...prev];
-              next[index] = value;
-              return next;
-            });
+                              setDuplicateRefCodes((prev) => {
+                                const next = [...prev];
+                                next[index] = value;
+                                return next;
+                              });
 
-            setDuplicateError("");
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") confirmDuplicate();
-            if (event.key === "Escape") setIsDuplicateModalOpen(false);
-          }}
-          autoFocus={index === 0}
-          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
-        />
-      </label>
+                              setDuplicateError("");
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") confirmDuplicate();
+                              if (event.key === "Escape") setIsDuplicateModalOpen(false);
+                            }}
+                            autoFocus={index === 0}
+                            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+                          />
+                        </label>
 
-      <label className="text-sm font-medium text-slate-700">
-         Width
-        <input
-          type="number"
-          value={duplicateWindows[index]?.parent.width ?? ""}
-          onChange={(event) => {
-            const value = event.target.value;
+                        <label className="text-sm font-medium text-slate-700">
+                          Width
+                          <input
+                            type="number"
+                            value={duplicateWindows[index]?.parent.width ?? ""}
+                            onChange={(event) => {
+                              const value = event.target.value;
 
-            setDuplicateWindows((prev) => {
-              const next = [...prev];
+                              setDuplicateWindows((prev) => {
+                                const next = [...prev];
 
-              next[index] = {
-                ...next[index],
-                parent: {
-                  ...next[index].parent,
-                  width: value,
-                },
-              };
+                                next[index] = {
+                                  ...next[index],
+                                  parent: {
+                                    ...next[index].parent,
+                                    width: value,
+                                  },
+                                };
 
-              return [...next];
-            });
-          }}
-          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
-        />
-      </label>
+                                return [...next];
+                              });
+                            }}
+                            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+                          />
+                        </label>
 
-      <label className="text-sm font-medium text-slate-700">
-         Height
-        <input
-          type="number"
-          value={duplicateWindows[index]?.parent.height ?? ""}
-          onChange={(event) => {
-            const value = event.target.value;
+                        <label className="text-sm font-medium text-slate-700">
+                          Height
+                          <input
+                            type="number"
+                            value={duplicateWindows[index]?.parent.height ?? ""}
+                            onChange={(event) => {
+                              const value = event.target.value;
 
-            setDuplicateWindows((prev) => {
-              const next = [...prev];
+                              setDuplicateWindows((prev) => {
+                                const next = [...prev];
 
-              next[index] = {
-                ...next[index],
-                parent: {
-                  ...next[index].parent,
-                  height: value,
-                },
-              };
+                                next[index] = {
+                                  ...next[index],
+                                  parent: {
+                                    ...next[index].parent,
+                                    height: value,
+                                  },
+                                };
 
-              return [...next];
-            });
-          }}
-          className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
-        />
-      </label>
-    </div>
+                                return [...next];
+                              });
+                            }}
+                            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+                          />
+                        </label>
+                      </div>
 
-    {duplicateWindows[index]?.sections.length ? (
-      <div className="mt-4 space-y-3">
-        {duplicateWindows[index].sections.map((section, sectionIndex) => (
-          <div
-            key={sectionIndex}
-            className="rounded-lg border border-slate-200 p-3"
-          >
-            <p className="mb-3 text-sm font-semibold text-slate-700">
-              Window {sectionIndex + 1}
-            </p>
+                      {duplicateWindows[index]?.sections.length ? (
+                        <div className="mt-4 space-y-3">
+                          {duplicateWindows[index].sections.map((section, sectionIndex) => (
+                            <div
+                              key={sectionIndex}
+                              className="rounded-lg border border-slate-200 p-3"
+                            >
+                              <p className="mb-3 text-sm font-semibold text-slate-700">
+                                Window {sectionIndex + 1}
+                              </p>
 
-            <div className="grid grid-cols-2 gap-3">
-              <label className="text-sm font-medium text-slate-700">
-                Width
-                <input
-                  type="number"
-                  value={section.width}
-                  onChange={(event) => {
-                    const value = event.target.value;
+                              <div className="grid grid-cols-2 gap-3">
+                                <label className="text-sm font-medium text-slate-700">
+                                  Width
+                                  <input
+                                    type="number"
+                                    value={section.width}
+                                    onChange={(event) => {
+                                      const value = event.target.value;
 
-                    setDuplicateWindows((prev) => {
-                      const next = [...prev];
+                                      setDuplicateWindows((prev) => {
+                                        const next = [...prev];
 
-                      next[index].sections[sectionIndex] = {
-                        ...next[index].sections[sectionIndex],
-                        width: value,
-                      };
+                                        next[index].sections[sectionIndex] = {
+                                          ...next[index].sections[sectionIndex],
+                                          width: value,
+                                        };
 
-                      return [...next];
-                    });
-                  }}
-                  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
-                />
-              </label>
+                                        return [...next];
+                                      });
+                                    }}
+                                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+                                  />
+                                </label>
 
-              <label className="text-sm font-medium text-slate-700">
-                Height
-                <input
-                  type="number"
-                  value={section.height}
-                  onChange={(event) => {
-                    const value = event.target.value;
+                                <label className="text-sm font-medium text-slate-700">
+                                  Height
+                                  <input
+                                    type="number"
+                                    value={section.height}
+                                    onChange={(event) => {
+                                      const value = event.target.value;
 
-                    setDuplicateWindows((prev) => {
-                      const next = [...prev];
+                                      setDuplicateWindows((prev) => {
+                                        const next = [...prev];
 
-                      next[index].sections[sectionIndex] = {
-                        ...next[index].sections[sectionIndex],
-                        height: value,
-                      };
+                                        next[index].sections[sectionIndex] = {
+                                          ...next[index].sections[sectionIndex],
+                                          height: value,
+                                        };
 
-                      return [...next];
-                    });
-                  }}
-                  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
-                />
-              </label>
-            </div>
-          </div>
-        ))}
-      </div>
-    ) : null}
-  </div>
-))}
-</div>
-            )}
-            {duplicateError ? <p className="mt-2 text-sm text-red-600">{duplicateError}</p> : null}
+                                        return [...next];
+                                      });
+                                    }}
+                                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]/20"
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {duplicateError ? <p className="mt-2 text-sm text-red-600">{duplicateError}</p> : null}
             </div>
             <div className="border-t p-6">
-            <div className="mt-6 flex justify-end gap-2">
-  <Button
-    variant="outline"
-    size="sm"
-    onClick={() => {
-      if (duplicateStep === 2) {
-        setDuplicateStep(1);
-        setDuplicateError("");
-        return;
-      }
+              <div className="mt-6 flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (duplicateStep === 2) {
+                      setDuplicateStep(1);
+                      setDuplicateError("");
+                      return;
+                    }
 
-      setIsDuplicateModalOpen(false);
-      setDuplicateError("");
-    }}
-  >
-    {duplicateStep === 2 ? "Back" : "Cancel"}
-  </Button>
+                    setIsDuplicateModalOpen(false);
+                    setDuplicateError("");
+                  }}
+                >
+                  {duplicateStep === 2 ? "Back" : "Cancel"}
+                </Button>
 
-  {duplicateStep === 1 ? (
-    <Button
-      size="sm"
-      className="bg-[#124657] hover:bg-[#0b3642]"
-      onClick={() => {
-  const count = Number(duplicateCountInput);
+                {duplicateStep === 1 ? (
+                  <Button
+                    size="sm"
+                    className="bg-[#0F172A] hover:bg-[#0F172A]"
+                    onClick={() => {
+                      const count = Number(duplicateCountInput);
 
-  if (!duplicateCountInput.trim()) {
-    setDuplicateError("Please enter the number of windows.");
-    return;
-  }
+                      if (!duplicateCountInput.trim()) {
+                        setDuplicateError("Please enter the number of windows.");
+                        return;
+                      }
 
-  if (Number.isNaN(count) || count < 1 || count > 100) {
-    setDuplicateError("Number of windows must be between 1 and 100.");
-    return;
-  }
+                      if (Number.isNaN(count) || count < 1 || count > 100) {
+                        setDuplicateError("Number of windows must be between 1 and 100.");
+                        return;
+                      }
 
-  setDuplicateCount(count);
+                      setDuplicateCount(count);
 
-  setDuplicateRefCodes((prev) => {
-    const next = [...prev];
+                      setDuplicateRefCodes((prev) => {
+                        const next = [...prev];
 
-    while (next.length < count) {
-      next.push("");
-    }
+                        while (next.length < count) {
+                          next.push("");
+                        }
 
-    return next.slice(0, count);
-  });
-  setDuplicateWindows((prev) => {
-  const template =
-    prev[0] ?? {
-      parent: {
-        width: String(item.width),
-        height: String(item.height),
-      },
-      sections: (item.subItems ?? []).map((subItem) => ({
-        width: String(subItem.width),
-        height: String(subItem.height),
-      })),
-    };
+                        return next.slice(0, count);
+                      });
+                      setDuplicateWindows((prev) => {
+                        const template =
+                          prev[0] ?? {
+                            parent: {
+                              width: String(item.width),
+                              height: String(item.height),
+                            },
+                            sections: (item.subItems ?? []).map((subItem) => ({
+                              width: String(subItem.width),
+                              height: String(subItem.height),
+                            })),
+                          };
 
-  return Array.from({ length: count }, () => ({
-    parent: {
-      ...template.parent,
-    },
-    sections: template.sections.map((section) => ({
-      ...section,
-    })),
-  }));
-});
+                        return Array.from({ length: count }, () => ({
+                          parent: {
+                            ...template.parent,
+                          },
+                          sections: template.sections.map((section) => ({
+                            ...section,
+                          })),
+                        }));
+                      });
 
-  setDuplicateError("");
-  setDuplicateStep(2);
-}}
-    >
-      Next
-    </Button>
-  ) : (
-    <Button
-      size="sm"
-      onClick={confirmDuplicate}
-      disabled={isMutating}
-      className="bg-[#124657] hover:bg-[#0b3642]"
-    >
-      {isMutating ? "Saving..." : "Duplicate"}
-    </Button>
-  )}
-</div>
+                      setDuplicateError("");
+                      setDuplicateStep(2);
+                    }}
+                  >
+                    Next
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={confirmDuplicate}
+                    disabled={isMutating}
+                    className="bg-[#0F172A] hover:bg-[#0F172A]"
+                  >
+                    {isMutating ? "Saving..." : "Duplicate"}
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
         </div>
       ) : null}
     </>
@@ -682,27 +735,29 @@ function ItemCard({
 // function for drag and drop
 function SortableItem({
   item,
+  index,
   configuratorBasePath,
   onDeleteItem,
   onDuplicateItem,
 }: {
   item: QuotationItem;
+  index: number;
   configuratorBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
   onDuplicateItem: (
-  item: QuotationItem,
-  refCode: string,
-  dimensions?: {
-    parent: {
-      width: string;
-      height: string;
-    };
-    sections: {
-      width: string;
-      height: string;
-    }[];
-  }
-) => Promise<void>;
+    item: QuotationItem,
+    refCode: string,
+    dimensions?: {
+      parent: {
+        width: string;
+        height: string;
+      };
+      sections: {
+        width: string;
+        height: string;
+      }[];
+    }
+  ) => Promise<void>;
 }) {
   const {
     attributes,
@@ -721,6 +776,7 @@ function SortableItem({
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <ItemCard
         item={item}
+        index={index}
         configuratorBasePath={configuratorBasePath}
         onDeleteItem={onDeleteItem}
         onDuplicateItem={onDuplicateItem}
@@ -788,19 +844,19 @@ function ItemTab({
   quotationBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
   onDuplicateItem: (
-  item: QuotationItem,
-  refCode: string,
-  dimensions?: {
-    parent: {
-      width: string;
-      height: string;
-    };
-    sections: {
-      width: string;
-      height: string;
-    }[];
-  }
-) => Promise<void>;
+    item: QuotationItem,
+    refCode: string,
+    dimensions?: {
+      parent: {
+        width: string;
+        height: string;
+      };
+      sections: {
+        width: string;
+        height: string;
+      }[];
+    }
+  ) => Promise<void>;
   onReorderItems: (startIndex: number, endIndex: number) => Promise<void>;
 }) {
   const quotation = useQuotationBuilderStore((state) => state.quotation);
@@ -809,8 +865,8 @@ function ItemTab({
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-const endIndex = startIndex + ITEMS_PER_PAGE;
-const currentItems = items.slice(startIndex, endIndex);
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const currentItems = items.slice(startIndex, endIndex);
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
   const router = useRouter();
   const profit = Number(quotation.breakdown?.profitPercentage) || 0;
@@ -819,12 +875,27 @@ const currentItems = items.slice(startIndex, endIndex);
   const [optimizedFinal, setOptimizedFinal] = useState<number | null>(null);
   const [isCalculatingOptimizedFinal, setIsCalculatingOptimizedFinal] = useState(false);
   const [optimizedFinalError, setOptimizedFinalError] = useState("");
+  const [isSummaryFixed, setIsSummaryFixed] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsSummaryFixed(window.scrollY > 250);
+    };
+
+    handleScroll();
+
+    window.addEventListener("scroll", handleScroll);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   const totalQuantity = items.reduce((sum, item) => sum + Math.max(1, item.quantity || 1), 0);
-  const totalArea = items.reduce((sum, item) => 
-  sum + (item.area || 0) * Math.max(1, item.quantity || 1), 0);
+  const totalArea = items.reduce((sum, item) =>
+    sum + (item.area || 0) * Math.max(1, item.quantity || 1), 0);
   const totalAmount = items.reduce((sum, item) => {
-     const area = item.area || 0;
+    const area = item.area || 0;
     const rate = item.rate || 0;
     const qty = item.quantity || 1;
     let amount = area * rate * qty;
@@ -925,107 +996,202 @@ const currentItems = items.slice(startIndex, endIndex);
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto rounded-2xl border bg-slate-950 px-4 py-4 text-white">
-        <div className="flex items-start">
-          <div className="grid min-w-[840px] flex-1 grid-cols-7 gap-x-3">
-            <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Quantity</div>
-              <div className="mt-1 text-xl font-bold">{totalQuantity}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Area (sqft.)</div>
-              <div className="mt-1 text-xl font-bold">{formatNumber(totalArea)}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Total Cost</div>
-              <div className="mt-1 text-xl font-bold">{formatCurrency(totalCost)}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Profit %</div>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={profitInput}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (!/^\d*(?:\.\d*)?$/.test(value)) return;
-                  setProfitInput(value);
-                  updateProfit(value.trim() === "" ? 0 : Number(value));
-                }}
-                className="mt-1 w-20 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm text-white"
-              />
-            </div>
-            <div>
-              <div className="whitespace-nowrap text-xs uppercase tracking-[0.12em] text-slate-400">Selling Price</div>
-              <div className="mt-1 text-xl font-bold">{formatCurrency(finalAmount)}</div>
-            </div>
-            <div>
-              <div className="whitespace-nowrap text-xs uppercase tracking-[0.12em] text-slate-400">Customer Price</div>
-              <div className="mt-1 text-xl font-bold">{formatCurrency(finalWithGST)}</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Rate per sqft.</div>
-              <div className="mt-1 text-xl font-bold">{formatCurrency(ratePerSqft)}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext
           items={items.map((item) => item.id)}
           strategy={rectSortingStrategy}
         >
-          <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-4">
+            <div className="lg:col-span-3">
+              <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
 
 
-            {currentItems.map((item) => (
-              <SortableItem
-                key={item.id}
-                item={item}
-                configuratorBasePath={configuratorBasePath}
-                onDeleteItem={onDeleteItem}
-                onDuplicateItem={onDuplicateItem}
-              />
-            ))}
+                {currentItems.map((item, index) => (
+                  <SortableItem
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    configuratorBasePath={configuratorBasePath}
+                    onDeleteItem={onDeleteItem}
+                    onDuplicateItem={onDuplicateItem}
+                  />
+                ))}
+              </div>
+            </div>
+            {/* QUOTATION SUMMARY */}
+            <div className="lg:col-span-1">
+              <div
+                className={
+                  isSummaryFixed
+                    ? "fixed right-6 top-4 z-50 w-[320px]"
+                    : ""
+                }
+              >
+                <div className="rounded-2xl bg-slate-950 p-4 text-white shadow-lg">
+                  <div className="mb-4">
+                    <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-white">
+                      Quotation Summary
+                    </h3>
+                  </div>
 
-            {/* <button
-        type="button"
-        onClick={handleAddItem}
-        className="flex min-h-[260px] flex-col items-center justify-center self-start rounded-2xl border-2 border-dashed border-slate-300 bg-white p-6 text-center transition hover:border-[#124657] hover:bg-slate-50"
-      >
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#124657] text-white">
-          <Plus className="h-7 w-7" />
-        </div>
-        <div className="mt-4 text-lg font-semibold text-slate-900">Add Item</div>
-        <div className="mt-2 max-w-[220px] text-sm text-slate-500">
-          Open the window configurator and add the next quotation item.
-        </div>
-      </button> */}
+                  <div className="space-y-4">
+
+                    {/* Quantity */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-400">◈</span>
+                        <span className="text-xs uppercase tracking-wide text-slate-400">
+                          Quantity
+                        </span>
+                      </div>
+
+                      <span className="text-sm font-semibold">
+                        {totalQuantity}
+                      </span>
+                    </div>
+
+                    {/* Area */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-400">↗</span>
+                        <span className="text-xs uppercase tracking-wide text-slate-400">
+                          Area
+                        </span>
+                      </div>
+
+                      <span className="text-sm font-semibold">
+                        {formatNumber(totalArea)}{" "}
+                        <span className="text-[9px] font-normal text-slate-500">
+                          sqft
+                        </span>
+                      </span>
+                    </div>
+
+                    {/* Total Cost */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-400">▣</span>
+                        <span className="text-xs uppercase tracking-wide text-slate-400">
+                          Total Cost
+                        </span>
+                      </div>
+
+                      <span className="text-sm font-semibold">
+                        {formatCurrency(totalAmount)}
+                      </span>
+                    </div>
+
+                    {/* Profit */}
+                    <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-emerald-400">⌁</span>
+                        <span className="text-xs font-semibold uppercase tracking-wide text-emerald-400">
+                          Profit
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={profitInput}
+                          onChange={(e) => {
+                            const value = e.target.value;
+
+                            if (!/^\d*(?:\.\d*)?$/.test(value)) return;
+
+                            setProfitInput(value);
+                            updateProfit(
+                              value.trim() === "" ? 0 : Number(value)
+                            );
+                          }}
+                          className="h-7 w-12 rounded-md border border-slate-700 bg-slate-900 px-2 text-center text-xs text-white outline-none focus:border-slate-500"
+                        />
+
+                        <span className="text-xs text-slate-400">%</span>
+                      </div>
+                    </div>
+
+                    {/* Selling Price */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-400">◇</span>
+                        <div>
+                          <div className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                            Selling Price
+                          </div>
+                        </div>
+                      </div>
+
+                      <span className="text-sm font-semibold">
+                        {formatCurrency(finalAmount)}
+                      </span>
+                    </div>
+
+                    {/* Customer Price */}
+                    <div className="rounded-xl bg-slate-900 p-3">
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 text-red-500">♧</span>
+
+                        <div>
+                          <div className="text-xs uppercase tracking-[0.14em] text-red-500">
+                            Customer Price
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-1 text-lg font-bold text-red-500">
+                        {formatCurrency(finalWithGST)}
+                      </div>
+                    </div>
+
+                    {/* Rate */}
+                    <div className="mt-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2.5">
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-slate-400">▣</span>
+
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          Rate:
+                        </span>
+
+                        <span className="text-xs font-semibold text-slate-300">
+                          {formatCurrency(ratePerSqft)} / SQFT
+                        </span>
+                      </div>
+                    </div>
+
+
+
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
 
           </div>
-           {/* Pagination */}
-  <div className="flex justify-center gap-2 mt-6">
-    <Button
-      variant="outline"
-      disabled={currentPage === 1}
-      onClick={() => setCurrentPage((p) => p - 1)}
-    >
-      Previous
-    </Button>
+          {/* Pagination */}
+          <div className="flex justify-center gap-2 mt-6">
+            <Button
+              variant="outline"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => p - 1)}
+            >
+              Previous
+            </Button>
 
-    <span className="px-4 py-2">
-      Page {currentPage} of {totalPages}
-    </span>
+            <span className="px-4 py-2">
+              Page {currentPage} of {totalPages}
+            </span>
 
-    <Button
-      variant="outline"
-      disabled={currentPage === totalPages}
-      onClick={() => setCurrentPage((p) => p + 1)}
-    >
-      Next
-    </Button>
-  </div>
+            <Button
+              variant="outline"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
 
         </SortableContext>
       </DndContext>
@@ -1035,6 +1201,8 @@ const currentItems = items.slice(startIndex, endIndex);
 function CustomerTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSaving: boolean }) {
   const customer = useQuotationBuilderStore((state) => state.quotation.customerDetails);
   const updateCustomer = useQuotationBuilderStore((state) => state.updateCustomer);
+  const quotationDetails = useQuotationBuilderStore((s) => s.quotation.quotationDetails);
+  const updateQuotationField = useQuotationBuilderStore((s) => s.updateQuotationField);
   const customerValues = customer ?? {
     name: "",
     phone: "",
@@ -1052,128 +1220,265 @@ function CustomerTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSavi
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="mb-6 flex w-full items-center justify-between text-left"
+        className="mb-5 flex w-full items-start justify-between text-left"
       >
-        <h2 className="text-xl font-bold text-gray-900">Customer Details</h2>
-        <span>{expanded ? "▲" : "▼"}</span>
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
+            <UserRound className="h-4 w-4 text-slate-600" />
+          </div>
+
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">
+              Customer Profile
+            </h2>
+
+            <p className="mt-1 text-xs text-slate-500">
+              Manage the primary contact and billing address for this quotation.
+            </p>
+          </div>
+        </div>
+
+        <span className="pt-1 text-sm text-slate-950">
+          {expanded ? "▲" : "▼"}
+        </span>
       </button>
 
       {expanded && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="mt-2 border-t border-slate-100 pt-6">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
 
-          {/* Customer Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Name
-            </label>
-            <input
-              type="text"
-              value={customerValues.name}
-              onChange={(e) =>
-                updateCustomer("name", e.target.value)
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
+            <div>
+              <h3 className="mb-5 text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
+                Contact Information
+              </h3>
+
+              <div className="space-y-4">
+
+
+                <div>
+                  <label className="mb-2 block text-xs font-medium text-slate-700">
+                    Full Name
+                  </label>
+
+                  <div className="relative">
+                    <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                    <input
+                      type="text"
+                      value={customerValues.name}
+                      onChange={(e) =>
+                        updateCustomer("name", e.target.value)
+                      }
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                    />
+                  </div>
+                </div>
+
+
+                <div>
+                  <label className="mb-2 block text-xs font-medium text-slate-700">
+                    Email Address
+                  </label>
+
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                    <input
+                      type="email"
+                      value={customerValues.email}
+                      onChange={(e) =>
+                        updateCustomer("email", e.target.value)
+                      }
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                    />
+                  </div>
+                </div>
+
+
+                <div>
+                  <label className="mb-2 block text-xs font-medium text-slate-700">
+                    Phone Number
+                  </label>
+
+                  <div className="relative">
+                    <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                    <input
+                      type="tel"
+                      value={customerValues.phone}
+                      onChange={(e) =>
+                        updateCustomer("phone", e.target.value)
+                      }
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                    />
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+
+            <div>
+              <h3 className="mb-5 text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
+                Billing Address
+              </h3>
+
+              <div className="space-y-4">
+
+
+                <div>
+                  <label className="mb-2 block text-xs font-medium text-slate-700">
+                    Street Address
+                  </label>
+
+                  <div className="relative">
+                    <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                    <textarea
+                      value={customerValues.address}
+                      onChange={(e) =>
+                        updateCustomer("address", e.target.value)
+                      }
+                      rows={1}
+                      className="min-h-[44px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                    />
+                  </div>
+                </div>
+
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+
+                  <div>
+                    <label className="mb-2 block text-xs font-medium text-slate-700">
+                      City
+                    </label>
+
+                    <div className="relative">
+                      <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                      <input
+                        type="text"
+                        value={customerValues.city || ""}
+                        onChange={(e) =>
+                          updateCustomer("city", e.target.value)
+                        }
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                      />
+                    </div>
+                  </div>
+
+
+                  <div>
+                    <label className="mb-2 block text-xs font-medium text-slate-700">
+                      State
+                    </label>
+
+                    <div className="relative">
+                      <MapPinned className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                      <input
+                        type="text"
+                        value={customerValues.state || ""}
+                        onChange={(e) =>
+                          updateCustomer("state", e.target.value)
+                        }
+                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                      />
+                    </div>
+                  </div>
+
+                </div>
+
+
+                <div>
+                  <label className="mb-2 block text-xs font-medium text-slate-700">
+                    PIN Code
+                  </label>
+
+                  <div className="relative">
+                    <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                    <input
+                      type="text"
+                      value={customerValues.pincode || ""}
+                      onChange={(e) =>
+                        updateCustomer("pincode", e.target.value)
+                      }
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                    />
+                  </div>
+                </div>
+
+              </div>
+            </div>
           </div>
+          <div className=" mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="col-span-1 md:col-span-2 flex items-center gap-3">
+              <FileText className="h-7 w-7 text-slate-400" />
 
-          {/* Email */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address
-            </label>
-            <input
-              type="email"
-              value={customerValues.email}
-              onChange={(e) =>
-                updateCustomer("email", e.target.value)
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
+              <h2 className="text-base font-semibold text-slate-900">
+                Quotation Details
+              </h2>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-xs font-medium text-slate-700">
+                Date
+              </label>
+              <input
+                type="date"
+                value={quotationDetails.date || ""}
+                onChange={(e) =>
+                  updateQuotationField("date", e.target.value)
+                }
+                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-3 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+              />
+            </div>
+
+
+            <div>
+              <label className="mb-2 block text-xs font-medium text-slate-700">
+                Opportunity Stage
+              </label>
+
+              <div className="relative">
+                <CustomSelect
+                  value={quotationDetails.opportunity || "Enquiry"}
+                  onChange={(e) =>
+                    updateQuotationField("opportunity", e.target.value)
+                  }
+                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+                >
+                  <option value="Enquiry">Enquiry</option>
+                  <option value="Quoted">Quoted</option>
+                  <option value="Under Negotiation">Under Negotiation</option>
+                  <option value="Order Confirmed">Order Confirmed</option>
+                  <option value="Order Lost">Order Lost</option>
+                </CustomSelect>
+
+              </div>
+            </div>
+
           </div>
-
-          {/* Phone */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number
-            </label>
-            <input
-              type="tel"
-              value={customerValues.phone}
-              onChange={(e) =>
-                updateCustomer("phone", e.target.value)
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-
-          {/* Address */}
-          <div className="md:col-span-3">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Address
-            </label>
-            <textarea
-              value={customerValues.address}
-              onChange={(e) =>
-                updateCustomer("address", e.target.value)
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-
-          {/* City */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              City
-            </label>
-            <input
-              type="text"
-              value={customerValues.city || ""}
-              onChange={(e) =>
-                updateCustomer("city", e.target.value)
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-
-          {/* State */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              State
-            </label>
-            <input
-              type="text"
-              value={customerValues.state || ""}
-              onChange={(e) =>
-                updateCustomer("state", e.target.value)
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-
-          {/* Pincode */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              PIN Code
-            </label>
-            <input
-              type="text"
-              value={customerValues.pincode || ""}
-              onChange={(e) =>
-                updateCustomer("pincode", e.target.value)
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-
         </div>
+
       )}
+
+
+
+
       <div className="mt-6 flex justify-end">
-        <Button type="button" onClick={() => void onSave()} disabled={isSaving}>
-          {isSaving ? "Saving..." : "Save Customer Details"}
+        <Button type="button" onClick={() => void onSave()} disabled={isSaving} className="bg-slate-950 text-white hover:bg-slate-950">
+          {isSaving ? "Saving..." : "Save Details"}
         </Button>
       </div>
+
     </div>
+
+
   );
+
 }
 function GlobalConfigTab({ globalConfig,
   setGlobalConfig,
@@ -1185,333 +1490,429 @@ function GlobalConfigTab({ globalConfig,
   const [expanded, setExpanded] = useState(true);
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-black-200 p-6">
-
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
         className="mb-6 flex w-full items-center justify-between text-left"
       >
-        <h2 className="text-xl font-bold text-gray-900">Global Config</h2>
-        {expanded ? <span>▲</span> : <span>▼</span>}
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
+            <Settings2 className="h-4 w-4 text-slate-600" />
+          </div>
+
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">
+              Global Configuration
+            </h2>
+
+            <p className="mt-1 text-xs text-slate-500">
+              Manage global settings used across this quotation.
+            </p>
+          </div>
+        </div>
+
+        <span className="text-sm text-slate-950">
+          {expanded ? "▲" : "▼"}
+        </span>
       </button>
 
       {expanded && (
         <>
-          <div className="mb-6 flex justify-end">
-            <a href="/quotations/settings" className="text-sm text-[#124657]">
-              Manage
+
+          <div className="mb-5 flex justify-end">
+            <a
+              href="/quotations/settings"
+              className="text-0.5xl font-medium text-slate-500 transition hover:text-[#0F172A]"
+            >
+              Manage Presets
             </a>
           </div>
 
-          {/* LOGO */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="border-t border-slate-100 pt-6">
 
-            <div>
-              <label className="block text-sm mb-2">Logo</label>
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+              <div className="space-y-7">
+                <div>
+                  <div className="mb-4 flex items-center gap-2">
+                    <Building2 className="h-3.5 w-3.5 text-slate-500" />
 
-              {logoPreview && (
-                <div className="mb-4 flex gap-4">
-                  <img src={logoPreview} className="h-16 border p-2" />
-                  <button
-                    onClick={() =>
-                      setGlobalConfig((p: any) => ({ ...p, logo: "", logoUrl: "" }))
-                    }
-                    className="text-red-600 text-sm"
-                  >
-                    Remove
-                  </button>
+                    <h3 className="text-0.5xl font-semibold uppercase tracking-[0.08em] text-slate-700">
+                      Brand Identity
+                    </h3>
+                  </div>
+
+                  <div className="space-y-5">
+
+
+                    <div>
+                      <label className="mb-2 block text-0.5xl font-medium text-slate-700">
+                        Company Logo
+                      </label>
+
+                      <div className="flex items-center gap-4">
+
+                        {logoPreview ? (
+                          <div className="flex h-14 w-20 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                            <img
+                              src={logoPreview}
+                              alt="Company Logo"
+                              className="max-h-12 max-w-[72px] object-contain"
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex h-14 w-20 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50">
+                            <ImageIcon className="h-5 w-5 text-slate-400" />
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2">
+
+                          <label className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-[#0F172A] hover:text-[#0F172A]">
+                            <span className="flex items-center gap-2">
+                              <Upload className="h-3.5 w-3.5" />
+                              Choose File
+                            </span>
+
+                            <input
+                              type="file"
+                              className="hidden"
+                              onChange={(e) =>
+                                handleLogoUpload(e.target.files?.[0] || null)
+                              }
+                            />
+                          </label>
+
+                          {logoPreview && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setGlobalConfig((p: any) => ({
+                                  ...p,
+                                  logo: "",
+                                  logoUrl: "",
+                                }))
+                              }
+                              className="rounded-lg px-2 py-2 text-xs font-medium text-red-500 transition hover:bg-red-50"
+                            >
+                              <span className="flex items-center gap-1.5">
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Remove
+                              </span>
+                            </button>
+                          )}
+
+                        </div>
+                      </div>
+                    </div>
+
+
+                    <div>
+                      <label className="mb-2 block text-0.5xl font-medium text-slate-700">
+                        Website URL
+                      </label>
+
+                      <input
+                        value={globalConfig.website}
+                        onChange={(e) =>
+                          setGlobalConfig((p: any) => ({
+                            ...p,
+                            website: e.target.value,
+                          }))
+                        }
+                        className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                      />
+                    </div>
+
+                  </div>
                 </div>
-              )}
 
-              <input
-                type="file"
-                onChange={(e) =>
-                  handleLogoUpload(e.target.files?.[0] || null)
-                }
-              />
-            </div>
 
-            <div>
-              <label className="block text-sm mb-2">Prerequisites</label>
-              <textarea
-                value={globalConfig.prerequisites}
-                onChange={(e) =>
-                  setGlobalConfig((p: any) => ({
-                    ...p,
-                    prerequisites: e.target.value,
-                  }))
-                }
-                rows={3}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-transparent"
-              />
-            </div>
+                <div className="border-t border-slate-100 pt-6">
 
-            <div>
-              <label className="block text-sm mb-2">Website</label>
-              <input
-                value={globalConfig.website}
-                onChange={(e) =>
-                  setGlobalConfig((p: any) => ({
-                    ...p,
-                    website: e.target.value,
-                  }))
-                }
+                  <div className="mb-4 flex items-center gap-2">
+                    <FileText className="h-3.5 w-3.5 text-slate-500" />
 
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-transparent"
-              />
+                    <h3 className="text-0.5xl font-semibold uppercase tracking-[0.08em] text-slate-700">
+                      Document Content
+                    </h3>
+                  </div>
+
+                  <div className="space-y-5">
+
+                    <div>
+                      <label className="mb-2 block text-0.5xl font-medium text-slate-700">
+                        Prerequisites
+                      </label>
+
+                      <textarea
+                        value={globalConfig.prerequisites}
+                        onChange={(e) =>
+                          setGlobalConfig((p: any) => ({
+                            ...p,
+                            prerequisites: e.target.value,
+                          }))
+                        }
+                        rows={3}
+                        className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-0.5xl font-medium text-slate-700">
+                        Terms & Conditions
+                      </label>
+
+                      <textarea
+                        value={globalConfig.terms}
+                        onChange={(e) =>
+                          setGlobalConfig((p: any) => ({
+                            ...p,
+                            terms: e.target.value,
+                          }))
+                        }
+                        rows={3}
+                        className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                      />
+                    </div>
+
+                  </div>
+                </div>
+
+              </div>
+              <div>
+                <div>
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Settings2 className="h-3.5 w-3.5 text-slate-500" />
+
+                      <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
+                        Additional Costs
+                      </h3>
+                    </div>
+
+                    <span className="text-[11px] text-slate-400">
+                      Toggle "PDF" to show on quotation
+                    </span>
+                  </div>
+
+                  <div className="space-y-5">
+
+                    <div>
+                      <div className="mb-2 flex items-center justify-between">
+                        <label className="text-0.5xl font-medium text-slate-700">
+                          Installation (₹/sqft)
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="flex items-center gap-2 text-xs text-slate-500">
+                          <input
+                            type="checkbox"
+                            checked={
+                              globalConfig.additionalCosts.showInstallation ??
+                              true
+                            }
+                            onChange={(e) =>
+                              setGlobalConfig((p: any) => ({
+                                ...p,
+                                additionalCosts: {
+                                  ...p.additionalCosts,
+                                  showInstallation: e.target.checked,
+                                },
+                              }))
+                            }
+                            className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
+                          />
+                          Show in PDF
+                        </label>
+
+                        <input
+                          type="number"
+                          value={globalConfig.additionalCosts.installation}
+                          onChange={(e) =>
+                            setGlobalConfig((p: any) => ({
+                              ...p,
+                              additionalCosts: {
+                                ...p.additionalCosts,
+                                installation: Number(e.target.value) || 0,
+                              },
+                            }))
+                          }
+                          className="h-10 w-[138px]  rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-2 flex items-center justify-between">
+                        <label className="text-0.5xl font-medium text-slate-700">
+                          Transport ( ₹)
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="flex items-center gap-2 text-xs text-slate-500">
+                          <input
+                            type="checkbox"
+                            checked={
+                              globalConfig.additionalCosts.showTransport ??
+                              true
+                            }
+                            onChange={(e) =>
+                              setGlobalConfig((p: any) => ({
+                                ...p,
+                                additionalCosts: {
+                                  ...p.additionalCosts,
+                                  showTransport: e.target.checked,
+                                },
+                              }))
+                            }
+                            className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
+                          />
+                          Show in PDF
+                        </label>
+
+                        <input
+                          type="number"
+                          value={globalConfig.additionalCosts.transport}
+                          onChange={(e) =>
+                            setGlobalConfig((p: any) => ({
+                              ...p,
+                              additionalCosts: {
+                                ...p.additionalCosts,
+                                transport: Number(e.target.value) || 0,
+                              },
+                            }))
+                          }
+                          className="h-10 w-[138px]  rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-2 flex items-center justify-between">
+                        <label className="text-0.5xl font-medium text-slate-700">
+                          Loading & Unloading (₹)
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="flex items-center gap-2 text-xs text-slate-500">
+                          <input
+                            type="checkbox"
+                            checked={
+                              globalConfig.additionalCosts
+                                .showLoadingUnloading ?? true
+                            }
+                            onChange={(e) =>
+                              setGlobalConfig((p: any) => ({
+                                ...p,
+                                additionalCosts: {
+                                  ...p.additionalCosts,
+                                  showLoadingUnloading: e.target.checked,
+                                },
+                              }))
+                            }
+                            className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
+                          />
+                          Show in PDF
+                        </label>
+
+                        <input
+                          type="number"
+                          value={
+                            globalConfig.additionalCosts.loadingUnloading
+                          }
+                          onChange={(e) =>
+                            setGlobalConfig((p: any) => ({
+                              ...p,
+                              additionalCosts: {
+                                ...p.additionalCosts,
+                                loadingUnloading:
+                                  Number(e.target.value) || 0,
+                              },
+                            }))
+                          }
+                          className="h-10 w-[138px]  rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                        />
+                      </div>
+                    </div>
+
+
+                    <div>
+                      <div className="mb-2 flex items-center justify-between">
+                        <label className="text-0.5xl font-medium text-slate-700">
+                          Discount (%)
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="flex items-center gap-2 text-xs text-slate-500">
+                          <input
+                            type="checkbox"
+                            checked={
+                              globalConfig.additionalCosts.showDiscount ??
+                              true
+                            }
+                            onChange={(e) =>
+                              setGlobalConfig((p: any) => ({
+                                ...p,
+                                additionalCosts: {
+                                  ...p.additionalCosts,
+                                  showDiscount: e.target.checked,
+                                },
+                              }))
+                            }
+                            className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
+                          />
+                          Show in PDF
+                        </label>
+
+                        <input
+                          type="number"
+                          value={
+                            globalConfig.additionalCosts.discountPercent
+                          }
+                          onChange={(e) =>
+                            setGlobalConfig((p: any) => ({
+                              ...p,
+                              additionalCosts: {
+                                ...p.additionalCosts,
+                                discountPercent:
+                                  Number(e.target.value) || 0,
+                              },
+                            }))
+                          }
+                          className="h-10 w-[138px] rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                        />
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+              </div>
             </div>
           </div>
-
-
-          {/* TERMS */}
-          <div className="mt-6">
-            <label>Terms</label>
-            <textarea
-              value={globalConfig.terms}
-              onChange={(e) =>
-                setGlobalConfig((p: any) => ({
-                  ...p,
-                  terms: e.target.value,
-                }))
-              }
-              rows={3}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg  focus:border-transparent"
-            />
-          </div>
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            {/* INSTALLATION */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Installation (₹/sqft)
-              </label>
-
-              <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
-                <input
-                  type="checkbox"
-                  checked={globalConfig.additionalCosts.showInstallation ?? true}
-                  onChange={(e) =>
-                    setGlobalConfig((p: any) => ({
-                      ...p,
-                      additionalCosts: {
-                        ...p.additionalCosts,
-                        showInstallation: e.target.checked,
-                      },
-                    }))
-                  }
-                />
-                <span>Show in PDF</span>
-              </label>
-
-              <input
-                type="number"
-                value={globalConfig.additionalCosts.installation}
-                onChange={(e) =>
-                  setGlobalConfig((p: any) => ({
-                    ...p,
-                    additionalCosts: {
-                      ...p.additionalCosts,
-                      installation: Number(e.target.value) || 0,
-                    },
-                  }))
-                }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-
-            {/* TRANSPORT */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Transport (₹)
-              </label>
-
-              <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
-                <input
-                  type="checkbox"
-                  checked={globalConfig.additionalCosts.showTransport ?? true}
-                  onChange={(e) =>
-                    setGlobalConfig((p: any) => ({
-                      ...p,
-                      additionalCosts: {
-                        ...p.additionalCosts,
-                        showTransport: e.target.checked,
-                      },
-                    }))
-                  }
-                />
-                <span>Show in PDF</span>
-              </label>
-
-              <input
-                type="number"
-                value={globalConfig.additionalCosts.transport}
-                onChange={(e) =>
-                  setGlobalConfig((p: any) => ({
-                    ...p,
-                    additionalCosts: {
-                      ...p.additionalCosts,
-                      transport: Number(e.target.value) || 0,
-                    },
-                  }))
-                }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-
-            {/* LOADING */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Loading & Unloading (₹)
-              </label>
-
-              <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
-                <input
-                  type="checkbox"
-                  checked={globalConfig.additionalCosts.showLoadingUnloading ?? true}
-                  onChange={(e) =>
-                    setGlobalConfig((p: any) => ({
-                      ...p,
-                      additionalCosts: {
-                        ...p.additionalCosts,
-                        showLoadingUnloading: e.target.checked,
-                      },
-                    }))
-                  }
-                />
-                <span>Show in PDF</span>
-              </label>
-
-              <input
-                type="number"
-                value={globalConfig.additionalCosts.loadingUnloading}
-                onChange={(e) =>
-                  setGlobalConfig((p: any) => ({
-                    ...p,
-                    additionalCosts: {
-                      ...p.additionalCosts,
-                      loadingUnloading: Number(e.target.value) || 0,
-                    },
-                  }))
-                }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-
-            {/* DISCOUNT */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Discount (%)
-              </label>
-
-              <label className="flex items-center gap-2 text-xs text-gray-600 mb-2">
-                <input
-                  type="checkbox"
-                  checked={globalConfig.additionalCosts.showDiscount ?? true}
-                  onChange={(e) =>
-                    setGlobalConfig((p: any) => ({
-                      ...p,
-                      additionalCosts: {
-                        ...p.additionalCosts,
-                        showDiscount: e.target.checked,
-                      },
-                    }))
-                  }
-                />
-                <span>Show in PDF</span>
-              </label>
-
-              <input
-                type="number"
-                value={globalConfig.additionalCosts.discountPercent}
-                onChange={(e) =>
-                  setGlobalConfig((p: any) => ({
-                    ...p,
-                    additionalCosts: {
-                      ...p.additionalCosts,
-                      discountPercent: Number(e.target.value) || 0,
-                    },
-                  }))
-                }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-
-          </div>
-
         </>
       )}
-      <div className="mt-6 flex justify-end">
-        <Button type="button" onClick={() => void onSave()} disabled={isSaving}>
+
+      {/* SAVE */}
+      <div className="mt-7 flex justify-end border-t border-slate-100 pt-5">
+        <Button
+          type="button"
+          onClick={() => void onSave()}
+          disabled={isSaving}
+          className="rounded-lg bg-slate-950 px-5 text-sm font-medium text-white hover:bg-slate-950"
+        >
           {isSaving ? "Saving..." : "Save Global Configuration"}
         </Button>
       </div>
+
     </div>
-  );
-}
-function QuotationDetailsTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSaving: boolean }) {
-  const quotationDetails = useQuotationBuilderStore((s) => s.quotation.quotationDetails);
-  const updateQuotationField = useQuotationBuilderStore((s) => s.updateQuotationField);
 
-  const [expanded, setExpanded] = useState(true);
 
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-black-200 p-6">
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="mb-6 flex w-full items-center justify-between text-left"
-      >
-        <h2 className="text-xl font-bold text-gray-900">Quotation Details</h2>
-        {expanded ? <span>▲</span> : <span>▼</span>}
-      </button>
-
-      {expanded && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-          {/* Date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Date
-            </label>
-            <input
-              type="date"
-              value={quotationDetails.date || ""}
-              onChange={(e) =>
-                updateQuotationField("date", e.target.value)
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
-          </div>
-
-          {/* Opportunity */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Opportunity Stage
-            </label>
-            <select
-              value={quotationDetails.opportunity || "Enquiry"}
-              onChange={(e) =>
-                updateQuotationField("opportunity", e.target.value)
-              }
-              className="w-full px-3 py-2 border border-gray-200 rounded"
-            >
-              <option value="Enquiry">Enquiry</option>
-              <option value="Quoted">Quoted</option>
-              <option value="Under Negotiation">Under Negotiation</option>
-              <option value="Order Confirmed">Order Confirmed</option>
-              <option value="Order Lost">Order Lost</option>
-            </select>
-          </div>
-
-        </div>
-      )}
-      <div className="mt-6 flex justify-end">
-        <Button type="button" onClick={() => void onSave()} disabled={isSaving}>
-          {isSaving ? "Saving..." : "Save Quotation Details"}
-        </Button>
-      </div>
-    </div>
   );
 }
 
@@ -1607,28 +2008,28 @@ function BulkUpdateTab({
       <div className="mt-6 grid gap-6 md:grid-cols-3">
         <label className="text-sm font-medium text-slate-700">
           What to update
-          <select
+          <CustomSelect
             value={field}
             onChange={(event) =>
               selectField(event.target.value as BulkUpdateField)
             }
-            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+            className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
           >
             <option value="glass">Glass</option>
             <option value="colorFinish">Colour Finish</option>
-          </select>
+          </CustomSelect>
         </label>
 
         <label className="text-sm font-medium text-slate-700">
           Replace
-          <select
+          <CustomSelect
             value={from}
             onChange={(event) => {
               setFrom(event.target.value);
               setTo("");
               setMessage("");
             }}
-            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+            className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
           >
             <option value="">Select an option used in this quotation</option>
             {usedOptions.map((option) => (
@@ -1636,7 +2037,7 @@ function BulkUpdateTab({
                 {option}
               </option>
             ))}
-          </select>
+          </CustomSelect>
           {!usedOptions.length ? (
             <span className="mt-2 block text-xs font-normal text-amber-700">
               No {field === "glass" ? "glass specifications" : "colour finishes"} are used yet.
@@ -1646,14 +2047,14 @@ function BulkUpdateTab({
 
         <label className="text-sm font-medium text-slate-700">
           Replace with
-          <select
+          <CustomSelect
             value={to}
             onChange={(event) => {
               setTo(event.target.value);
               setMessage("");
             }}
             disabled={!from || optionsQuery.isLoading}
-            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 disabled:bg-slate-100"
+            className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
           >
             <option value="">
               {optionsQuery.isLoading ? "Loading options..." : "Select replacement"}
@@ -1663,7 +2064,7 @@ function BulkUpdateTab({
                 {option}
               </option>
             ))}
-          </select>
+          </CustomSelect>
         </label>
       </div>
 
@@ -1678,6 +2079,7 @@ function BulkUpdateTab({
           type="button"
           onClick={() => void applyUpdate()}
           disabled={!from || !to || isSaving}
+          className="bg-slate-950 text-white hover:bg-slate-950"
         >
           {isSaving ? "Saving..." : "Save Bulk Update"}
         </Button>
@@ -1772,7 +2174,7 @@ export function QuotationBuilder({
       setQuotation(initialQuotation);
     }
   }, [initialQuotation, isCreateMode, isReturningFromConfigurator, setQuotation]);
-  const [activeTab, setActiveTab] = useState<TabKey>(() => (isTabKey(requestedTab) ? requestedTab : "customer"));
+  const [activeTab, setActiveTab] = useState<TabKey>(() => (isTabKey(requestedTab) ? requestedTab : "Details"));
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isGeneratingCuttingSchedule, setIsGeneratingCuttingSchedule] = useState(false);
   const [isGeneratingBom, setIsGeneratingBom] = useState(false);
@@ -1781,12 +2183,37 @@ export function QuotationBuilder({
   const [isGeneratingExcel, setIsGeneratingExcel] = useState(false);
   const [isSharingQuotation, setIsSharingQuotation] = useState(false);
   const [isExcelExportModalOpen, setIsExcelExportModalOpen] = useState(false);
+  const [activeExport, setActiveExport] = useState<
+    "cutting" | "bom" | "glass" | "quotation" | "elevation" | "excel" | null
+  >(null);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState("Quotation PDF Preview");
   const [pdfDownloadName, setPdfDownloadName] = useState("");
   const [bomOrderData, setBomOrderData] = useState<BomOrderData | null>(null);
   const [isOrderPlacementOpen, setIsOrderPlacementOpen] = useState(false);
+
+  useEffect(() => {
+    const isAnyGenerationInProgress =
+      isGeneratingCuttingSchedule ||
+      isGeneratingBom ||
+      isGeneratingGlassReport ||
+      isGeneratingPdf ||
+      isGeneratingElevation ||
+      isGeneratingExcel;
+
+    if (!isAnyGenerationInProgress) {
+      setActiveExport(null);
+    }
+  }, [
+    isGeneratingCuttingSchedule,
+    isGeneratingBom,
+    isGeneratingGlassReport,
+    isGeneratingPdf,
+    isGeneratingElevation,
+    isGeneratingExcel,
+  ]);
   useEffect(() => {
     return () => {
       if (pdfPreviewUrl) {
@@ -1951,20 +2378,20 @@ export function QuotationBuilder({
   // const persistDuplicateItem = useCallback(
   //   (item: QuotationItem, refCode: string) =>
   const persistDuplicateItem = useCallback(
-  (
-    item: QuotationItem,
-    refCode: string,
-    dimensions?: {
-      parent: {
-        width: string;
-        height: string;
-      };
-      sections: {
-        width: string;
-        height: string;
-      }[];
-    }
-  ) =>
+    (
+      item: QuotationItem,
+      refCode: string,
+      dimensions?: {
+        parent: {
+          width: string;
+          height: string;
+        };
+        sections: {
+          width: string;
+          height: string;
+        }[];
+      }
+    ) =>
       runItemMutation(async () => {
         const sourceId = getQuotationItemIdentity(item);
         const store = useQuotationBuilderStore.getState();
@@ -1974,24 +2401,24 @@ export function QuotationBuilder({
         const sourceIndex = items.findIndex(
           (entry) => getQuotationItemIdentity(entry) === sourceId
         );
-const ite = useQuotationBuilderStore.getState().quotation.items;
+        const ite = useQuotationBuilderStore.getState().quotation.items;
 
-console.log("ALL ITEMS =", ite);
+        console.log("ALL ITEMS =", ite);
         const duplicate = items[sourceIndex + 1];
-      console.log("DUPLICATE =", duplicate);
+        console.log("DUPLICATE =", duplicate);
 
-if (duplicate) {
-  console.log("systemType =", duplicate.systemType);
-  console.log("series =", duplicate.series);
-  console.log("description =", duplicate.description);
+        if (duplicate) {
+          console.log("systemType =", duplicate.systemType);
+          console.log("series =", duplicate.series);
+          console.log("description =", duplicate.description);
 
-  console.log("SUB ITEMS =", duplicate.subItems);
-}
+          console.log("SUB ITEMS =", duplicate.subItems);
+        }
         if (!duplicate) throw new Error("Failed to create the local duplicate");
         const layout = duplicate.configuratorLayout as {
-  frameCutAngle?: "45" | "90";
-  shutterCutAngle?: "45" | "90";
-};
+          frameCutAngle?: "45" | "90";
+          shutterCutAngle?: "45" | "90";
+        };
         const duplicateLocalId = getQuotationItemIdentity(duplicate);
         const isCombinationItem = duplicate.systemType === "Combination" || (duplicate.subItems?.length ?? 0) > 1;
         try {
@@ -2026,22 +2453,22 @@ if (duplicate) {
                 }),
               ]);
               const joinRequests = (duplicate.joins ?? [])
-  .map((join, index) => ({
-    clientId: `__join__${index}`,
-    itemType: "join" as const,
-    joinType: join.type,
-    // joinOrientation: join.orientation,
-    systemType: duplicate.systemType,
-    series: duplicate.series,
-    description: join.type,
-    width: Number(duplicate.width),
-    height: Number(duplicate.height),
-    area: Number(duplicate.area),
-    frameCutAngle: duplicate.frameCutAngle,
-    shutterCutAngle: duplicate.shutterCutAngle,
-    cuttingScheduleKey: duplicate.cuttingScheduleKey,
-  }))
-  .filter((request) => request.series);
+                .map((join, index) => ({
+                  clientId: `__join__${index}`,
+                  itemType: "join" as const,
+                  joinType: join.type,
+                  // joinOrientation: join.orientation,
+                  systemType: duplicate.systemType,
+                  series: duplicate.series,
+                  description: join.type,
+                  width: Number(duplicate.width),
+                  height: Number(duplicate.height),
+                  area: Number(duplicate.area),
+                  frameCutAngle: duplicate.frameCutAngle,
+                  shutterCutAngle: duplicate.shutterCutAngle,
+                  cuttingScheduleKey: duplicate.cuttingScheduleKey,
+                }))
+                .filter((request) => request.series);
 
               const rateByClientId = new Map(
                 calculatedSubItemRates.map((result) => [result.clientId, result])
@@ -2103,10 +2530,10 @@ if (duplicate) {
               const totalAmount = duplicate.subItems.reduce((sum, subItem) => sum + Number(subItem.amount || 0), 0);
               duplicate.rate = Number((totalArea > 0 ? totalAmount / totalArea : 0).toFixed(2));
               console.log("COMBINATION TOTAL", {
-  totalArea,
-  totalAmount,
-  finalRate: totalArea > 0 ? totalAmount / totalArea : 0,
-});
+                totalArea,
+                totalAmount,
+                finalRate: totalArea > 0 ? totalAmount / totalArea : 0,
+              });
               duplicate.amount = Number(
                 (
                   duplicate.rate *
@@ -2130,10 +2557,10 @@ if (duplicate) {
             return;
           }
           console.log("=== RATE API HIT HONE WALI HAI ===");
-console.log("Duplicate object:", duplicate);
-console.log("System Type:", duplicate?.systemType);
-console.log("Series:", duplicate?.series);
-console.log("Description:", duplicate?.description);
+          console.log("Duplicate object:", duplicate);
+          console.log("System Type:", duplicate?.systemType);
+          console.log("Series:", duplicate?.series);
+          console.log("Description:", duplicate?.description);
           const isCasement = duplicate.systemType === "Casement";
           const isLouver = duplicate.systemType === "Louvers" || duplicate.description === "Louvers";
           const frameCutAngle = isCasement
@@ -2149,135 +2576,135 @@ console.log("Description:", duplicate?.description);
               ? ((duplicate.hardwareOpeningType || "") as "" | "hinges" | "frictionStay")
               : "";
           const [rateResult] = await calculateQuotationRates([
-  {
-    clientId: duplicate.id,
+            {
+              clientId: duplicate.id,
 
-   systemType: duplicate.systemType || "",
+              systemType: duplicate.systemType || "",
 
-    series: duplicate.series || "",
+              series: duplicate.series || "",
 
-    description: duplicate.description || "",
+              description: duplicate.description || "",
 
-    width: Number(duplicate.width),
+              width: Number(duplicate.width),
 
-    height: Number(duplicate.height),
+              height: Number(duplicate.height),
 
-    area: Number(duplicate.area),
-    frameCutAngle,
+              area: Number(duplicate.area),
+              frameCutAngle,
 
-  shutterCutAngle,
+              shutterCutAngle,
 
-     cuttingScheduleKey,
+              cuttingScheduleKey,
 
-    glassSpec: duplicate.glassSpec || "",
+              glassSpec: duplicate.glassSpec || "",
 
-     hardwareOpeningType,
-  },
-]);
+              hardwareOpeningType,
+            },
+          ]);
 
-console.log("RATE RESULT", rateResult);
-const [descriptions, options] = await Promise.all([
-  fetchDescriptions(duplicate.systemType || "", isLouver ? "_" : (duplicate.series || "")),
-  fetchOptions(duplicate.systemType || ""),
-]);
+          console.log("RATE RESULT", rateResult);
+          const [descriptions, options] = await Promise.all([
+            fetchDescriptions(duplicate.systemType || "", isLouver ? "_" : (duplicate.series || "")),
+            fetchOptions(duplicate.systemType || ""),
+          ]);
 
-let desc: any = null;
+          let desc: any = null;
 
-if (
-  duplicate.systemType !== "Louvers" &&
-  duplicate.description !== "Louvers"
-) {
-  // desc = descriptions?.find(
-  //   (d: any) => d.name === duplicate.description
-  // );
-   desc = descriptions.descriptions.find(
-  (d: any) => d.name === duplicate.description
-);
-}
+          if (
+            duplicate.systemType !== "Louvers" &&
+            duplicate.description !== "Louvers"
+          ) {
+            // desc = descriptions?.find(
+            //   (d: any) => d.name === duplicate.description
+            // );
+            desc = descriptions.descriptions.find(
+              (d: any) => d.name === duplicate.description
+            );
+          }
 
-const colorRate =
-  options?.colorFinishes.find(
-    (c: any) => c.name === duplicate.colorFinish
-  )?.rate ?? 0;
-const meshRate =
-  duplicate.meshPresent
-    ? options?.meshTypes.find(
-        (m: any) => m.name === duplicate.meshType
-      )?.rate ?? 0
-    : 0;
+          const colorRate =
+            options?.colorFinishes.find(
+              (c: any) => c.name === duplicate.colorFinish
+            )?.rate ?? 0;
+          const meshRate =
+            duplicate.meshPresent
+              ? options?.meshTypes.find(
+                (m: any) => m.name === duplicate.meshType
+              )?.rate ?? 0
+              : 0;
 
-const glassRate =
-  options?.glassSpecs.find(
-    (g: any) => g.name === duplicate.glassSpec
-  )?.rate ?? 0;
+          const glassRate =
+            options?.glassSpecs.find(
+              (g: any) => g.name === duplicate.glassSpec
+            )?.rate ?? 0;
 
-const handleOpt = options?.handleOptions.find(
-  (h: any) => h.name === duplicate.handleType
-);
+          const handleOpt = options?.handleOptions.find(
+            (h: any) => h.name === duplicate.handleType
+          );
 
-const handleCount = desc?.defaultHandleCount ?? 0;
+          const handleCount = desc?.defaultHandleCount ?? 0;
 
-const handleUnitRate =
-  handleOpt?.colors.find(
-    (c: any) => c.name === duplicate.handleColor
-  )?.rate ?? 0;
+          const handleUnitRate =
+            handleOpt?.colors.find(
+              (c: any) => c.name === duplicate.handleColor
+            )?.rate ?? 0;
 
-const handleRate =
-  handleCount > 0
-    ? (handleCount * handleUnitRate) /
-      (Number(duplicate.area) || 1)
-    : 0;
-const exhaustFanRate = duplicate.hasExhaustFan ? EXHAUST_FAN_RATE_SURCHARGE : 0;
+          const handleRate =
+            handleCount > 0
+              ? (handleCount * handleUnitRate) /
+              (Number(duplicate.area) || 1)
+              : 0;
+          const exhaustFanRate = duplicate.hasExhaustFan ? EXHAUST_FAN_RATE_SURCHARGE : 0;
 
-duplicate.rate =
-  (rateResult.baseRate ?? 0) +
-  colorRate +
-  meshRate +
-  glassRate +
-  handleRate +
-  exhaustFanRate;
+          duplicate.rate =
+            (rateResult.baseRate ?? 0) +
+            colorRate +
+            meshRate +
+            glassRate +
+            handleRate +
+            exhaustFanRate;
 
-duplicate.rate = Number(duplicate.rate.toFixed(2));
+          duplicate.rate = Number(duplicate.rate.toFixed(2));
 
-duplicate.amount = Number(
-  (
-    duplicate.rate *
-    Number(duplicate.area) *
-    Number(duplicate.quantity || 1)
-  ).toFixed(2)
-);
+          duplicate.amount = Number(
+            (
+              duplicate.rate *
+              Number(duplicate.area) *
+              Number(duplicate.quantity || 1)
+            ).toFixed(2)
+          );
 
-console.log("FINAL DUPLICATE RATE", {
-  baseRate: rateResult.baseRate,
-  colorRate,
-  meshRate,
-  glassRate,
-  handleRate,
-  finalRate: duplicate.rate,
-  amount: duplicate.amount,
-});
+          console.log("FINAL DUPLICATE RATE", {
+            baseRate: rateResult.baseRate,
+            colorRate,
+            meshRate,
+            glassRate,
+            handleRate,
+            finalRate: duplicate.rate,
+            amount: duplicate.amount,
+          });
           const savedItem = await createQuotationItem(quotationId, duplicate);
           useQuotationBuilderStore.getState().replaceItem(duplicateLocalId, savedItem);
           markSaved();
-const latestQuotation = await getQuotation(quotationId);
+          const latestQuotation = await getQuotation(quotationId);
 
-console.log("LATEST QUOTATION", latestQuotation);
-console.log(
-  latestQuotation?.items.map((item) => ({
-    refCode: item.refCode,
-    rate: item.rate,
-    amount: item.amount,
-    refImage: item.refImage,
-    area: item.area,
-  }))
-);
+          console.log("LATEST QUOTATION", latestQuotation);
+          console.log(
+            latestQuotation?.items.map((item) => ({
+              refCode: item.refCode,
+              rate: item.rate,
+              amount: item.amount,
+              refImage: item.refImage,
+              area: item.area,
+            }))
+          );
 
-console.log({
-  savedRate: savedItem.rate,
-  savedImage: savedItem.refImage,
-  savedArea: savedItem.area,
-});
-console.log("SAVED ITEM", savedItem);
+          console.log({
+            savedRate: savedItem.rate,
+            savedImage: savedItem.refImage,
+            savedArea: savedItem.area,
+          });
+          console.log("SAVED ITEM", savedItem);
         } catch (error) {
           useQuotationBuilderStore.getState().removeItem(duplicateLocalId);
           throw error;
@@ -2309,7 +2736,7 @@ console.log("SAVED ITEM", savedItem);
       }),
     [ensureParentQuotation, markSaved, runItemMutation]
   );
-   
+
   const persistBulkUpdate = useCallback(
     async (field: BulkUpdateField, from: string, to: string) => {
       let updatedCount = 0;
@@ -2492,50 +2919,50 @@ console.log("SAVED ITEM", savedItem);
       setIsSharingQuotation(false);
     }
   };
-const exportExcel = async () => {
-  try {
-    setIsGeneratingExcel(true);
+  const exportExcel = async () => {
+    try {
+      setIsGeneratingExcel(true);
 
-    const savedQuotation = await getPersistedQuotation();
+      const savedQuotation = await getPersistedQuotation();
 
-    const quotationId =
-      savedQuotation?._id ??
-      quotationWithGlobalConfig._id ??
-      savedQuotation?.quotationDetails.id ??
-      quotationWithGlobalConfig.quotationDetails.id;
+      const quotationId =
+        savedQuotation?._id ??
+        quotationWithGlobalConfig._id ??
+        savedQuotation?.quotationDetails.id ??
+        quotationWithGlobalConfig.quotationDetails.id;
 
-    if (!quotationId) {
-      throw new Error("Failed to resolve quotation id before Excel generation.");
+      if (!quotationId) {
+        throw new Error("Failed to resolve quotation id before Excel generation.");
+      }
+
+      const blob = await getQuotationExcelBlob(quotationId, true);
+
+      const quoteNo =
+        savedQuotation?.generatedId ||
+        savedQuotation?.quotationDetails.id ||
+        quotationWithGlobalConfig.generatedId ||
+        quotationWithGlobalConfig.quotationDetails.id ||
+        "quotation";
+
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${quoteNo}.xlsx`;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error("Failed to export Excel", error);
+      alert("Failed to generate Excel.");
+    } finally {
+      setIsGeneratingExcel(false);
     }
-
-    const blob = await getQuotationExcelBlob(quotationId,true);
-
-    const quoteNo =
-      savedQuotation?.generatedId ||
-      savedQuotation?.quotationDetails.id ||
-      quotationWithGlobalConfig.generatedId ||
-      quotationWithGlobalConfig.quotationDetails.id ||
-      "quotation";
-
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${quoteNo}.xlsx`;
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    URL.revokeObjectURL(url);
-
-  } catch (error) {
-    console.error("Failed to export Excel", error);
-    alert("Failed to generate Excel.");
-  } finally {
-    setIsGeneratingExcel(false);
-  }
-};
+  };
 
   const exportElevationPdf = async () => {
     try {
@@ -2706,7 +3133,7 @@ const exportExcel = async () => {
     isGeneratingCuttingSchedule ||
     isGeneratingBom ||
     isGeneratingGlassReport ||
-    isGeneratingElevation||
+    isGeneratingElevation ||
     isGeneratingExcel ||
     isSharingQuotation;
 
@@ -2714,50 +3141,28 @@ const exportExcel = async () => {
     <PageShell
       title={pageTitle}
       description={pageDescription}
+      backButton={
+        <button
+          type="button"
+          onClick={() => router.push("/quotations")}
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100"
+          aria-label="Go back"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+      }
+
       actions={
         <>
           <Badge variant={metadataSaveStatus === "failed" ? "danger" : itemMutationsInProgress > 0 ? "warning" : "success"}>
             {itemMutationsInProgress > 0
               ? "Saving item..."
               : metadataSaveStatus === "saving"
-              ? "Saving..."
-              : metadataSaveStatus === "failed"
-                ? "Save failed"
-                : saveState}
+                ? "Saving..."
+                : metadataSaveStatus === "failed"
+                  ? "Save failed"
+                  : saveState}
           </Badge>
-           
-          {/* <Button variant="outline"
-           onClick={exportCuttingSchedule} disabled={isSaveBlockingExports || isAnyExportInProgress}>
-            <Ruler className="h-4 w-4" />
-            {isGeneratingCuttingSchedule ? "Generating..." : "Cutting"}
-          </Button>
-          <Button variant="outline" onClick={exportBom} disabled={isSaveBlockingExports || isAnyExportInProgress}>
-            <Download className="h-4 w-4" />
-            {isGeneratingBom ? "Generating..." : "BOM"}
-          </Button>
-         
-          
-          <Button variant="outline" onClick={exportPdf} disabled={isSaveBlockingExports || isAnyExportInProgress}>
-            <Download className="h-4 w-4" />
-            {isGeneratingPdf ? "Generating..." : "Quotation"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={exportElevationPdf}
-            disabled={isSaveBlockingExports || isAnyExportInProgress}
-          >
-            <Download className="h-4 w-4" />
-            {isGeneratingElevation ? "Generating..." : "Elevation"}
-          </Button>
-          <Button
-  variant="outline"
-  // onClick={exportExcel}
-  onClick={() => setIsExcelExportModalOpen(true)}
-  disabled={isSaveBlockingExports || isAnyExportInProgress}
->
-  <Download className="h-4 w-4" />
-  {isGeneratingExcel ? "Generating..." : " Download Excel"}
-</Button> */}
           <Button
             variant="outline"
             onClick={shareQuotation}
@@ -2767,78 +3172,51 @@ const exportExcel = async () => {
             {isSharingQuotation ? "Sharing..." : "Share"}
           </Button>
         </>
-        
+
       }
     >
-      <Card className="border-0 bg-white/90">
-    <CardContent className="flex items-center justify-start gap-3 p-4">
-      <Button variant="outline"
-           onClick={exportCuttingSchedule} disabled={isSaveBlockingExports || isAnyExportInProgress}>
-            <Ruler className="h-4 w-4" />
-            {isGeneratingCuttingSchedule ? "Generating..." : "Cutting"}
-          </Button>
-          <Button variant="outline" onClick={exportBom} disabled={isSaveBlockingExports || isAnyExportInProgress}>
-            <Download className="h-4 w-4" />
-            {isGeneratingBom ? "Generating..." : "BOM"}
-          </Button>
-          <Button variant="outline" onClick={exportGlassReport} disabled={isSaveBlockingExports || isAnyExportInProgress}>
-            <Download className="h-4 w-4" />
-            {isGeneratingGlassReport ? "Generating..." : "Glass Report"}
-          </Button>
-         
-          
-          <Button variant="outline" onClick={exportPdf} disabled={isSaveBlockingExports || isAnyExportInProgress}>
-            <Download className="h-4 w-4" />
-            {isGeneratingPdf ? "Generating..." : "Quotation"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={exportElevationPdf}
-            disabled={isSaveBlockingExports || isAnyExportInProgress}
-          >
-            <Download className="h-4 w-4" />
-            {isGeneratingElevation ? "Generating..." : "Elevation"}
-          </Button>
-          <Button
-  variant="outline"
-  // onClick={exportExcel}
-  onClick={() => setIsExcelExportModalOpen(true)}
-  disabled={isSaveBlockingExports || isAnyExportInProgress}
->
-  <Download className="h-4 w-4" />
-  {isGeneratingExcel ? "Generating..." : " Download Excel"}
-</Button>
-      
-    </CardContent>
-  </Card>
+
       <div id="quotation-pdf-root" className="space-y-6">
         <Card className="border-0 bg-white/90">
           <CardContent className="flex items-center justify-between p-4">
-
-            {/* LEFT SIDE (TABS) */}
             <div className="flex flex-wrap gap-3">
               {tabs.map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
                   className={`rounded-2xl px-4 py-2 text-sm transition ${activeTab === tab.key
-                      ? "bg-slate-950 text-white"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    ? "bg-slate-950 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                     }`}
                 >
                   {tab.label}
                 </button>
               ))}
             </div>
+            {/* RIGHT SIDE BUTTONS */}
+            <div className="flex items-center gap-3">
 
-            {/* RIGHT SIDE (BUTTON) */}
-            <button
-              onClick={handleAddItem}
-              disabled={metadataSaveStatus === "saving" || itemMutationsInProgress > 0}
-              className="rounded-xl bg-[#124657] px-4 py-2 text-sm text-white hover:bg-[#0b3642] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Add Item
-            </button>
+              <button
+                type="button"
+                onClick={() => setIsExportModalOpen(true)}
+                disabled={isSaveBlockingExports || isAnyExportInProgress}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Download className="h-4 w-4" />
+                <span>Export</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAddItem}
+                disabled={metadataSaveStatus === "saving" || itemMutationsInProgress > 0}
+                className="rounded-xl bg-[#EE1C25] px-4 py-2 text-sm text-white hover:bg-[#D61920] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Add Item
+              </button>
+
+            </div>
+
 
           </CardContent>
         </Card>
@@ -2850,14 +3228,8 @@ const exportExcel = async () => {
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.18 }}
           >
-            {activeTab === "customer" && (
+            {activeTab === "Details" && (
               <CustomerTab
-                onSave={saveCurrentMetadata}
-                isSaving={metadataSaveStatus === "saving"}
-              />
-            )}
-            {activeTab === "quotation" && (
-              <QuotationDetailsTab
                 onSave={saveCurrentMetadata}
                 isSaving={metadataSaveStatus === "saving"}
               />
@@ -2890,6 +3262,151 @@ const exportExcel = async () => {
 
           </motion.div>
         </AnimatePresence>
+
+        {isExportModalOpen ? (
+          <div
+            className="fixed inset-0 z-[230] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={() => setIsExportModalOpen(false)}
+          >
+            <div
+              className="w-full max-w-4xl rounded-[24px] bg-white p-8 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
+                <div>
+                  <h3 className="text-2xl font-bold text-slate-900">
+                    Generate & Export
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Select a document format to generate
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsExportModalOpen(false)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+                {/* 4. Quotation (CURRENT) */}
+                <button
+                  onClick={() => {
+                    setActiveExport("quotation");
+                    exportPdf();
+                  }}
+                  disabled={isSaveBlockingExports || isAnyExportInProgress}
+                  className="relative flex w-full flex-col items-start gap-3 rounded-[20px] border-2 border-red-100 bg-white p-6 min-h-[160px] justify-between shadow-sm transition hover:border-red-200 hover:bg-red-50 disabled:opacity-50 group"
+                >
+                  <div className="absolute right-4 top-4 rounded-full bg-red-100 px-2 py-0.5 text-[9px] font-black tracking-wider text-[#EE1C25] uppercase">
+                    Primary
+                  </div>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-100 text-[#EE1C25] group-hover:scale-110 transition-transform">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
+                  </div>
+                  <div className="text-left mt-2">
+                    <div className="text-lg font-bold text-slate-900">{isGeneratingPdf ? "Generating..." : "Quotation"}</div>
+                    <div className="mt-0.5 text-xs font-medium text-slate-500">Main pricing document</div>
+                  </div>
+                </button>
+
+                {/* 1. Cutting */}
+                <button
+                  onClick={() => {
+                    setActiveExport("cutting");
+                    exportCuttingSchedule();
+                  }}
+                  disabled={isSaveBlockingExports || isAnyExportInProgress}
+                  className="flex w-full flex-col items-start gap-3 rounded-[20px] border border-slate-200 bg-white p-6 min-h-[160px] justify-between shadow-sm transition hover:border-amber-200 hover:bg-amber-50 disabled:opacity-50 group"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-100 transition-colors">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><line x1="20" y1="4" x2="8.12" y2="15.88" /><line x1="14.47" y1="14.48" x2="20" y2="20" /><line x1="8.12" y1="8.12" x2="12" y2="12" /></svg>
+                  </div>
+                  <div className="text-left mt-2">
+                    <div className="text-lg font-bold text-slate-900">{isGeneratingCuttingSchedule ? "Generating..." : "Cutting"}</div>
+                    <div className="mt-0.5 text-xs font-medium text-slate-500">Optimised materials list</div>
+                  </div>
+                </button>
+
+                {/* 2. BOM */}
+                <button
+                  onClick={() => {
+                    setActiveExport("bom");
+                    exportBom();
+                  }}
+                  disabled={isSaveBlockingExports || isAnyExportInProgress}
+                  className="flex w-full flex-col items-start gap-3 rounded-[20px] border border-slate-200 bg-white p-6 min-h-[160px] justify-between shadow-sm transition hover:border-violet-200 hover:bg-violet-50 disabled:opacity-50 group"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-50 text-violet-600 group-hover:bg-violet-100 transition-colors">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>
+                  </div>
+                  <div className="text-left mt-2">
+                    <div className="text-lg font-bold text-slate-900">{isGeneratingBom ? "Generating..." : "BOM"}</div>
+                    <div className="mt-0.5 text-xs font-medium text-slate-500">Bill of materials</div>
+                  </div>
+                </button>
+
+                {/* 3. Glass Report */}
+                <button
+                  onClick={() => {
+                    setActiveExport("glass");
+                    exportGlassReport();
+                  }}
+                  disabled={isSaveBlockingExports || isAnyExportInProgress}
+                  className="flex w-full flex-col items-start gap-3 rounded-[20px] border border-slate-200 bg-white p-6 min-h-[160px] justify-between shadow-sm transition hover:border-blue-200 hover:bg-blue-50 disabled:opacity-50 group"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-500 group-hover:bg-blue-100 transition-colors">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
+                  </div>
+                  <div className="text-left mt-2">
+                    <div className="text-lg font-bold text-slate-900">{isGeneratingGlassReport ? "Generating..." : "Glass Report"}</div>
+                    <div className="mt-0.5 text-xs font-medium text-slate-500">Detailed panel schedule</div>
+                  </div>
+                </button>
+
+                {/* 5. Elevation */}
+                <button
+                  onClick={() => {
+                    setActiveExport("elevation");
+                    exportElevationPdf();
+                  }}
+                  disabled={isSaveBlockingExports || isAnyExportInProgress}
+                  className="flex w-full flex-col items-start gap-3 rounded-[20px] border border-slate-200 bg-white p-6 min-h-[160px] justify-between shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 disabled:opacity-50 group"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-500 group-hover:bg-emerald-100 transition-colors">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg>
+                  </div>
+                  <div className="text-left mt-2">
+                    <div className="text-lg font-bold text-slate-900">{isGeneratingElevation ? "Generating..." : "Elevation"}</div>
+                    <div className="mt-0.5 text-xs font-medium text-slate-500">Technical drawing view</div>
+                  </div>
+                </button>
+
+                {/* 6. Download Excel */}
+                <button
+                  onClick={() => {
+                    setActiveExport("excel");
+                    setIsExcelExportModalOpen(true);
+                  }}
+                  disabled={isSaveBlockingExports || isAnyExportInProgress}
+                  className="flex w-full flex-col items-start gap-3 rounded-[20px] border border-slate-200 bg-white p-6 min-h-[160px] justify-between shadow-sm transition hover:border-slate-300 hover:bg-slate-100 disabled:opacity-50 group"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-[#0F172A] group-hover:bg-slate-200 transition-colors">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+                  </div>
+                  <div className="text-left mt-2">
+                    <div className="text-lg font-bold text-slate-900">{typeof isGeneratingExcel !== 'undefined' && isGeneratingExcel ? "Generating..." : "Excel Data"}</div>
+                    <div className="mt-0.5 text-xs font-medium text-slate-500">Raw .xlsx export</div>
+                  </div>
+                </button>
+
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {isPdfPreviewOpen && pdfPreviewUrl ? (
           <div className="fixed inset-0 z-[260] flex items-center justify-center bg-slate-950/70 p-4">
             <div className="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
@@ -2932,43 +3449,43 @@ const exportExcel = async () => {
           />
         ) : null}
       </div>
-       {isExcelExportModalOpen ? (
-  <div
-    className="fixed inset-0 z-[230] flex items-center justify-center bg-slate-950/60 p-4"
-    onPointerDown={(event) => event.stopPropagation()}
-  >
-    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-      <h3 className="text-lg font-semibold text-slate-900">
-        Export Excel
-      </h3>
-
-      <p className="mt-2 text-sm text-slate-600">
-        Do you want to download the Excel?
-      </p>
-
-      <div className="mt-6 flex justify-end gap-2">
-        <Button
-          variant="outline"
-          onClick={() => {
-            setIsExcelExportModalOpen(false);
-          }}
+      {isExcelExportModalOpen ? (
+        <div
+          className="fixed inset-0 z-[230] flex items-center justify-center bg-slate-950/60 p-4"
+          onPointerDown={(event) => event.stopPropagation()}
         >
-          No
-        </Button>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-slate-900">
+              Export Excel
+            </h3>
 
-        <Button
-          className="bg-[#124657] hover:bg-[#0b3642]"
-          onClick={() => {
-            setIsExcelExportModalOpen(false);
-            exportExcel();
-          }}
-        >
-          Yes
-        </Button>
-      </div>
-    </div>
-  </div>
-) : null}
+            <p className="mt-2 text-sm text-slate-600">
+              Do you want to download the Excel?
+            </p>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsExcelExportModalOpen(false);
+                }}
+              >
+                No
+              </Button>
+
+              <Button
+                className="bg-[#0F172A] hover:bg-[#0F172A]"
+                onClick={() => {
+                  setIsExcelExportModalOpen(false);
+                  exportExcel();
+                }}
+              >
+                Yes
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </PageShell>
   );
 }
