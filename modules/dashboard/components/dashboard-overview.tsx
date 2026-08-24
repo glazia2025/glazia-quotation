@@ -9,6 +9,7 @@ import { getDashboardMetrics } from "@/services/dashboard-service";
 import { PageShell } from "@/components/shared/page-shell";
 import { QUOTATION_API_BASE_URL } from "@/services/api";
 import Link from "next/link";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 
 import {
   Chart as ChartJS,
@@ -379,7 +380,7 @@ const metrics = getDashboardMetrics(total, totalValue,confirmedOrders,conversion
       <span className="text-sm font-medium text-slate-500">Year:</span>
 
   <div className="relative">
-    <select
+    <CustomSelect
       value={year}
       onChange={(e) => setYear(e.target.value)}
       className="h-10 appearance-none rounded-lg border border-slate-200 bg-white px-4 pr-10 text-sm font-semibold text-slate-800 outline-none transition hover:border-slate-300 focus:border-slate-300"
@@ -389,7 +390,7 @@ const metrics = getDashboardMetrics(total, totalValue,confirmedOrders,conversion
           {y}
         </option>
       ))}
-    </select>
+    </CustomSelect>
 
     <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-800">
       <svg
@@ -411,15 +412,6 @@ const metrics = getDashboardMetrics(total, totalValue,confirmedOrders,conversion
     </span>
   </div>
 
-      {/* <button
-        type="button"
-          <Link href="/quotations/new">
-        className="rounded-md px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-        style={{ backgroundColor: "#EE1C25" }}
-      >
-        + Add Quotation
-        </Link>
-      </button> */}
       <Link
   href="/quotations/new"
   className="rounded-md px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
@@ -437,9 +429,6 @@ const metrics = getDashboardMetrics(total, totalValue,confirmedOrders,conversion
         <Card>
   <CardHeader className="flex flex-row items-center justify-between">
 
-  {/* <CardTitle className="text-left">
-    Opportunity Trends
-  </CardTitle> */}
   <CardTitle className="text-left">
   Sales per Month
 </CardTitle>
