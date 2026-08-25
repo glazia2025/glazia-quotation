@@ -2167,8 +2167,10 @@ export function QuotationBuilder({
   const router = useRouter();
   const configuratorBasePath = `${quotationBasePath}/configurator`;
   const [globalConfig, setGlobalConfig] = useState(createBuilderGlobalConfig);
+  const [isGlobalConfigLoaded, setIsGlobalConfigLoaded] = useState(false);
   const hydratedQuotationKeyRef = useRef<string | null>(null);
   const hydratedGlobalConfigKeyRef = useRef<string | null>(null);
+  const persistedBaselineKeyRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const handleAddItem = () => {
     router.push(`${configuratorBasePath}/${crypto.randomUUID()}?mode=create`);
@@ -2203,6 +2205,8 @@ export function QuotationBuilder({
         });
       } catch (error) {
         console.error("Failed to load global quotation configuration", error);
+      } finally {
+        setIsGlobalConfigLoaded(true);
       }
     };
 
@@ -2307,6 +2311,26 @@ export function QuotationBuilder({
     }),
     [globalConfig, quotation]
   );
+
+  useEffect(() => {
+    if (isCreateMode || !isGlobalConfigLoaded || !initialQuotation?._id) return;
+
+    const baselineKey = getQuotationIdentity(initialQuotation);
+    if (persistedBaselineKeyRef.current === baselineKey) return;
+
+    persistedBaselineKeyRef.current = baselineKey;
+    lastPersistedMetadataFingerprintRef.current = getQuotationMetadataSaveFingerprint({
+      ...initialQuotation,
+      globalConfig: quotationWithGlobalConfig.globalConfig,
+    });
+    markSaved();
+  }, [
+    initialQuotation,
+    isCreateMode,
+    isGlobalConfigLoaded,
+    markSaved,
+    quotationWithGlobalConfig.globalConfig,
+  ]);
 
   const saveMetadata = useCallback(
     (snapshot: Quotation) => {
