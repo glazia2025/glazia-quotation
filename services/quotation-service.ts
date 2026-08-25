@@ -311,11 +311,11 @@ function toQuotationsPage(payload: unknown): QuotationsPage {
   };
 }
 
-export async function getQuotations(page = 1, limit = 20): Promise<QuotationsPage> {
+export async function getQuotations(page = 1, limit = 20, search = ""): Promise<QuotationsPage> {
   const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations`, {
     headers: getAuthHeaders(),
     withCredentials: true,
-    params: { page, limit }
+    params: { page, limit, search}
   });
 
   return toQuotationsPage(response.data);

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Calendar, CopyPlus, Eye, File, HandCoins, Plus, Trash2 } from "lucide-react";
+import { Calendar, CopyPlus, Eye, File, HandCoins, Plus, Trash2, Search } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,24 +16,75 @@ import { useQuotationBuilderStore } from "@/modules/quotation/store/use-quotatio
 
 export function QuotationList() {
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [sortOrder, setSortOrder] = useState<
+    "latest" | "oldest" | "enquiry" | "quoted" | "underNegotiation" | "orderConfirmed" | "orderLost"
+  >("latest");
+  const [isSortOpen, setIsSortOpen] = useState(false);
   const [deletingQuotationId, setDeletingQuotationId] = useState<string | null>(null);
   const [quotationToDelete, setQuotationToDelete] = useState<{ id: string; number: string } | null>(null);
   const [duplicatingQuotationId, setDuplicatingQuotationId] = useState<string | null>(null);
   const [quotationToDuplicate, setQuotationToDuplicate] = useState<{
-  id: string;
-  number: string;
-} | null>(null);
+    id: string;
+    number: string;
+  } | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const pageSize = 20;
   const { data, isLoading, error, refetch } = useTenantQuery({
-    queryKey: ["quotations", String(page)],
-    queryFn: () => getQuotations(page, pageSize)
+    queryKey: ["quotations", String(page), search],
+    queryFn: () => getQuotations(page, pageSize, search)
   });
   const quotationDetails = useQuotationBuilderStore((s) => s.quotation.quotationDetails);
   const updateQuotationField = useQuotationBuilderStore((s) => s.updateQuotationField);
 
   console.log(data, "DATAAAAAAA")
   const quotations = data?.quotations ?? [];
+
+  const opportunityOrder: Record<string, number> = {
+    Enquiry: 1,
+    Quoted: 2,
+    "Under Negotiation": 3,
+    "Order Confirmed": 4,
+    "Order Lost": 5,
+  };
+
+  const sortedQuotations = [...quotations].sort((a, b) => {
+    const dateA = new Date(a.createdAt ?? 0).getTime();
+    const dateB = new Date(b.createdAt ?? 0).getTime();
+
+    const opportunityA =
+      a.quotationDetails?.opportunity || "Enquiry";
+
+    const opportunityB =
+      b.quotationDetails?.opportunity || "Enquiry";
+
+    if (sortOrder === "latest") {
+      return dateB - dateA;
+    }
+
+    if (sortOrder === "oldest") {
+      return dateA - dateB;
+    }
+
+    const selectedStage: Record<string, string> = {
+      enquiry: "Enquiry",
+      quoted: "Quoted",
+      underNegotiation: "Under Negotiation",
+      orderConfirmed: "Order Confirmed",
+      orderLost: "Order Lost",
+    };
+
+    const selectedOpportunity = selectedStage[sortOrder];
+
+    const aSelected = opportunityA === selectedOpportunity;
+    const bSelected = opportunityB === selectedOpportunity;
+
+    if (aSelected && !bSelected) return -1;
+    if (!aSelected && bSelected) return 1;
+
+    return dateB - dateA;
+  });
+
   const total = data?.total ?? 0;
   const totalPages = data?.totalPages ?? 1;
   const totalValue = quotations.reduce((sum, quotation) => {
@@ -58,38 +110,38 @@ export function QuotationList() {
   };
 
   const handleDuplicateQuotation = (
-  quotationId: string,
-  quotationNumber: string
-) => {
-  if (!quotationId || duplicatingQuotationId) return;
+    quotationId: string,
+    quotationNumber: string
+  ) => {
+    if (!quotationId || duplicatingQuotationId) return;
 
-  setQuotationToDuplicate({
-    id: quotationId,
-    number: quotationNumber,
-  });
-};
+    setQuotationToDuplicate({
+      id: quotationId,
+      number: quotationNumber,
+    });
+  };
 
-const confirmDuplicateQuotation = async () => {
-  if (!quotationToDuplicate || duplicatingQuotationId) return;
+  const confirmDuplicateQuotation = async () => {
+    if (!quotationToDuplicate || duplicatingQuotationId) return;
 
-  setDuplicatingQuotationId(quotationToDuplicate.id);
+    setDuplicatingQuotationId(quotationToDuplicate.id);
 
-  try {
-    const duplicatedQuotation = await duplicateQuotation(
-      quotationToDuplicate.id
-    );
+    try {
+      const duplicatedQuotation = await duplicateQuotation(
+        quotationToDuplicate.id
+      );
 
-    console.log("Duplicated quotation:", duplicatedQuotation);
+      console.log("Duplicated quotation:", duplicatedQuotation);
 
-    setQuotationToDuplicate(null);
+      setQuotationToDuplicate(null);
 
-    await refetch();
-  } catch (error) {
-    console.error("Duplicate quotation failed:", error);
-  } finally {
-    setDuplicatingQuotationId(null);
-  }
-};
+      await refetch();
+    } catch (error) {
+      console.error("Duplicate quotation failed:", error);
+    } finally {
+      setDuplicatingQuotationId(null);
+    }
+  };
   const confirmDeleteQuotation = async () => {
     if (!quotationToDelete || deletingQuotationId) return;
 
@@ -113,9 +165,36 @@ const confirmDuplicateQuotation = async () => {
   return (
     <PageShell
       title="Quotations"
-      description="Manage draft, submitted, revised, and converted quotations with pricing visibility and revision history."
+      description={
+        <div className="flex flex-col gap-2">
+          <span>
+            Manage draft, submitted, revised, and converted quotations with pricing
+            visibility and revision history.
+          </span>
+
+          <div className="relative w-[300px]">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Search quotation, customer..."
+              className="h-9 w-full rounded-md border border-slate-200 bg-white pl-9 pr-3 text-xs text-slate-700 outline-none placeholder:text-slate-400 focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A]"
+            />
+          </div>
+        </div>
+      }
+
+
       actions={
-        <Button asChild>
+        <Button asChild
+          className="text-white hover:opacity-90"
+          style={{ backgroundColor: "#EE1C25" }}
+        >
           <Link href="/quotations/new">
             <Plus className="h-4 w-4" />
             New quotation
@@ -158,13 +237,124 @@ const confirmDuplicateQuotation = async () => {
       </div>
 
       <Card className="border-0 bg-white/90">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Recent Quotations</CardTitle>
+
+          <div className="flex items-center gap-2">
+
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 px-3 text-xs"
+                onClick={() => setIsSortOpen((prev) => !prev)}
+              >
+                Sort by
+                <ChevronDown className="ml-1 h-4 w-4" />
+              </Button>
+
+              {isSortOpen && (
+                <div className="absolute right-0 top-11 z-50 w-44 rounded-md border border-slate-200 bg-white p-1 shadow-lg">
+                  <button
+                    type="button"
+                    className="w-full rounded-sm px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-100"
+                    onClick={() => {
+                      setSortOrder("latest");
+                      setIsSortOpen(false);
+                    }}
+                  >
+                    Latest quotation
+                  </button>
+
+                  <button
+                    type="button"
+                    className="w-full rounded-sm px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-100"
+                    onClick={() => {
+                      setSortOrder("oldest");
+                      setIsSortOpen(false);
+                    }}
+                  >
+                    Oldest quotation
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full rounded-sm px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-100"
+                    onClick={() => {
+                      setSortOrder("enquiry");
+                      setIsSortOpen(false);
+                    }}
+                  >
+                    Enquiry
+                  </button>
+
+                  <button
+                    type="button"
+                    className="w-full rounded-sm px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-100"
+                    onClick={() => {
+                      setSortOrder("quoted");
+                      setIsSortOpen(false);
+                    }}
+                  >
+                    Quoted
+                  </button>
+
+                  <button
+                    type="button"
+                    className="w-full rounded-sm px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-100"
+                    onClick={() => {
+                      setSortOrder("underNegotiation");
+                      setIsSortOpen(false);
+                    }}
+                  >
+                    Under Negotiation
+                  </button>
+
+                  <button
+                    type="button"
+                    className="w-full rounded-sm px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-100"
+                    onClick={() => {
+                      setSortOrder("orderConfirmed");
+                      setIsSortOpen(false);
+                    }}
+                  >
+                    Order Confirmed
+                  </button>
+
+                  <button
+                    type="button"
+                    className="w-full rounded-sm px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-100"
+                    onClick={() => {
+                      setSortOrder("orderLost");
+                      setIsSortOpen(false);
+                    }}
+                  >
+                    Order Lost
+                  </button>
+
+                </div>
+              )}
+            </div>
+
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           {isLoading ? <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-500">Loading quotations...</div> : null}
           {error ? <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-600">Failed to load quotations.</div> : null}
-          {quotations.map((quotation, index) => {
+
+          <div className="hidden md:grid grid-cols-[1.15fr_0.95fr_0.55fr_0.75fr_1.8fr] items-center border-b border-slate-200 px-4 pb-3 text-xs font-medium uppercase tracking-wide text-slate-400">
+            <div>Quotation</div>
+            <div>Customer</div>
+            <div>Items</div>
+
+            <div className="justify-self-center">
+              Stage
+            </div>
+
+            <div className="justify-self-center">
+              Actions
+            </div>
+          </div>
+          {sortedQuotations.map((quotation, index) => {
             const customerName =
               quotation.customerDetails?.name ||
               "Unknown customer";
@@ -179,67 +369,83 @@ const confirmDuplicateQuotation = async () => {
               0;
 
             return (
-              <div key={`${quotationId}-${index}`} className="grid gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 md:grid-cols-[1.2fr_0.8fr_auto] md:items-center">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h3 className="font-semibold text-slate-900">{quotationNumber}</h3>
-                    <Badge variant={quotationStatus === "Approved" ? "success" : quotationStatus === "Rejected" ? "danger" : "outline"}>
-                      {quotationStatus}
-                    </Badge>
-                  </div>
-                  <div className="mt-2 text-sm text-slate-600">
-                    {customerName}
-                  </div>
-                  <div className="mt-2 text-sm text-slate-600">
-                    <div className="text-xs text-slate-500">
-                      Total Items: {totalWindows}
-                    </div>
-                  </div>
+              <div
+                key={`${quotationId}-${index}`}
+
+                className="grid gap-4 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 md:grid-cols-[1.15fr_1.05fr_0.75fr_0.75fr_1.8fr] md:items-center"
+              >
+                <div className="flex items-center gap-3">
+                  <h3 className="font-semibold text-slate-900">
+                    {quotationNumber}
+                  </h3>
+
+                  <Badge
+                    variant={
+                      quotationStatus === "Approved"
+                        ? "success"
+                        : quotationStatus === "Rejected"
+                          ? "danger"
+                          : "outline"
+                    }
+                  >
+                    {quotationStatus}
+                  </Badge>
                 </div>
+
                 <div className="text-sm text-slate-600">
+                  {customerName}
+                </div>
+
+                <div className="text-sm text-slate-600">
+                  {totalWindows}
+                </div>
+
+                <div>
+                  <Badge variant="outline">
+                    {opportunity}
+                  </Badge>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <div className="text-sm text-slate-600">
-                    <div className="min-w-[170px]">
-
-                      <Badge variant="outline">
-                        {opportunity}
-                      </Badge>
-                    </div>
-                  </div>
                   <Button variant="outline" size="sm" asChild>
                     <Link href={`/quotations/${quotationId}`}>
                       <Eye className="h-4 w-4" />
                       Open
                     </Link>
                   </Button>
-                  {/* <Button variant="ghost" size="sm">
-                    <CopyPlus className="h-4 w-4" />
-                    Duplicate
-                  </Button> */}
+
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleDuplicateQuotation(quotationId , quotationNumber)}
+                    onClick={() =>
+                      handleDuplicateQuotation(quotationId, quotationNumber)
+                    }
                     disabled={duplicatingQuotationId === quotationId}
                   >
                     <CopyPlus className="h-4 w-4" />
-                    {duplicatingQuotationId === quotationId ? "Duplicating..." : "Duplicate"}
+                    {duplicatingQuotationId === quotationId
+                      ? "Duplicating..."
+                      : "Duplicate"}
                   </Button>
+
                   <Button
                     variant="outline"
                     size="sm"
                     className="text-red-600 hover:text-red-700"
                     disabled={deletingQuotationId === quotationId}
-                    onClick={() => handleDeleteQuotation(quotationId, quotationNumber)}
+                    onClick={() =>
+                      handleDeleteQuotation(quotationId, quotationNumber)
+                    }
                     title="Delete quotation"
                   >
                     <Trash2 className="h-4 w-4" />
-                    {deletingQuotationId === quotationId ? "Deleting..." : "Delete"}
+                    {deletingQuotationId === quotationId
+                      ? "Deleting..."
+                      : "Delete"}
                   </Button>
                 </div>
               </div>
+
             );
           })}
           {!isLoading && !error && quotations.length === 0 ? (
@@ -284,41 +490,42 @@ const confirmDuplicateQuotation = async () => {
       ) : null}
 
       {quotationToDuplicate ? (
-  <div className="fixed inset-0 z-[230] flex items-center justify-center bg-slate-950/60 p-4">
-    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-      <h3 className="text-lg font-semibold text-slate-900">
-        Duplicate Quotation
-      </h3>
+        <div className="fixed inset-0 z-[230] flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-slate-900">
+              Duplicate Quotation
+            </h3>
 
-      <p className="mt-2 text-sm text-slate-600">
-        Are you sure you want to duplicate quotation{" "}
-        <span className="font-semibold">
-          {quotationToDuplicate.number}
-        </span>
-        ?
-      </p>
+            <p className="mt-2 text-sm text-slate-600">
+              Are you sure you want to duplicate quotation{" "}
+              <span className="font-semibold">
+                {quotationToDuplicate.number}
+              </span>
+              ?
+            </p>
 
-      <div className="mt-6 flex justify-end gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setQuotationToDuplicate(null)}
-          disabled={Boolean(duplicatingQuotationId)}
-        >
-          No
-        </Button>
+            <div className="mt-6 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setQuotationToDuplicate(null)}
+                disabled={Boolean(duplicatingQuotationId)}
+              >
+                No
+              </Button>
 
-        <Button
-          size="sm"
-          onClick={confirmDuplicateQuotation}
-          disabled={Boolean(duplicatingQuotationId)}
-        >
-          {duplicatingQuotationId ? "Duplicating..." : "Yes"}
-        </Button>
-      </div>
-    </div>
-  </div>
-) : null}
+              <Button
+                size="sm"
+                onClick={confirmDuplicateQuotation}
+                disabled={Boolean(duplicatingQuotationId)}
+                className="bg-[#0F172A] hover:bg-[#0F172A]"
+              >
+                {duplicatingQuotationId ? "Duplicating..." : "Yes"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
 
     </PageShell>

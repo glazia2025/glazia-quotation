@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import axios, { AxiosError } from "axios";
-import { Plus, Save, Search } from "lucide-react";
+import { Plus, Save, Search, X } from "lucide-react";
 import { QUOTATION_API_BASE_URL } from "@/services/api";
 import { defaultSettingsSection } from "@/modules/settings/constants";
 import { loadGlobalConfig, saveGlobalConfig } from "../../../utils/globalConfig";
@@ -36,8 +36,8 @@ type NewHardwareDraft = { name: string; blackRate: string; silverRate: string };
 type NewHardwareDrafts = Record<string, NewHardwareDraft>;
 
 const SETTINGS_PREFIXES = [
-   process.env.NEXT_PUBLIC_QUOTATION_SETTINGS_PATH,
-   "/api/user/quotation-data",
+  process.env.NEXT_PUBLIC_QUOTATION_SETTINGS_PATH,
+  "/api/user/quotation-data",
   "",
 ].filter((value, index, array): value is string => Boolean(value) && array.indexOf(value as string) === index);
 
@@ -95,9 +95,9 @@ function normalizeRateRow(item: unknown): RateRow {
   const rawColors = raw.colors;
   const colors: ColorRate[] = Array.isArray(rawColors)
     ? rawColors.map((entry) => {
-        const record = (entry ?? {}) as Record<string, unknown>;
-        return { name: asString(record.name), rate: asNumber(record.rate) };
-      }).filter((entry) => entry.name)
+      const record = (entry ?? {}) as Record<string, unknown>;
+      return { name: asString(record.name), rate: asNumber(record.rate) };
+    }).filter((entry) => entry.name)
     : rawColors && typeof rawColors === "object"
       ? Object.entries(rawColors as Record<string, unknown>).map(([name, rate]) => ({ name, rate: asNumber(rate) }))
       : [];
@@ -337,7 +337,7 @@ type RateSectionProps = {
   newColor?: string;
   onNewColorChange?: (value: string) => void;
   onRowColorChange?: (id: string, color: string) => void;
-  onAdd: () => void;
+  onAdd: () => Promise<boolean>;
   onSave: () => void;
   onReset: () => void;
 };
@@ -361,9 +361,10 @@ function RateSection({
   onSave,
   onReset,
 }: RateSectionProps) {
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-[#124657]">{title}</h2>
+      <h2 className="text-2xl font-bold text-[#0F172A]">{title}</h2>
 
       <div className="bg-gray-100 rounded-lg px-4 py-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="relative w-full lg:w-64">
@@ -373,38 +374,16 @@ function RateSection({
             placeholder="Search"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#124657] focus:outline-none"
-          />
-        </div>
-
-        <div className={`grid grid-cols-1 ${onNewColorChange ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-2 w-full lg:w-auto`}>
-          <input
-            type="text"
-            placeholder="Name"
-            value={newName}
-            onChange={(e) => onNewNameChange(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#124657] focus:outline-none"
-          />
-          {onNewColorChange && (
-            <label className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-600">
-              Frame colour
-              <input type="color" aria-label="New frame colour" value={newColor || "#C0C0C0"} onChange={(e) => onNewColorChange(e.target.value)} className="h-8 w-10 cursor-pointer border-0 bg-transparent p-0" />
-            </label>
-          )}
-          <input
-            type="number"
-            placeholder="Rate"
-            value={newRate}
-            onChange={(e) => onNewRateChange(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#124657] focus:outline-none"
+            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#0F172A] focus:outline-none"
           />
         </div>
 
         <button
           type="button"
-          onClick={onAdd}
+          // onClick={onAdd}
+          onClick={() => setIsAddModalOpen(true)}
           disabled={isSaving}
-          className="flex items-center justify-center gap-2 border border-[#124657] text-[#124657] px-4 py-2 rounded-md text-sm hover:bg-[#124657] hover:text-white transition disabled:opacity-50"
+          className="flex items-center justify-center gap-2 border border-[#0F172A] text-[#0F172A] px-4 py-2 rounded-md text-sm hover:bg-[#0F172A] hover:text-white transition disabled:opacity-50"
         >
           <Plus className="w-4 h-4" />
           Add Item
@@ -447,7 +426,7 @@ function RateSection({
                       type="number"
                       value={item.rate}
                       onChange={(e) => onRowRateChange(item.id, asNumber(e.target.value))}
-                      className="w-28 px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#124657] focus:outline-none"
+                      className="w-28 px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#0F172A] focus:outline-none"
                     />
                   </td>
                   {onRowColorChange && (
@@ -465,7 +444,7 @@ function RateSection({
       </div>
 
       <div className="flex justify-end items-center gap-4 pt-4">
-        <button type="button" onClick={onReset} className="text-gray-600 text-sm hover:text-[#124657]">
+        <button type="button" onClick={onReset} className="text-gray-600 text-sm hover:text-[#0F172A]">
           Reset
         </button>
 
@@ -473,11 +452,108 @@ function RateSection({
           type="button"
           onClick={onSave}
           disabled={isSaving || isLoading}
-          className="bg-[#124657] text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition disabled:opacity-50"
+          className="bg-[#0F172A] text-white px-4 py-2 rounded-md text-sm hover:bg-[#0F172A] transition disabled:opacity-50"
         >
           Save
         </button>
       </div>
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+
+            <div className="mb-5 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-[#0F172A]">
+                Add Item
+              </h3>
+
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="text-xl text-gray-400 hover:text-gray-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Name
+              </label>
+
+              <input
+                type="text"
+                placeholder="Enter name"
+                value={newName}
+                onChange={(e) => onNewNameChange(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#0F172A]"
+              />
+            </div>
+
+            {onNewColorChange && (
+              <div className="mb-4">
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Frame colour
+                </label>
+
+                <div className="flex items-center gap-3 rounded-md border border-gray-300 px-3 py-2">
+                  <input
+                    type="color"
+                    aria-label="New frame colour"
+                    value={newColor || "#C0C0C0"}
+                    onChange={(e) => onNewColorChange(e.target.value)}
+                    className="h-9 w-12 cursor-pointer border-0 bg-transparent p-0"
+                  />
+
+                  <span className="font-mono text-sm text-gray-500">
+                    {newColor || "#C0C0C0"}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="mb-6">
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Rate
+              </label>
+
+              <input
+                type="number"
+                placeholder="Enter rate"
+                value={newRate}
+                onChange={(e) => onNewRateChange(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#0F172A]"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  const success = await onAdd();
+
+                  if (success) {
+                    setIsAddModalOpen(false);
+                  }
+                }}
+                disabled={isSaving}
+                className="rounded-md bg-[#0F172A] px-4 py-2 text-sm text-white transition hover:bg-[#0b3642] disabled:opacity-50"
+              >
+                Save
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -492,7 +568,7 @@ type HardwareSectionProps = {
   onNewNameChange: (system: string, value: string) => void;
   onNewBlackRateChange: (system: string, value: string) => void;
   onNewSilverRateChange: (system: string, value: string) => void;
-  onAdd: (system: string) => void;
+  onAdd: (system: string) => Promise<boolean>;
   onRowColorRateChange: (system: string, id: string, color: string, rate: number) => void;
   onDelete: (system: string, id: string) => void;
   onSave: () => void;
@@ -516,10 +592,12 @@ function HardwareSection({
   onReset,
 }: HardwareSectionProps) {
   const systems = Object.entries(groupedRows);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedSystem, setSelectedSystem] = useState("");
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-[#124657]">Hardware</h2>
+      <h2 className="text-2xl font-bold text-[#0F172A]">Hardware</h2>
 
       <div className="bg-gray-100 rounded-lg px-4 py-3 flex justify-end">
         <div className="relative w-full max-w-sm">
@@ -529,7 +607,7 @@ function HardwareSection({
             placeholder="Search"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#124657] focus:outline-none"
+            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#0F172A] focus:outline-none"
           />
         </div>
       </div>
@@ -548,43 +626,24 @@ function HardwareSection({
         systems.map(([system, rows]) => (
           <div key={system} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-              <h3 className="text-base font-semibold text-[#124657]">{formatSystemLabel(system)}</h3>
+              <h3 className="text-base font-semibold text-[#0F172A]">{formatSystemLabel(system)}</h3>
             </div>
 
-            <div className="px-4 py-3 border-b border-gray-100 bg-white">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_140px_140px_auto] gap-2">
-                <input
-                  type="text"
-                  placeholder="Name"
-                  value={newItems[system]?.name || ""}
-                  onChange={(e) => onNewNameChange(system, e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#124657] focus:outline-none"
-                />
-                <input
-                  type="number"
-                  placeholder="Black rate"
-                  value={newItems[system]?.blackRate || ""}
-                  onChange={(e) => onNewBlackRateChange(system, e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#124657] focus:outline-none"
-                />
-                <input
-                  type="number"
-                  placeholder="Silver rate"
-                  value={newItems[system]?.silverRate || ""}
-                  onChange={(e) => onNewSilverRateChange(system, e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#124657] focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => onAdd(system)}
-                  disabled={isSaving}
-                  className="flex items-center justify-center gap-2 border border-[#124657] text-[#124657] px-4 py-2 rounded-md text-sm hover:bg-[#124657] hover:text-white transition disabled:opacity-50"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Item
-                </button>
-              </div>
+            <div className="flex justify-end px-4 py-3 border-b border-gray-100 bg-white">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedSystem(system);
+                  setIsAddModalOpen(true);
+                }}
+                disabled={isSaving}
+                className="flex items-center justify-center gap-2 border border-[#0F172A] text-[#0F172A] px-4 py-2 rounded-md text-sm hover:bg-[#0F172A] hover:text-white transition disabled:opacity-50"
+              >
+                <Plus className="w-4 h-4" />
+                Add Item
+              </button>
             </div>
+
 
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600">
@@ -614,7 +673,7 @@ function HardwareSection({
                               type="number"
                               value={color.rate}
                               onChange={(e) => onRowColorRateChange(system, item.id, color.name, asNumber(e.target.value))}
-                              className="w-28 px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#124657] focus:outline-none"
+                              className="w-28 px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#0F172A] focus:outline-none"
                             />
                           </label>
                         ))}
@@ -642,7 +701,7 @@ function HardwareSection({
         ))}
 
       <div className="flex justify-end items-center gap-4 pt-4">
-        <button type="button" onClick={onReset} className="text-gray-600 text-sm hover:text-[#124657]">
+        <button type="button" onClick={onReset} className="text-gray-600 text-sm hover:text-[#0F172A]">
           Reset
         </button>
 
@@ -650,11 +709,114 @@ function HardwareSection({
           type="button"
           onClick={onSave}
           disabled={isSaving || isLoading}
-          className="bg-[#124657] text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition disabled:opacity-50"
+          className="bg-[#0F172A] text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition disabled:opacity-50"
         >
           Save
         </button>
       </div>
+      {isAddModalOpen && selectedSystem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-[#0F172A]">
+                  Add Item
+                </h3>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  {formatSystemLabel(selectedSystem)}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="text-gray-400 hover:text-gray-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Name
+              </label>
+
+              <input
+                type="text"
+                placeholder="Enter name"
+                value={newItems[selectedSystem]?.name || ""}
+                onChange={(e) =>
+                  onNewNameChange(selectedSystem, e.target.value)
+                }
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#0F172A]"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Black Rate
+              </label>
+
+              <input
+                type="number"
+                placeholder="Enter black rate"
+                value={newItems[selectedSystem]?.blackRate || ""}
+                onChange={(e) =>
+                  onNewBlackRateChange(selectedSystem, e.target.value)
+                }
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#0F172A]"
+              />
+            </div>
+
+            <div className="mb-6">
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Silver Rate
+              </label>
+
+              <input
+                type="number"
+                placeholder="Enter silver rate"
+                value={newItems[selectedSystem]?.silverRate || ""}
+                onChange={(e) =>
+                  onNewSilverRateChange(selectedSystem, e.target.value)
+                }
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#0F172A]"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  const success = await onAdd(selectedSystem);
+
+                  if (success) {
+                    setIsAddModalOpen(false);
+                    setSelectedSystem("");
+                  }
+                }}
+                disabled={isSaving}
+                className="rounded-md bg-[#0F172A] px-4 py-2 text-sm text-white transition hover:bg-[#0b3642] disabled:opacity-50"
+              >
+                Save
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+
     </div>
   );
 }
@@ -682,7 +844,7 @@ function ProfileRateSection({
 }: ProfileRateSectionProps) {
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-[#124657]">Profile Rate</h2>
+      <h2 className="text-2xl font-bold text-[#0F172A]">Profile Rate</h2>
 
       <div className="bg-gray-100 rounded-lg px-4 py-3 flex justify-end">
         <div className="relative w-full max-w-sm">
@@ -692,7 +854,7 @@ function ProfileRateSection({
             placeholder="Search"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#124657] focus:outline-none"
+            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#0F172A] focus:outline-none"
           />
         </div>
       </div>
@@ -738,7 +900,7 @@ function ProfileRateSection({
                           type="number"
                           value={rates[index] ?? 0}
                           onChange={(e) => onRateChange(row.id, index, asNumber(e.target.value))}
-                          className="w-28 px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#124657] focus:outline-none"
+                          className="w-28 px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#0F172A] focus:outline-none"
                         />
                       </td>
                     ))}
@@ -750,14 +912,14 @@ function ProfileRateSection({
       </div>
 
       <div className="flex justify-end items-center gap-4 pt-4">
-        <button type="button" onClick={onReset} className="text-gray-600 text-sm hover:text-[#124657]">
+        <button type="button" onClick={onReset} className="text-gray-600 text-sm hover:text-[#0F172A]">
           Reset
         </button>
         <button
           type="button"
           onClick={onSave}
           disabled={isSaving || isLoading}
-          className="bg-[#124657] text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition disabled:opacity-50"
+          className="bg-[#0F172A] text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition disabled:opacity-50"
         >
           Save
         </button>
@@ -942,14 +1104,14 @@ export default function QuotationSettingsPage() {
     }));
   };
 
-  const addHardwareItem = async (system: string) => {
+  const addHardwareItem = async (system: string): Promise<boolean> => {
     const draft = newHardwareBySystem[system] || { name: "", blackRate: "", silverRate: "" };
     const name = draft.name.trim();
     const systemType = hardwareRows[system]?.[0]?.systemType || formatSystemLabel(system);
 
     if (!name) {
       setStatus("Name is required.");
-      return;
+      return false;
     }
 
     setIsRatesSaving(true);
@@ -968,12 +1130,14 @@ export default function QuotationSettingsPage() {
         [system]: { name: "", blackRate: "", silverRate: "" },
       }));
       setStatus("Item added.");
+      return true;
     } catch (error) {
       const message =
         (error as AxiosError<{ message?: string }>)?.response?.data?.message ||
         (error as Error).message ||
         "Failed to add item.";
       setStatus(message);
+      return false;
     } finally {
       setIsRatesSaving(false);
       window.setTimeout(() => setStatus(""), 2200);
@@ -1001,7 +1165,7 @@ export default function QuotationSettingsPage() {
     }
   };
 
-  const addItem = async (type: FlatRateSectionType) => {
+  const addItem = async (type: FlatRateSectionType): Promise<boolean> => {
     const source =
       type === "meshType"
         ? newMesh
@@ -1014,7 +1178,7 @@ export default function QuotationSettingsPage() {
 
     if (!name) {
       setStatus("Name is required.");
-      return;
+      return false;
     }
 
     setIsRatesSaving(true);
@@ -1032,12 +1196,14 @@ export default function QuotationSettingsPage() {
 
       await fetchRates();
       setStatus("Item added.");
+      return true;
     } catch (error) {
       const message =
         (error as AxiosError<{ message?: string }>)?.response?.data?.message ||
         (error as Error).message ||
         "Failed to add item.";
       setStatus(message);
+      return false;
     } finally {
       setIsRatesSaving(false);
       window.setTimeout(() => setStatus(""), 2200);
@@ -1164,89 +1330,263 @@ export default function QuotationSettingsPage() {
       <div className="px-4 pt-4 pb-8">
         <div className="space-y-8">
           {activeTab === "profileStructure" && (
-              <>
-                <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h1 className="text-xl font-bold text-[#124657]">Quotation Structure</h1>
-                    <p className="mt-1 text-sm text-gray-500">Save branding, legal terms, and quotation cost defaults.</p>
+            <>
+              <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h1 className="text-xl font-bold text-[#0F172A]">Quotation Structure</h1>
+                  <p className="mt-1 text-sm text-gray-500">Save branding, legal terms, and quotation cost defaults.</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  {status ? <span className="text-sm text-green-600">{status}</span> : null}
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#0F172A] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0F172A]"
+                  >
+                    <Save className="h-4 w-4" />
+                    <span>Save Settings</span>
+                  </button>
+                </div>
+              </div>
+
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <div className="space-y-6">
+
+                  <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+                    <h2 className="text-sm font-semibold text-gray-700 mb-5">
+                      Brand Identity
+                    </h2>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-2">
+                          Company Logo
+                        </label>
+
+                        <div className="flex items-center gap-3">
+                          {logoPreview ? (
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={logoPreview}
+                                alt="Logo preview"
+                                className="h-12 w-20 rounded-lg border border-gray-200 bg-white object-contain p-1"
+                              />
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setConfig((prev: any) => ({
+                                    ...prev,
+                                    logoUrl: "",
+                                    logo: "",
+                                  }))
+                                }
+                                className="text-xs font-medium text-red-600 hover:text-red-700"
+                              >
+                                Remove logo
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex h-12 w-20 items-center justify-center rounded-lg border border-gray-200 text-xs text-gray-400">
+                              No logo
+                            </div>
+                          )}
+                        </div>
+
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) =>
+                            handleLogoUpload(e.target.files?.[0] ?? null)
+                          }
+                          className="mt-3 w-full text-xs text-gray-500 file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:text-xs file:font-medium file:text-gray-700 hover:file:bg-gray-200"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-2">
+                          Website URL
+                        </label>
+
+                        <input
+                          type="text"
+                          value={config?.website || ""}
+                          onChange={(e) =>
+                            setConfig((prev: any) => ({
+                              ...prev,
+                              website: e.target.value,
+                            }))
+                          }
+                          placeholder="www.example.com"
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A]"
+                        />
+                      </div>
+
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    {status ? <span className="text-sm text-green-600">{status}</span> : null}
-                    <button
-                      type="button"
-                      onClick={handleSave}
-                      className="inline-flex items-center gap-2 rounded-lg bg-[#124657] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0b3642]"
-                    >
-                      <Save className="h-4 w-4" />
-                      <span>Save Settings</span>
-                    </button>
+
+                  <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+                    <h2 className="text-sm font-semibold text-gray-700 mb-5">
+                      Document Content
+                    </h2>
+
+                    <div className="space-y-5">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-2">
+                          Prerequisites
+                        </label>
+
+                        <textarea
+                          value={config?.prerequisites ?? ""}
+                          onChange={(e) =>
+                            setConfig((prev: any) => ({
+                              ...prev,
+                              prerequisites: e.target.value,
+                            }))
+                          }
+                          placeholder="Enter prerequisites..."
+                          rows={3}
+                          className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-2">
+                          Terms & Conditions
+                        </label>
+
+                        <textarea
+                          value={config?.terms ?? ""}
+                          onChange={(e) =>
+                            setConfig((prev: any) => ({
+                              ...prev,
+                              terms: e.target.value,
+                            }))
+                          }
+                          placeholder="Enter terms and conditions..."
+                          rows={3}
+                          className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A]"
+                        />
+                      </div>
+
+                    </div>
                   </div>
+
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-xl font-bold text-gray-900 mb-6">Branding</h2>
+                <div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Logo Image</label>
+                  <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm h-full">
+                    <h2 className="text-sm font-semibold text-gray-700 mb-5">
+                      Additional Costs
+                    </h2>
 
-                      {logoPreview && (
-                        <div className="mb-4 flex items-center gap-4">
-                          <img
-                            src={logoPreview}
-                            alt="Logo preview"
-                            className="h-16 w-auto rounded border border-gray-200 bg-white p-2"
-                          />
-                          <button
-                            type="button"
-                            onClick={() =>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-2">
+                          Installation (₹/sqft)
+                        </label>
+
+                        <div className="relative">
+                          <input
+                            type="number"
+                            value={config?.additionalCosts?.installation ?? 0}
+                            onChange={(e) =>
                               setConfig((prev: any) => ({
                                 ...prev,
-                                logoUrl: "",
-                                logo: "",
+                                additionalCosts: {
+                                  ...prev.additionalCosts,
+                                  installation: Number(e.target.value) || 0,
+                                },
                               }))
                             }
-                            className="text-sm font-medium text-red-600 hover:text-red-700"
-                          >
-                            Remove logo
-                          </button>
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 pr-16 text-sm text-gray-700 outline-none transition focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A]"
+                          />
+
                         </div>
-                      )}
+                      </div>
 
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleLogoUpload(e.target.files?.[0] ?? null)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#124657] focus:border-transparent"
-                      />
-                    </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-2">
+                          Transport (₹)
+                        </label>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
-                      <input
-                        type="text"
-                        value={config?.website || ""}
-                        onChange={(e) => setConfig((prev: any) => ({ ...prev, website: e.target.value }))}
-                        placeholder="www.example.com"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#124657] focus:border-transparent"
-                      />
+                        <div className="relative">
+                          <input
+                            type="number"
+                            value={config?.additionalCosts?.transport ?? 0}
+                            onChange={(e) =>
+                              setConfig((prev: any) => ({
+                                ...prev,
+                                additionalCosts: {
+                                  ...prev.additionalCosts,
+                                  transport: Number(e.target.value) || 0,
+                                },
+                              }))
+                            }
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 pr-10 text-sm text-gray-700 outline-none transition focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A]"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-2">
+                          Loading & Unloading (₹)
+                        </label>
+
+                        <div className="relative">
+                          <input
+                            type="number"
+                            value={config?.additionalCosts?.loadingUnloading ?? 0}
+                            onChange={(e) =>
+                              setConfig((prev: any) => ({
+                                ...prev,
+                                additionalCosts: {
+                                  ...prev.additionalCosts,
+                                  loadingUnloading: Number(e.target.value) || 0,
+                                },
+                              }))
+                            }
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 pr-10 text-sm text-gray-700 outline-none transition focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A]"
+                          />
+
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-2">
+                          Discount (%)
+                        </label>
+
+                        <div className="relative">
+                          <input
+                            type="number"
+                            value={config?.additionalCosts?.discountPercent ?? 0}
+                            onChange={(e) =>
+                              setConfig((prev: any) => ({
+                                ...prev,
+                                additionalCosts: {
+                                  ...prev.additionalCosts,
+                                  discountPercent: Number(e.target.value) || 0,
+                                },
+                              }))
+                            }
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 pr-10 text-sm text-gray-700 outline-none transition focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A]"
+                          />
+
+                        </div>
+                      </div>
+
                     </div>
                   </div>
+
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-xl font-bold text-gray-900 mb-6">Legal</h2>
+              </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Terms & Conditions</label>
-                      <textarea
-                        value={config?.terms}
-                        onChange={(e) => setConfig((prev: any) => ({ ...prev, terms: e.target.value }))}
-                        rows={6}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#124657] focus:border-transparent"
-                      />
-                    </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Prerequisites of Installation</label>
@@ -1267,8 +1607,6 @@ export default function QuotationSettingsPage() {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#124657] focus:border-transparent"
                       />
                     </div>
-                  </div>
-                </div>
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                   <h2 className="text-xl font-bold text-gray-900 mb-6">Additional Costs</h2>
@@ -1363,7 +1701,7 @@ export default function QuotationSettingsPage() {
               onNewNameChange={(value) => setNewMesh((prev) => ({ ...prev, name: value }))}
               onNewRateChange={(value) => setNewMesh((prev) => ({ ...prev, rate: value }))}
               onRowRateChange={(id, rate) => updateRowRate("meshType", id, rate)}
-              onAdd={() => void addItem("meshType")}
+              onAdd={() => addItem("meshType")}
               onSave={() => void saveSectionRates("meshType")}
               onReset={() => resetSectionRates("meshType")}
             />
@@ -1382,7 +1720,7 @@ export default function QuotationSettingsPage() {
               onNewNameChange={(value) => setNewGlass((prev) => ({ ...prev, name: value }))}
               onNewRateChange={(value) => setNewGlass((prev) => ({ ...prev, rate: value }))}
               onRowRateChange={(id, rate) => updateRowRate("glassSpec", id, rate)}
-              onAdd={() => void addItem("glassSpec")}
+              onAdd={() => addItem("glassSpec")}
               onSave={() => void saveSectionRates("glassSpec")}
               onReset={() => resetSectionRates("glassSpec")}
             />
@@ -1404,7 +1742,7 @@ export default function QuotationSettingsPage() {
               onNewColorChange={(value) => setNewColorFinish((prev) => ({ ...prev, color: value }))}
               onRowRateChange={(id, rate) => updateRowRate("colorFinish", id, rate)}
               onRowColorChange={updateFrameColor}
-              onAdd={() => void addItem("colorFinish")}
+              onAdd={() => addItem("colorFinish")}
               onSave={() => void saveSectionRates("colorFinish")}
               onReset={() => resetSectionRates("colorFinish")}
             />
@@ -1421,7 +1759,7 @@ export default function QuotationSettingsPage() {
               onNewNameChange={(system, value) => updateNewHardwareDraft(system, "name", value)}
               onNewBlackRateChange={(system, value) => updateNewHardwareDraft(system, "blackRate", value)}
               onNewSilverRateChange={(system, value) => updateNewHardwareDraft(system, "silverRate", value)}
-              onAdd={(system) => void addHardwareItem(system)}
+              onAdd={(system) => addHardwareItem(system)}
               onRowColorRateChange={updateHardwareColorRate}
               onDelete={(system, id) => void deleteHardwareItem(system, id)}
               onSave={() => void saveSectionRates("handle")}
