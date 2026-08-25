@@ -876,19 +876,50 @@ function ItemTab({
   const [optimizedFinal, setOptimizedFinal] = useState<number | null>(null);
   const [isCalculatingOptimizedFinal, setIsCalculatingOptimizedFinal] = useState(false);
   const [optimizedFinalError, setOptimizedFinalError] = useState("");
-  const [isSummaryFixed, setIsSummaryFixed] = useState(false);
+  const summaryColumnRef = useRef<HTMLDivElement>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const [summaryPosition, setSummaryPosition] = useState({
+    fixed: false,
+    left: 0,
+    width: 0,
+    height: 0,
+  });
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsSummaryFixed(window.scrollY > 250);
+    const updateSummaryPosition = () => {
+      const column = summaryColumnRef.current;
+      const summary = summaryRef.current;
+      if (!column || !summary) return;
+
+      const columnRect = column.getBoundingClientRect();
+      const shouldFix = window.matchMedia("(min-width: 1024px)").matches && columnRect.top <= 16;
+      const nextPosition = {
+        fixed: shouldFix,
+        left: columnRect.left,
+        width: columnRect.width,
+        height: summary.getBoundingClientRect().height,
+      };
+
+      setSummaryPosition((current) =>
+        current.fixed === nextPosition.fixed &&
+        Math.abs(current.left - nextPosition.left) < 0.5 &&
+        Math.abs(current.width - nextPosition.width) < 0.5 &&
+        Math.abs(current.height - nextPosition.height) < 0.5
+          ? current
+          : nextPosition
+      );
     };
 
-    handleScroll();
-
-    window.addEventListener("scroll", handleScroll);
+    updateSummaryPosition();
+    window.addEventListener("scroll", updateSummaryPosition, { passive: true });
+    window.addEventListener("resize", updateSummaryPosition);
+    const observer = new ResizeObserver(updateSummaryPosition);
+    if (summaryColumnRef.current) observer.observe(summaryColumnRef.current);
 
     return () => {
-      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("scroll", updateSummaryPosition);
+      window.removeEventListener("resize", updateSummaryPosition);
+      observer.disconnect();
     };
   }, []);
 
@@ -1020,12 +1051,18 @@ function ItemTab({
               </div>
             </div>
             {/* QUOTATION SUMMARY */}
-            <div className="lg:col-span-1">
+            <div
+              ref={summaryColumnRef}
+              className="min-w-0 lg:col-span-1"
+              style={summaryPosition.fixed ? { minHeight: summaryPosition.height } : undefined}
+            >
               <div
-                className={
-                  isSummaryFixed
-                    ? "fixed right-6 top-4 z-50 w-[320px]"
-                    : ""
+                ref={summaryRef}
+                className={summaryPosition.fixed ? "fixed top-4 z-40" : "w-full"}
+                style={
+                  summaryPosition.fixed
+                    ? { left: summaryPosition.left, width: summaryPosition.width }
+                    : undefined
                 }
               >
                 <div className="rounded-2xl bg-slate-950 p-4 text-white shadow-lg">
