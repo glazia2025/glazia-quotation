@@ -1257,6 +1257,16 @@ export default function QuotationSettingsPage() {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#124657] focus:border-transparent"
                       />
                     </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Payment Info</label>
+                      <textarea
+                        value={config?.paymentInfo || ""}
+                        onChange={(e) => setConfig((prev: any) => ({ ...prev, paymentInfo: e.target.value }))}
+                        rows={6}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#124657] focus:border-transparent"
+                      />
+                    </div>
                   </div>
                 </div>
 

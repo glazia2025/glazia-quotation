@@ -103,6 +103,7 @@ const createBuilderGlobalConfig = () => ({
   logo: "",
   logoUrl: "",
   prerequisites: "",
+  paymentInfo: "",
   website: "",
   terms: "",
   additionalCosts: {
@@ -1248,6 +1249,21 @@ function GlobalConfigTab({ globalConfig,
             </div>
 
             <div>
+              <label className="block text-sm mb-2">Payment Info</label>
+              <textarea
+                value={globalConfig.paymentInfo}
+                onChange={(e) =>
+                  setGlobalConfig((p: any) => ({
+                    ...p,
+                    paymentInfo: e.target.value,
+                  }))
+                }
+                rows={3}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-transparent"
+              />
+            </div>
+
+            <div>
               <label className="block text-sm mb-2">Website</label>
               <input
                 value={globalConfig.website}
@@ -1737,6 +1753,7 @@ export function QuotationBuilder({
           website: (useSavedOverride ? savedConfig?.website : data.website) || "",
           terms: (useSavedOverride ? savedConfig?.terms : data.terms) || "",
           prerequisites: (useSavedOverride ? savedConfig?.prerequisites : data.prerequisites) || "",
+          paymentInfo: (useSavedOverride ? savedConfig?.paymentInfo : data.paymentInfo) || "",
           additionalCosts: {
             ...createBuilderGlobalConfig().additionalCosts,
             ...data.additionalCosts,
@@ -1809,6 +1826,7 @@ export function QuotationBuilder({
         website: globalConfig.website || "",
         terms: globalConfig.terms || "",
         prerequisites: globalConfig.prerequisites || "",
+        paymentInfo: globalConfig.paymentInfo || "",
         additionalCosts: {
           installation: Number(globalConfig.additionalCosts.installation) || 0,
           transport: Number(globalConfig.additionalCosts.transport) || 0,
@@ -2346,6 +2364,7 @@ console.log("SAVED ITEM", savedItem);
       logoUrl: savedGlobalConfig.logo || prev.logoUrl,
       website: savedGlobalConfig.website || prev.website,
       prerequisites: savedGlobalConfig.prerequisites || prev.prerequisites,
+      paymentInfo: savedGlobalConfig.paymentInfo || prev.paymentInfo,
       terms: savedGlobalConfig.terms || prev.terms,
       additionalCosts: {
         ...prev.additionalCosts,
@@ -2368,6 +2387,7 @@ console.log("SAVED ITEM", savedItem);
       website: globalConfig.website || "",
       terms: globalConfig.terms || "",
       prerequisites: globalConfig.prerequisites || "",
+      paymentInfo: globalConfig.paymentInfo || "",
       additionalCosts: {
         installation: Number(globalConfig.additionalCosts.installation) || 0,
         transport: Number(globalConfig.additionalCosts.transport) || 0,
@@ -2387,6 +2407,7 @@ console.log("SAVED ITEM", savedItem);
       (currentGlobalConfig?.website || "") === nextGlobalConfig.website &&
       (currentGlobalConfig?.terms || "") === nextGlobalConfig.terms &&
       (currentGlobalConfig?.prerequisites || "") === nextGlobalConfig.prerequisites &&
+      (currentGlobalConfig?.paymentInfo || "") === nextGlobalConfig.paymentInfo &&
       (Number(currentGlobalConfig?.additionalCosts?.installation) || 0) === nextGlobalConfig.additionalCosts.installation &&
       (Number(currentGlobalConfig?.additionalCosts?.transport) || 0) === nextGlobalConfig.additionalCosts.transport &&
       (Number(currentGlobalConfig?.additionalCosts?.loadingUnloading) || 0) === nextGlobalConfig.additionalCosts.loadingUnloading &&

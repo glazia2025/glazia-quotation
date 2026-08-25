@@ -175,6 +175,7 @@ export interface Quotation {
     terms?: string;
     website?: string;
     prerequisites?: string;
+    paymentInfo?: string;
     additionalCosts?: {
       installation?: number;
       transport?: number;

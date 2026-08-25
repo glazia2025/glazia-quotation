@@ -29,6 +29,7 @@ type PdfGlobalConfig = {
   logoUrl?: string;
   website?: string;
   prerequisites?: string;
+  paymentInfo?: string;
   terms?: string;
   additionalCosts?: {
     installation?: number;
@@ -76,6 +77,7 @@ const defaultPdfGlobalConfig: PdfGlobalConfig = {
   logoUrl: "",
   website: "",
   prerequisites: "",
+  paymentInfo: "",
   terms: "",
   additionalCosts: {
     installation: 0,
@@ -185,6 +187,10 @@ function getQuotationTerms(quotation: QuotationPdfData, globalConfig?: PdfGlobal
 
 function getQuotationPrerequisites(globalConfig?: PdfGlobalConfig) {
   return globalConfig?.prerequisites || "";
+}
+
+function getPaymentInfo(globalConfig?: PdfGlobalConfig) {
+  return globalConfig?.paymentInfo || "";
 }
 
 function getContactPhone(quotation: QuotationPdfData, userData: PdfUserData) {
@@ -1351,10 +1357,11 @@ function renderItemPage(
 function renderTermsPage(params: {
   quotationTerms: string;
   prerequisites: string;
+  paymentInfo: string;
   pageNumber: number;
   totalPages: number;
 }) {
-  const { quotationTerms, prerequisites, pageNumber, totalPages } = params;
+  const { quotationTerms, prerequisites, paymentInfo, pageNumber, totalPages } = params;
   const termItems = quotationTerms
     ? quotationTerms
         .split(/\n+/)
@@ -1380,6 +1387,11 @@ function renderTermsPage(params: {
         <ol>
           ${prerequisiteItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
         </ol>
+
+        ${paymentInfo ? `
+          <h2>Payment Info:-</h2>
+          <div>${nl2br(paymentInfo)}</div>
+        ` : ""}
 
         <div class="acceptance">I hereby accept the estimate as per above mentioned price and specifications.</div>
         <div class="signoff">Authorized Signatory</div>
@@ -1415,6 +1427,7 @@ async function createQuotationHtml(quotation: QuotationPdfData) {
   const quotationDate = getQuotationDate(preparedQuotation);
   const quotationTerms = getQuotationTerms(preparedQuotation, globalConfig);
   const prerequisites = getQuotationPrerequisites(globalConfig);
+  const paymentInfo = getPaymentInfo(globalConfig);
   const website = globalConfig.website || "";
   const logoSrc = globalConfig.logoUrl || globalConfig.logo || "";
   const pricing = calculateQuotationPricing(
@@ -1447,6 +1460,7 @@ async function createQuotationHtml(quotation: QuotationPdfData) {
   const termsPage = renderTermsPage({
     quotationTerms,
     prerequisites,
+    paymentInfo,
     pageNumber: totalPages,
     totalPages
   });

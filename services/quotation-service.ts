@@ -264,6 +264,7 @@ export function toBackendQuotation(quotation: Quotation) {
       website: quotation.globalConfig?.website || "",
       terms: quotation.globalConfig?.terms || "",
       prerequisites: quotation.globalConfig?.prerequisites || "",
+      paymentInfo: quotation.globalConfig?.paymentInfo || "",
       additionalCosts: {
         installation: Number(quotation.globalConfig?.additionalCosts?.installation) || 0,
         transport: Number(quotation.globalConfig?.additionalCosts?.transport) || 0,

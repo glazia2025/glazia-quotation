@@ -74,6 +74,7 @@ export function createEmptyQuotation(partial?: Partial<Quotation>): Quotation {
       logo: "",
       terms: "",
       prerequisites: "",
+      paymentInfo: "",
       additionalCosts: {
         installation: 0,
         transport: 0,

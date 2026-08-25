@@ -276,6 +276,7 @@ export function extractBackendQuotation(payload: unknown): BackendQuotationRecor
                 website: toStringValue((source.globalConfig as Record<string, unknown>).website) || undefined,
                 terms: toStringValue((source.globalConfig as Record<string, unknown>).terms) || undefined,
                 prerequisites: toStringValue((source.globalConfig as Record<string, unknown>).prerequisites) || undefined,
+                paymentInfo: toStringValue((source.globalConfig as Record<string, unknown>).paymentInfo) || undefined,
                 additionalCosts:
                   typeof (source.globalConfig as Record<string, unknown>).additionalCosts === "object" &&
                   (source.globalConfig as Record<string, unknown>).additionalCosts !== null
