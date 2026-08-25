@@ -52,6 +52,7 @@ import {
   getBomPdfBlob,
   getCuttingSchedulePdfBlob,
   getQuotationPdfBlob,
+  prepareQuotationPdf,
   saveQuotationMetadata,
   getElevationPdfBlob,
   getOptimizedFinal,
@@ -2249,6 +2250,7 @@ export function QuotationBuilder({
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [pdfDirectDownloadUrl, setPdfDirectDownloadUrl] = useState<string | null>(null);
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState("Quotation PDF Preview");
   const [pdfDownloadName, setPdfDownloadName] = useState("");
   const [bomOrderData, setBomOrderData] = useState<BomOrderData | null>(null);
@@ -2276,7 +2278,7 @@ export function QuotationBuilder({
   ]);
   useEffect(() => {
     return () => {
-      if (pdfPreviewUrl) {
+      if (pdfPreviewUrl?.startsWith("blob:")) {
         URL.revokeObjectURL(pdfPreviewUrl);
       }
     };
@@ -2957,12 +2959,20 @@ export function QuotationBuilder({
         throw new Error("Failed to resolve quotation id before PDF generation.");
       }
 
-      const blob = await getQuotationPdfBlob(pdfQuotationId);
-      const nextPdfPreviewUrl = URL.createObjectURL(blob);
+      const delivery = await prepareQuotationPdf(pdfQuotationId);
+      let nextPdfPreviewUrl: string;
+      if (delivery.delivery === "signed-url") {
+        nextPdfPreviewUrl = delivery.previewUrl;
+        setPdfDirectDownloadUrl(delivery.downloadUrl);
+      } else {
+        const blob = await getQuotationPdfBlob(pdfQuotationId);
+        nextPdfPreviewUrl = URL.createObjectURL(blob);
+        setPdfDirectDownloadUrl(null);
+      }
       setPdfPreviewTitle("Quotation PDF Preview");
       setPdfDownloadName(getQuotationPdfDownloadName({ ...(savedQuotation ?? quotationWithGlobalConfig), globalConfig }));
       setPdfPreviewUrl((currentUrl) => {
-        if (currentUrl) {
+        if (currentUrl?.startsWith("blob:")) {
           URL.revokeObjectURL(currentUrl);
         }
         return nextPdfPreviewUrl;
@@ -3076,9 +3086,10 @@ export function QuotationBuilder({
 
       setPdfPreviewTitle("Elevation PDF Preview");
       setPdfDownloadName("elevation.pdf");
+      setPdfDirectDownloadUrl(null);
 
       setPdfPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
+        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
         return nextUrl;
       });
 
@@ -3115,8 +3126,9 @@ export function QuotationBuilder({
         "quotation";
       setPdfPreviewTitle("Cutting Schedule PDF Preview");
       setPdfDownloadName(`${quoteNo}-cutting-schedule.pdf`);
+      setPdfDirectDownloadUrl(null);
       setPdfPreviewUrl((currentUrl) => {
-        if (currentUrl) {
+        if (currentUrl?.startsWith("blob:")) {
           URL.revokeObjectURL(currentUrl);
         }
         return nextPdfPreviewUrl;
@@ -3157,8 +3169,9 @@ export function QuotationBuilder({
       setPdfPreviewTitle("BOM PDF Preview");
       setPdfDownloadName(`${quoteNo}-bom.pdf`);
       setBomOrderData(orderData);
+      setPdfDirectDownloadUrl(null);
       setPdfPreviewUrl((currentUrl) => {
-        if (currentUrl) {
+        if (currentUrl?.startsWith("blob:")) {
           URL.revokeObjectURL(currentUrl);
         }
         return nextPdfPreviewUrl;
@@ -3193,8 +3206,9 @@ export function QuotationBuilder({
         "quotation";
       setPdfPreviewTitle("Glass Report PDF Preview");
       setPdfDownloadName(`${quoteNo}-glass-report.pdf`);
+      setPdfDirectDownloadUrl(null);
       setPdfPreviewUrl((currentUrl) => {
-        if (currentUrl) URL.revokeObjectURL(currentUrl);
+        if (currentUrl?.startsWith("blob:")) URL.revokeObjectURL(currentUrl);
         return nextPdfPreviewUrl;
       });
       setIsPdfPreviewOpen(true);
@@ -3211,8 +3225,9 @@ export function QuotationBuilder({
   const downloadPreviewedPdf = () => {
     if (!pdfPreviewUrl) return;
     const link = document.createElement("a");
-    link.href = pdfPreviewUrl;
+    link.href = pdfDirectDownloadUrl || pdfPreviewUrl;
     link.download = pdfDownloadName || getQuotationPdfDownloadName({ ...quotation, globalConfig });
+    if (pdfDirectDownloadUrl) link.target = "_blank";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
