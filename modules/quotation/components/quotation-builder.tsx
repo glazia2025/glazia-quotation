@@ -61,6 +61,7 @@ import {
   calculateQuotationRates,
   getGlassReportPdfBlob,
   shareQuotationPdf,
+  getQuotationMetadataSaveFingerprint,
 } from "@/services/quotation-service";
 import type { BomOrderData } from "@/services/quotation-service";
 import { BomOrderPlacement } from "@/modules/quotation/components/bom-order-placement";
@@ -2157,6 +2158,7 @@ export function QuotationBuilder({
   const markSaved = useQuotationBuilderStore((state) => state.markSaved);
   const { quotation, saveState } = useQuotationBuilder();
   const metadataSaveChainRef = useRef<Promise<Quotation | null>>(Promise.resolve(null));
+  const lastPersistedMetadataFingerprintRef = useRef<string | null>(null);
   const itemMutationChainRef = useRef<Promise<void>>(Promise.resolve());
   const [itemMutationsInProgress, setItemMutationsInProgress] = useState(0);
   const [metadataSaveStatus, setMetadataSaveStatus] = useState<"idle" | "saving" | "failed">("idle");
@@ -2219,13 +2221,13 @@ export function QuotationBuilder({
     if (!initialQuotation) return;
 
     const nextQuotationKey = getQuotationIdentity(initialQuotation);
-    if (
-      hydratedQuotationKeyRef.current !== nextQuotationKey &&
-      quotation._id !== initialQuotation._id
-    ) {
+    if (hydratedQuotationKeyRef.current !== nextQuotationKey) {
       hydratedQuotationKeyRef.current = nextQuotationKey;
       hydratedGlobalConfigKeyRef.current = null;
-      setQuotation(initialQuotation);
+      lastPersistedMetadataFingerprintRef.current = getQuotationMetadataSaveFingerprint(initialQuotation);
+      if (quotation._id !== initialQuotation._id) {
+        setQuotation(initialQuotation);
+      }
     }
   }, [initialQuotation, isCreateMode, isReturningFromConfigurator, setQuotation]);
   const [activeTab, setActiveTab] = useState<TabKey>(() => (isTabKey(requestedTab) ? requestedTab : "Details"));
@@ -2322,6 +2324,7 @@ export function QuotationBuilder({
           console.log("Saved Response:", JSON.stringify(saved.globalConfig, null, 2));
 
           applyAutosaveResult(snapshot, saved);
+          lastPersistedMetadataFingerprintRef.current = getQuotationMetadataSaveFingerprint(saved);
           markSaved();
 
           const snapshotLogo = snapshot.globalConfig?.logo || "";
@@ -2380,11 +2383,20 @@ export function QuotationBuilder({
 
   const getPersistedQuotation = useCallback(async () => {
     await itemMutationChainRef.current;
+    await metadataSaveChainRef.current.catch(() => null);
     const current = useQuotationBuilderStore.getState().quotation;
     const snapshot = {
       ...current,
       globalConfig: quotationWithGlobalConfig.globalConfig,
     };
+
+    if (
+      current._id &&
+      lastPersistedMetadataFingerprintRef.current === getQuotationMetadataSaveFingerprint(snapshot)
+    ) {
+      return current;
+    }
+
     const saved = await saveMetadata(snapshot);
     return saved ?? useQuotationBuilderStore.getState().quotation;
   }, [quotationWithGlobalConfig.globalConfig, saveMetadata]);
