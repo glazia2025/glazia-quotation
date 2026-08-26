@@ -1471,6 +1471,15 @@ export default function QuotationSettingsPage() {
                           className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A]"
                         />
                       </div>
+                      <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Payment Info</label>
+                      <textarea
+                        value={config?.paymentInfo || ""}
+                        onChange={(e) => setConfig((prev: any) => ({ ...prev, paymentInfo: e.target.value }))}
+                        rows={6}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#124657] focus:border-transparent"
+                      />
+                    </div>
 
                     </div>
                   </div>
@@ -1587,104 +1596,6 @@ export default function QuotationSettingsPage() {
 
               </div>
 
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Prerequisites of Installation</label>
-                      <textarea
-                        value={config?.prerequisites}
-                        onChange={(e) => setConfig((prev: any) => ({ ...prev, prerequisites: e.target.value }))}
-                        rows={6}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#124657] focus:border-transparent"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Payment Info</label>
-                      <textarea
-                        value={config?.paymentInfo || ""}
-                        onChange={(e) => setConfig((prev: any) => ({ ...prev, paymentInfo: e.target.value }))}
-                        rows={6}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#124657] focus:border-transparent"
-                      />
-                    </div>
-
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-xl font-bold text-gray-900 mb-6">Additional Costs</h2>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Installation (₹/sqft)</label>
-                      <input
-                        type="number"
-                        value={config?.additionalCosts?.installation}
-                        onChange={(e) =>
-                          setConfig((prev: any) => ({
-                            ...prev,
-                            additionalCosts: {
-                              ...prev.additionalCosts,
-                              installation: Number(e.target.value) || 0,
-                            },
-                          }))
-                        }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#124657] focus:border-transparent"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Transport (₹)</label>
-                      <input
-                        type="number"
-                        value={config?.additionalCosts?.transport}
-                        onChange={(e) =>
-                          setConfig((prev: any) => ({
-                            ...prev,
-                            additionalCosts: {
-                              ...prev.additionalCosts,
-                              transport: Number(e.target.value) || 0,
-                            },
-                          }))
-                        }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#124657] focus:border-transparent"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Loading & Unloading (₹)</label>
-                      <input
-                        type="number"
-                        value={config?.additionalCosts?.loadingUnloading}
-                        onChange={(e) =>
-                          setConfig((prev: any) => ({
-                            ...prev,
-                            additionalCosts: {
-                              ...prev.additionalCosts,
-                              loadingUnloading: Number(e.target.value) || 0,
-                            },
-                          }))
-                        }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#124657] focus:border-transparent"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Discount (%)</label>
-                      <input
-                        type="number"
-                        value={config?.additionalCosts?.discountPercent}
-                        onChange={(e) =>
-                          setConfig((prev: any) => ({
-                            ...prev,
-                            additionalCosts: {
-                              ...prev.additionalCosts,
-                              discountPercent: Number(e.target.value) || 0,
-                            },
-                          }))
-                        }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#124657] focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-                </div>
               </>
           )}
 

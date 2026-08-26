@@ -4162,7 +4162,52 @@ export function WindowDoorConfigurator({
                             <>
                               {!isCombinationChildSelection && <label className="text-xs text-gray-600">Color Finish<CustomSelect value={selectedSectionMeta.colorFinish} onChange={(e) => updateSelectedSectionMeta({ colorFinish: e.target.value })} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.colorFinishes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</CustomSelect></label>}
                               <label className="text-xs text-gray-600">Glass Spec<CustomSelect value={selectedSectionMeta.glassSpec} onChange={(e) => updateSelectedSectionMeta({ glassSpec: e.target.value })} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.glassSpecs.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</CustomSelect></label>
-                              {selectedNode.systemType === "Casement" && selectedNode.description !== "Fix" && (<label className="text-xs text-gray-600">Shutter Hardware<CustomSelect value={selectedSectionMeta.hardwareOpeningType} onChange={(e) => updateSelectedSectionMeta({ hardwareOpeningType: e.target.value as "hinges" | "frictionStay" })} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="hinges">Hinges</option><option value="frictionStay">Friction Stay</option></CustomSelect></label>)}
+
+                              {selectedNode.systemType === "Casement" &&
+  selectedNode.description !== "Fix" && (
+    <div className="text-xs text-gray-600">
+      <span>Shutter Hardware</span>
+
+      <div className="mt-2 flex items-center gap-5">
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="radio"
+            name="shutter-hardware"
+            value="hinges"
+            checked={
+              selectedSectionMeta.hardwareOpeningType === "hinges"
+            }
+            onChange={() =>
+              updateSelectedSectionMeta({
+                hardwareOpeningType: "hinges",
+              })
+            }
+            className="h-4 w-4 accent-[#ef0b0b]"
+          />
+          Hinges
+        </label>
+
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="radio"
+            name="shutter-hardware"
+            value="frictionStay"
+            checked={
+              selectedSectionMeta.hardwareOpeningType === "frictionStay"
+            }
+            onChange={() =>
+              updateSelectedSectionMeta({
+                hardwareOpeningType: "frictionStay",
+              })
+            }
+            className="h-4 w-4 accent-[#ef0b0b]"
+          />
+          Friction Stay
+        </label>
+      </div>
+    </div>
+  )}
+
                               <label className="text-xs text-gray-600">Handle Type<CustomSelect value={selectedSectionMeta.handleType} onChange={(e) => updateSelectedSectionMeta({ handleType: e.target.value, handleColor: DEFAULT_HANDLE_COLOR })} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.handleOptions.map((opt: HandleOption) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</CustomSelect></label>
                               <label className="text-xs text-gray-600">Handle Color<CustomSelect value={selectedSectionMeta.handleColor} onChange={(e) => updateSelectedSectionMeta({ handleColor: e.target.value })} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{(metaHandleOption?.colors ?? []).map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</CustomSelect></label>
                             </>

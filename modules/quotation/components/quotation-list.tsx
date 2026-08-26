@@ -363,6 +363,13 @@ export function QuotationList() {
             const quotationStatus: string = "Draft";
             const opportunity =
               quotation.quotationDetails?.opportunity || "Enquiry";
+            const stageStyles: Record<string, string> = {
+              "Order Confirmed": "bg-[#F3FAF6] text-[#16803C]",
+              "Enquiry": "bg-[#F4F8FE] text-[#2563A8]",
+              "Under Negotiation": "bg-[#FFFAF3] text-[#B45309]",
+              "Quoted": "bg-[#F8F6FE] text-[#6D5BA8]",
+              "Order Lost": "bg-[#FFF6F6] text-[#C24141]",
+            };
             const totalWindows =
               quotation.items?.length ??
               quotation.quotationItems?.length ??
@@ -379,17 +386,7 @@ export function QuotationList() {
                     {quotationNumber}
                   </h3>
 
-                  <Badge
-                    variant={
-                      quotationStatus === "Approved"
-                        ? "success"
-                        : quotationStatus === "Rejected"
-                          ? "danger"
-                          : "outline"
-                    }
-                  >
-                    {quotationStatus}
-                  </Badge>
+
                 </div>
 
                 <div className="text-sm text-slate-600">
@@ -400,8 +397,12 @@ export function QuotationList() {
                   {totalWindows}
                 </div>
 
+
                 <div>
-                  <Badge variant="outline">
+                  <Badge
+                    variant="outline"
+                    className={`border-transparent ${stageStyles[opportunity] || "bg-slate-50 text-slate-600"}`}
+                  >
                     {opportunity}
                   </Badge>
                 </div>

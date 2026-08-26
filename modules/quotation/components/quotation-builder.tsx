@@ -1251,13 +1251,12 @@ function CustomerTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSavi
     pincode: ""
   };
 
-  const [expanded, setExpanded] = useState(true);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-black-200 p-6">
       <button
         type="button"
-        onClick={() => setExpanded(!expanded)}
+       
         className="mb-5 flex w-full items-start justify-between text-left"
       >
         <div className="flex items-start gap-3">
@@ -1275,13 +1274,9 @@ function CustomerTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSavi
             </p>
           </div>
         </div>
-
-        <span className="pt-1 text-sm text-slate-950">
-          {expanded ? "▲" : "▼"}
-        </span>
       </button>
 
-      {expanded && (
+     
         <div className="mt-2 border-t border-slate-100 pt-6">
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
 
@@ -1501,7 +1496,7 @@ function CustomerTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSavi
           </div>
         </div>
 
-      )}
+    
 
 
 
@@ -1525,13 +1520,12 @@ function GlobalConfigTab({ globalConfig,
   onSave,
   isSaving,
 }: any) {
-  const [expanded, setExpanded] = useState(true);
+  
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <button
         type="button"
-        onClick={() => setExpanded(!expanded)}
         className="mb-6 flex w-full items-center justify-between text-left"
       >
         <div className="flex items-center gap-3">
@@ -1550,12 +1544,8 @@ function GlobalConfigTab({ globalConfig,
           </div>
         </div>
 
-        <span className="text-sm text-slate-950">
-          {expanded ? "▲" : "▼"}
-        </span>
       </button>
 
-      {expanded && (
         <>
 
           <div className="mb-5 flex justify-end">
@@ -1949,7 +1939,7 @@ function GlobalConfigTab({ globalConfig,
             </div>
           </div>
         </>
-      )}
+      {/* )} */}
 
       {/* SAVE */}
       <div className="mt-7 flex justify-end border-t border-slate-100 pt-5">
