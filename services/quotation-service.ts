@@ -348,6 +348,18 @@ export async function getQuotationPdfBlob(quotationId: string): Promise<Blob> {
   return response.data;
 }
 
+export type QuotationPdfDelivery =
+  | { delivery: "signed-url"; previewUrl: string; downloadUrl: string; fileName: string; expiresIn: number; cacheStatus: "HIT" | "MISS" }
+  | { delivery: "blob"; fileName: string };
+
+export async function prepareQuotationPdf(quotationId: string): Promise<QuotationPdfDelivery> {
+  const response = await axios.get(
+    `${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/pdf-url`,
+    { headers: getAuthHeaders(), withCredentials: true }
+  );
+  return response.data as QuotationPdfDelivery;
+}
+
 export async function shareQuotationPdf({
   pdf,
   fileName,

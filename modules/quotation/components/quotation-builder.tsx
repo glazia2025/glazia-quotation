@@ -52,6 +52,7 @@ import {
   getBomPdfBlob,
   getCuttingSchedulePdfBlob,
   getQuotationPdfBlob,
+  prepareQuotationPdf,
   saveQuotationMetadata,
   getElevationPdfBlob,
   getOptimizedFinal,
@@ -61,6 +62,7 @@ import {
   calculateQuotationRates,
   getGlassReportPdfBlob,
   shareQuotationPdf,
+  getQuotationMetadataSaveFingerprint,
 } from "@/services/quotation-service";
 import type { BomOrderData } from "@/services/quotation-service";
 import { BomOrderPlacement } from "@/modules/quotation/components/bom-order-placement";
@@ -2147,6 +2149,7 @@ export function QuotationBuilder({
   const markSaved = useQuotationBuilderStore((state) => state.markSaved);
   const { quotation, saveState } = useQuotationBuilder();
   const metadataSaveChainRef = useRef<Promise<Quotation | null>>(Promise.resolve(null));
+  const lastPersistedMetadataFingerprintRef = useRef<string | null>(null);
   const itemMutationChainRef = useRef<Promise<void>>(Promise.resolve());
   const [itemMutationsInProgress, setItemMutationsInProgress] = useState(0);
   const [metadataSaveStatus, setMetadataSaveStatus] = useState<"idle" | "saving" | "failed">("idle");
@@ -2155,8 +2158,10 @@ export function QuotationBuilder({
   const router = useRouter();
   const configuratorBasePath = `${quotationBasePath}/configurator`;
   const [globalConfig, setGlobalConfig] = useState(createBuilderGlobalConfig);
+  const [isGlobalConfigLoaded, setIsGlobalConfigLoaded] = useState(false);
   const hydratedQuotationKeyRef = useRef<string | null>(null);
   const hydratedGlobalConfigKeyRef = useRef<string | null>(null);
+  const persistedBaselineKeyRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const handleAddItem = () => {
     router.push(`${configuratorBasePath}/${crypto.randomUUID()}?mode=create`);
@@ -2191,6 +2196,8 @@ export function QuotationBuilder({
         });
       } catch (error) {
         console.error("Failed to load global quotation configuration", error);
+      } finally {
+        setIsGlobalConfigLoaded(true);
       }
     };
 
@@ -2209,13 +2216,13 @@ export function QuotationBuilder({
     if (!initialQuotation) return;
 
     const nextQuotationKey = getQuotationIdentity(initialQuotation);
-    if (
-      hydratedQuotationKeyRef.current !== nextQuotationKey &&
-      quotation._id !== initialQuotation._id
-    ) {
+    if (hydratedQuotationKeyRef.current !== nextQuotationKey) {
       hydratedQuotationKeyRef.current = nextQuotationKey;
       hydratedGlobalConfigKeyRef.current = null;
-      setQuotation(initialQuotation);
+      lastPersistedMetadataFingerprintRef.current = getQuotationMetadataSaveFingerprint(initialQuotation);
+      if (quotation._id !== initialQuotation._id) {
+        setQuotation(initialQuotation);
+      }
     }
   }, [initialQuotation, isCreateMode, isReturningFromConfigurator, setQuotation]);
   const [activeTab, setActiveTab] = useState<TabKey>(() => (isTabKey(requestedTab) ? requestedTab : "Details"));
@@ -2233,6 +2240,7 @@ export function QuotationBuilder({
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [pdfDirectDownloadUrl, setPdfDirectDownloadUrl] = useState<string | null>(null);
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState("Quotation PDF Preview");
   const [pdfDownloadName, setPdfDownloadName] = useState("");
   const [bomOrderData, setBomOrderData] = useState<BomOrderData | null>(null);
@@ -2260,7 +2268,7 @@ export function QuotationBuilder({
   ]);
   useEffect(() => {
     return () => {
-      if (pdfPreviewUrl) {
+      if (pdfPreviewUrl?.startsWith("blob:")) {
         URL.revokeObjectURL(pdfPreviewUrl);
       }
     };
@@ -2296,6 +2304,26 @@ export function QuotationBuilder({
     [globalConfig, quotation]
   );
 
+  useEffect(() => {
+    if (isCreateMode || !isGlobalConfigLoaded || !initialQuotation?._id) return;
+
+    const baselineKey = getQuotationIdentity(initialQuotation);
+    if (persistedBaselineKeyRef.current === baselineKey) return;
+
+    persistedBaselineKeyRef.current = baselineKey;
+    lastPersistedMetadataFingerprintRef.current = getQuotationMetadataSaveFingerprint({
+      ...initialQuotation,
+      globalConfig: quotationWithGlobalConfig.globalConfig,
+    });
+    markSaved();
+  }, [
+    initialQuotation,
+    isCreateMode,
+    isGlobalConfigLoaded,
+    markSaved,
+    quotationWithGlobalConfig.globalConfig,
+  ]);
+
   const saveMetadata = useCallback(
     (snapshot: Quotation) => {
       const persist = async () => {
@@ -2312,6 +2340,7 @@ export function QuotationBuilder({
           console.log("Saved Response:", JSON.stringify(saved.globalConfig, null, 2));
 
           applyAutosaveResult(snapshot, saved);
+          lastPersistedMetadataFingerprintRef.current = getQuotationMetadataSaveFingerprint(saved);
           markSaved();
 
           const snapshotLogo = snapshot.globalConfig?.logo || "";
@@ -2370,11 +2399,20 @@ export function QuotationBuilder({
 
   const getPersistedQuotation = useCallback(async () => {
     await itemMutationChainRef.current;
+    await metadataSaveChainRef.current.catch(() => null);
     const current = useQuotationBuilderStore.getState().quotation;
     const snapshot = {
       ...current,
       globalConfig: quotationWithGlobalConfig.globalConfig,
     };
+
+    if (
+      current._id &&
+      lastPersistedMetadataFingerprintRef.current === getQuotationMetadataSaveFingerprint(snapshot)
+    ) {
+      return current;
+    }
+
     const saved = await saveMetadata(snapshot);
     return saved ?? useQuotationBuilderStore.getState().quotation;
   }, [quotationWithGlobalConfig.globalConfig, saveMetadata]);
@@ -2911,12 +2949,20 @@ export function QuotationBuilder({
         throw new Error("Failed to resolve quotation id before PDF generation.");
       }
 
-      const blob = await getQuotationPdfBlob(pdfQuotationId);
-      const nextPdfPreviewUrl = URL.createObjectURL(blob);
+      const delivery = await prepareQuotationPdf(pdfQuotationId);
+      let nextPdfPreviewUrl: string;
+      if (delivery.delivery === "signed-url") {
+        nextPdfPreviewUrl = delivery.previewUrl;
+        setPdfDirectDownloadUrl(delivery.downloadUrl);
+      } else {
+        const blob = await getQuotationPdfBlob(pdfQuotationId);
+        nextPdfPreviewUrl = URL.createObjectURL(blob);
+        setPdfDirectDownloadUrl(null);
+      }
       setPdfPreviewTitle("Quotation PDF Preview");
       setPdfDownloadName(getQuotationPdfDownloadName({ ...(savedQuotation ?? quotationWithGlobalConfig), globalConfig }));
       setPdfPreviewUrl((currentUrl) => {
-        if (currentUrl) {
+        if (currentUrl?.startsWith("blob:")) {
           URL.revokeObjectURL(currentUrl);
         }
         return nextPdfPreviewUrl;
@@ -3030,9 +3076,10 @@ export function QuotationBuilder({
 
       setPdfPreviewTitle("Elevation PDF Preview");
       setPdfDownloadName("elevation.pdf");
+      setPdfDirectDownloadUrl(null);
 
       setPdfPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
+        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
         return nextUrl;
       });
 
@@ -3069,8 +3116,9 @@ export function QuotationBuilder({
         "quotation";
       setPdfPreviewTitle("Cutting Schedule PDF Preview");
       setPdfDownloadName(`${quoteNo}-cutting-schedule.pdf`);
+      setPdfDirectDownloadUrl(null);
       setPdfPreviewUrl((currentUrl) => {
-        if (currentUrl) {
+        if (currentUrl?.startsWith("blob:")) {
           URL.revokeObjectURL(currentUrl);
         }
         return nextPdfPreviewUrl;
@@ -3111,8 +3159,9 @@ export function QuotationBuilder({
       setPdfPreviewTitle("BOM PDF Preview");
       setPdfDownloadName(`${quoteNo}-bom.pdf`);
       setBomOrderData(orderData);
+      setPdfDirectDownloadUrl(null);
       setPdfPreviewUrl((currentUrl) => {
-        if (currentUrl) {
+        if (currentUrl?.startsWith("blob:")) {
           URL.revokeObjectURL(currentUrl);
         }
         return nextPdfPreviewUrl;
@@ -3147,8 +3196,9 @@ export function QuotationBuilder({
         "quotation";
       setPdfPreviewTitle("Glass Report PDF Preview");
       setPdfDownloadName(`${quoteNo}-glass-report.pdf`);
+      setPdfDirectDownloadUrl(null);
       setPdfPreviewUrl((currentUrl) => {
-        if (currentUrl) URL.revokeObjectURL(currentUrl);
+        if (currentUrl?.startsWith("blob:")) URL.revokeObjectURL(currentUrl);
         return nextPdfPreviewUrl;
       });
       setIsPdfPreviewOpen(true);
@@ -3165,8 +3215,9 @@ export function QuotationBuilder({
   const downloadPreviewedPdf = () => {
     if (!pdfPreviewUrl) return;
     const link = document.createElement("a");
-    link.href = pdfPreviewUrl;
+    link.href = pdfDirectDownloadUrl || pdfPreviewUrl;
     link.download = pdfDownloadName || getQuotationPdfDownloadName({ ...quotation, globalConfig });
+    if (pdfDirectDownloadUrl) link.target = "_blank";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
