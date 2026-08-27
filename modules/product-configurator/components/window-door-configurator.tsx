@@ -1923,7 +1923,7 @@ const COLORS = {
   labelFill: "#FFFFFF",
   mesh: "#CBD5E1",
   text: "#0F172A",
-  selected: "#F97316",
+  selected: "#8B5E34",
   handleStroke: "#0F172A",
 };
 
