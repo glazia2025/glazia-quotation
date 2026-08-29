@@ -417,7 +417,7 @@ const metrics = getDashboardMetrics(total, totalValue,confirmedOrders,conversion
   className="rounded-md px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
   style={{ backgroundColor: "#EE1C25" }}
 >
-  + Add Quotation
+  + New Quotation
 </Link>
     </div>
   }

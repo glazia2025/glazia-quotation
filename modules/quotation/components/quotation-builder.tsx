@@ -53,6 +53,7 @@ import {
   getCuttingSchedulePdfBlob,
   getQuotationPdfBlob,
   prepareQuotationPdf,
+  getQuotationPdfStatus,
   saveQuotationMetadata,
   getElevationPdfBlob,
   getOptimizedFinal,
@@ -2251,6 +2252,7 @@ export function QuotationBuilder({
   const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [pdfDirectDownloadUrl, setPdfDirectDownloadUrl] = useState<string | null>(null);
+  const [pdfPreparationStatus, setPdfPreparationStatus] = useState<"idle" | "preparing" | "ready" | "failed">("idle");
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState("Quotation PDF Preview");
   const [pdfDownloadName, setPdfDownloadName] = useState("");
   const [bomOrderData, setBomOrderData] = useState<BomOrderData | null>(null);
@@ -2283,6 +2285,40 @@ export function QuotationBuilder({
       }
     };
   }, [pdfPreviewUrl]);
+  useEffect(() => {
+    const quotationId = initialQuotation?._id;
+    if (isCreateMode || !quotationId) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
+
+    const checkStatus = async () => {
+      try {
+        const result = await getQuotationPdfStatus(quotationId);
+        if (cancelled) return;
+        if (result.status === "ready") {
+          setPdfPreparationStatus("ready");
+          return;
+        }
+        if (result.status === "failed") {
+          setPdfPreparationStatus("failed");
+          return;
+        }
+        setPdfPreparationStatus("preparing");
+        attempts += 1;
+        if (attempts < 60) timer = setTimeout(checkStatus, 1000);
+      } catch (error) {
+        console.warn("Unable to read quotation PDF preparation status", error);
+        if (!cancelled) setPdfPreparationStatus("idle");
+      }
+    };
+
+    void checkStatus();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [initialQuotation?._id, initialQuotation?.updatedAt, isCreateMode]);
   useEffect(() => {
     if (!isTabKey(requestedTab)) return;
     setActiveTab(requestedTab);
@@ -3416,8 +3452,16 @@ export function QuotationBuilder({
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
                   </div>
                   <div className="text-left mt-2">
-                    <div className="text-lg font-bold text-slate-900">{isGeneratingPdf ? "Generating..." : "Quotation"}</div>
-                    <div className="mt-0.5 text-xs font-medium text-slate-500">Main pricing document</div>
+                    <div className="text-lg font-bold text-slate-900">{isGeneratingPdf ? "Opening..." : "Quotation"}</div>
+                    <div className="mt-0.5 text-xs font-medium text-slate-500">
+                      {pdfPreparationStatus === "preparing"
+                        ? "Preparing PDF in background…"
+                        : pdfPreparationStatus === "ready"
+                          ? "PDF ready"
+                          : pdfPreparationStatus === "failed"
+                            ? "Preparation failed — retry on open"
+                            : "Main pricing document"}
+                    </div>
                   </div>
                 </button>
 

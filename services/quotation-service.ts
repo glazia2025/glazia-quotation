@@ -360,6 +360,21 @@ export async function prepareQuotationPdf(quotationId: string): Promise<Quotatio
   return response.data as QuotationPdfDelivery;
 }
 
+export type QuotationPdfStatus = {
+  status: "ready" | "queued" | "pending" | "dispatched" | "processing" | "failed";
+  revision: string;
+  size: number;
+  error?: string;
+};
+
+export async function getQuotationPdfStatus(quotationId: string): Promise<QuotationPdfStatus> {
+  const response = await axios.get(
+    `${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/pdf-status`,
+    { headers: getAuthHeaders(), withCredentials: true }
+  );
+  return response.data as QuotationPdfStatus;
+}
+
 export async function shareQuotationPdf({
   pdf,
   fileName,
