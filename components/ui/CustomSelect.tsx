@@ -33,6 +33,10 @@ export function CustomSelect({
       disabled: child.props.disabled as boolean | undefined
     }));
 
+    const dropdownOptions = options.filter(
+  (option) => String(option.value) !== ""
+);
+
   const selectedOption = options.find(opt => String(opt.value) === String(value)) || options[0];
 
   useEffect(() => {
@@ -52,7 +56,7 @@ export function CustomSelect({
     const rect = containerRef.current?.getBoundingClientRect();
 
     if (rect) {
-      const dropdownHeight = Math.min(options.length * 40 + 8, 240);
+      const dropdownHeight = Math.min(dropdownOptions.length * 40 + 8, 240);
       const spaceBelow = window.innerHeight - rect.bottom;
       const spaceAbove = rect.top;
 
@@ -101,7 +105,7 @@ export function CustomSelect({
   )}
 >
           
-        {options.map((option, index) => (
+        {dropdownOptions.map((option, index) => (
             <div
               key={index}
             //   onClick={() => !option.disabled && handleSelect(option.value)}

@@ -30,7 +30,9 @@ import {
   X,
   Image as ImageIcon,
   Settings2,
-  Trash2
+  Trash2,
+  LayoutGrid,
+  FileSpreadsheet
 
 
 } from "lucide-react";
@@ -905,9 +907,9 @@ function ItemTab({
 
       setSummaryPosition((current) =>
         current.fixed === nextPosition.fixed &&
-        Math.abs(current.left - nextPosition.left) < 0.5 &&
-        Math.abs(current.width - nextPosition.width) < 0.5 &&
-        Math.abs(current.height - nextPosition.height) < 0.5
+          Math.abs(current.left - nextPosition.left) < 0.5 &&
+          Math.abs(current.width - nextPosition.width) < 0.5 &&
+          Math.abs(current.height - nextPosition.height) < 0.5
           ? current
           : nextPosition
       );
@@ -1254,13 +1256,12 @@ function CustomerTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSavi
     pincode: ""
   };
 
-  const [expanded, setExpanded] = useState(true);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-black-200 p-6">
       <button
         type="button"
-        onClick={() => setExpanded(!expanded)}
+
         className="mb-5 flex w-full items-start justify-between text-left"
       >
         <div className="flex items-start gap-3">
@@ -1278,233 +1279,229 @@ function CustomerTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSavi
             </p>
           </div>
         </div>
-
-        <span className="pt-1 text-sm text-slate-950">
-          {expanded ? "▲" : "▼"}
-        </span>
       </button>
 
-      {expanded && (
-        <div className="mt-2 border-t border-slate-100 pt-6">
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
 
-            <div>
-              <h3 className="mb-5 text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
-                Contact Information
-              </h3>
+      <div className="mt-2 border-t border-slate-100 pt-6">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
 
-              <div className="space-y-4">
+          <div>
+            <h3 className="mb-5 text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
+              Contact Information
+            </h3>
+
+            <div className="space-y-4">
 
 
-                <div>
-                  <label className="mb-2 block text-xs font-medium text-slate-700">
-                    Full Name
-                  </label>
+              <div>
+                <label className="mb-2 block text-xs font-medium text-slate-700">
+                  Full Name
+                </label>
 
-                  <div className="relative">
-                    <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <div className="relative">
+                  <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
-                    <input
-                      type="text"
-                      value={customerValues.name}
-                      onChange={(e) =>
-                        updateCustomer("name", e.target.value)
-                      }
-                      className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    value={customerValues.name}
+                    onChange={(e) =>
+                      updateCustomer("name", e.target.value)
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                  />
                 </div>
-
-
-                <div>
-                  <label className="mb-2 block text-xs font-medium text-slate-700">
-                    Email Address
-                  </label>
-
-                  <div className="relative">
-                    <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-
-                    <input
-                      type="email"
-                      value={customerValues.email}
-                      onChange={(e) =>
-                        updateCustomer("email", e.target.value)
-                      }
-                      className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
-                    />
-                  </div>
-                </div>
-
-
-                <div>
-                  <label className="mb-2 block text-xs font-medium text-slate-700">
-                    Phone Number
-                  </label>
-
-                  <div className="relative">
-                    <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-
-                    <input
-                      type="tel"
-                      value={customerValues.phone}
-                      onChange={(e) =>
-                        updateCustomer("phone", e.target.value)
-                      }
-                      className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
-                    />
-                  </div>
-                </div>
-
               </div>
-            </div>
 
 
-            <div>
-              <h3 className="mb-5 text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
-                Billing Address
-              </h3>
+              <div>
+                <label className="mb-2 block text-xs font-medium text-slate-700">
+                  Email Address
+                </label>
 
-              <div className="space-y-4">
+                <div className="relative">
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
-
-                <div>
-                  <label className="mb-2 block text-xs font-medium text-slate-700">
-                    Street Address
-                  </label>
-
-                  <div className="relative">
-                    <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-
-                    <textarea
-                      value={customerValues.address}
-                      onChange={(e) =>
-                        updateCustomer("address", e.target.value)
-                      }
-                      rows={1}
-                      className="min-h-[44px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
-                    />
-                  </div>
+                  <input
+                    type="email"
+                    value={customerValues.email}
+                    onChange={(e) =>
+                      updateCustomer("email", e.target.value)
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                  />
                 </div>
-
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-
-
-                  <div>
-                    <label className="mb-2 block text-xs font-medium text-slate-700">
-                      City
-                    </label>
-
-                    <div className="relative">
-                      <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-
-                      <input
-                        type="text"
-                        value={customerValues.city || ""}
-                        onChange={(e) =>
-                          updateCustomer("city", e.target.value)
-                        }
-                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
-                      />
-                    </div>
-                  </div>
-
-
-                  <div>
-                    <label className="mb-2 block text-xs font-medium text-slate-700">
-                      State
-                    </label>
-
-                    <div className="relative">
-                      <MapPinned className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-
-                      <input
-                        type="text"
-                        value={customerValues.state || ""}
-                        onChange={(e) =>
-                          updateCustomer("state", e.target.value)
-                        }
-                        className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
-                      />
-                    </div>
-                  </div>
-
-                </div>
-
-
-                <div>
-                  <label className="mb-2 block text-xs font-medium text-slate-700">
-                    PIN Code
-                  </label>
-
-                  <div className="relative">
-                    <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-
-                    <input
-                      type="text"
-                      value={customerValues.pincode || ""}
-                      onChange={(e) =>
-                        updateCustomer("pincode", e.target.value)
-                      }
-                      className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
-                    />
-                  </div>
-                </div>
-
               </div>
+
+
+              <div>
+                <label className="mb-2 block text-xs font-medium text-slate-700">
+                  Phone Number
+                </label>
+
+                <div className="relative">
+                  <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                  <input
+                    type="tel"
+                    value={customerValues.phone}
+                    onChange={(e) =>
+                      updateCustomer("phone", e.target.value)
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                  />
+                </div>
+              </div>
+
             </div>
           </div>
-          <div className=" mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="col-span-1 md:col-span-2 flex items-center gap-3">
-              <FileText className="h-7 w-7 text-slate-400" />
-
-              <h2 className="text-base font-semibold text-slate-900">
-                Quotation Details
-              </h2>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-xs font-medium text-slate-700">
-                Date
-              </label>
-              <input
-                type="date"
-                value={quotationDetails.date || ""}
-                onChange={(e) =>
-                  updateQuotationField("date", e.target.value)
-                }
-                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-3 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
-              />
-            </div>
 
 
-            <div>
-              <label className="mb-2 block text-xs font-medium text-slate-700">
-                Opportunity Stage
-              </label>
+          <div>
+            <h3 className="mb-5 text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
+              Billing Address
+            </h3>
 
-              <div className="relative">
-                <CustomSelect
-                  value={quotationDetails.opportunity || "Enquiry"}
-                  onChange={(e) =>
-                    updateQuotationField("opportunity", e.target.value)
-                  }
-                  className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
-                >
-                  <option value="Enquiry">Enquiry</option>
-                  <option value="Quoted">Quoted</option>
-                  <option value="Under Negotiation">Under Negotiation</option>
-                  <option value="Order Confirmed">Order Confirmed</option>
-                  <option value="Order Lost">Order Lost</option>
-                </CustomSelect>
+            <div className="space-y-4">
+
+
+              <div>
+                <label className="mb-2 block text-xs font-medium text-slate-700">
+                  Street Address
+                </label>
+
+                <div className="relative">
+                  <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                  <textarea
+                    value={customerValues.address}
+                    onChange={(e) =>
+                      updateCustomer("address", e.target.value)
+                    }
+                    rows={1}
+                    className="min-h-[44px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                  />
+                </div>
+              </div>
+
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+
+                <div>
+                  <label className="mb-2 block text-xs font-medium text-slate-700">
+                    City
+                  </label>
+
+                  <div className="relative">
+                    <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                    <input
+                      type="text"
+                      value={customerValues.city || ""}
+                      onChange={(e) =>
+                        updateCustomer("city", e.target.value)
+                      }
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                    />
+                  </div>
+                </div>
+
+
+                <div>
+                  <label className="mb-2 block text-xs font-medium text-slate-700">
+                    State
+                  </label>
+
+                  <div className="relative">
+                    <MapPinned className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                    <input
+                      type="text"
+                      value={customerValues.state || ""}
+                      onChange={(e) =>
+                        updateCustomer("state", e.target.value)
+                      }
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                    />
+                  </div>
+                </div>
 
               </div>
-            </div>
 
+
+              <div>
+                <label className="mb-2 block text-xs font-medium text-slate-700">
+                  PIN Code
+                </label>
+
+                <div className="relative">
+                  <Hash className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+                  <input
+                    type="text"
+                    value={customerValues.pincode || ""}
+                    onChange={(e) =>
+                      updateCustomer("pincode", e.target.value)
+                    }
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                  />
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
+        <div className=" mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="col-span-1 md:col-span-2 flex items-center gap-3">
+            <FileText className="h-7 w-7 text-slate-400" />
 
-      )}
+            <h2 className="text-base font-semibold text-slate-900">
+              Quotation Details
+            </h2>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-xs font-medium text-slate-700">
+              Date
+            </label>
+            <input
+              type="date"
+              value={quotationDetails.date || ""}
+              onChange={(e) =>
+                updateQuotationField("date", e.target.value)
+              }
+              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-3 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+            />
+          </div>
+
+
+          <div>
+            <label className="mb-2 block text-xs font-medium text-slate-700">
+              Opportunity Stage
+            </label>
+
+            <div className="relative">
+              <CustomSelect
+                value={quotationDetails.opportunity || "Enquiry"}
+                onChange={(e) =>
+                  updateQuotationField("opportunity", e.target.value)
+                }
+                className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"
+              >
+                <option value="Enquiry">Enquiry</option>
+                <option value="Quoted">Quoted</option>
+                <option value="Under Negotiation">Under Negotiation</option>
+                <option value="Order Confirmed">Order Confirmed</option>
+                <option value="Order Lost">Order Lost</option>
+              </CustomSelect>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+
 
 
 
@@ -1528,13 +1525,12 @@ function GlobalConfigTab({ globalConfig,
   onSave,
   isSaving,
 }: any) {
-  const [expanded, setExpanded] = useState(true);
+
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <button
         type="button"
-        onClick={() => setExpanded(!expanded)}
         className="mb-6 flex w-full items-center justify-between text-left"
       >
         <div className="flex items-center gap-3">
@@ -1553,406 +1549,402 @@ function GlobalConfigTab({ globalConfig,
           </div>
         </div>
 
-        <span className="text-sm text-slate-950">
-          {expanded ? "▲" : "▼"}
-        </span>
       </button>
 
-      {expanded && (
-        <>
+      <>
 
-          <div className="mb-5 flex justify-end">
-            <a
-              href="/quotations/settings"
-              className="text-0.5xl font-medium text-slate-500 transition hover:text-[#0F172A]"
-            >
-              Manage Presets
-            </a>
-          </div>
+        <div className="mb-5 flex justify-end">
+          <a
+            href="/quotations/settings"
+            className="text-0.5xl font-medium text-slate-500 transition hover:text-[#0F172A]"
+          >
+            Manage Presets
+          </a>
+        </div>
 
-          <div className="border-t border-slate-100 pt-6">
+        <div className="border-t border-slate-100 pt-6">
 
-            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-              <div className="space-y-7">
-                <div>
-                  <div className="mb-4 flex items-center gap-2">
-                    <Building2 className="h-3.5 w-3.5 text-slate-500" />
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+            <div className="space-y-7">
+              <div>
+                <div className="mb-4 flex items-center gap-2">
+                  <Building2 className="h-3.5 w-3.5 text-slate-500" />
 
-                    <h3 className="text-0.5xl font-semibold uppercase tracking-[0.08em] text-slate-700">
-                      Brand Identity
+                  <h3 className="text-0.5xl font-semibold uppercase tracking-[0.08em] text-slate-700">
+                    Brand Identity
+                  </h3>
+                </div>
+
+                <div className="space-y-5">
+
+
+                  <div>
+                    <label className="mb-2 block text-0.5xl font-medium text-slate-700">
+                      Company Logo
+                    </label>
+
+                    <div className="flex items-center gap-4">
+
+                      {logoPreview ? (
+                        <div className="flex h-14 w-20 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                          <img
+                            src={logoPreview}
+                            alt="Company Logo"
+                            className="max-h-12 max-w-[72px] object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex h-14 w-20 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50">
+                          <ImageIcon className="h-5 w-5 text-slate-400" />
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2">
+
+                        <label className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-[#0F172A] hover:text-[#0F172A]">
+                          <span className="flex items-center gap-2">
+                            <Upload className="h-3.5 w-3.5" />
+                            Choose File
+                          </span>
+
+                          <input
+                            type="file"
+                            className="hidden"
+                            onChange={(e) =>
+                              handleLogoUpload(e.target.files?.[0] || null)
+                            }
+                          />
+                        </label>
+
+                        {logoPreview && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setGlobalConfig((p: any) => ({
+                                ...p,
+                                logo: "",
+                                logoUrl: "",
+                              }))
+                            }
+                            className="rounded-lg px-2 py-2 text-xs font-medium text-red-500 transition hover:bg-red-50"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Remove
+                            </span>
+                          </button>
+                        )}
+
+                      </div>
+                    </div>
+                  </div>
+
+
+                  <div>
+                    <label className="mb-2 block text-0.5xl font-medium text-slate-700">
+                      Website URL
+                    </label>
+
+                    <input
+                      value={globalConfig.website}
+                      onChange={(e) =>
+                        setGlobalConfig((p: any) => ({
+                          ...p,
+                          website: e.target.value,
+                        }))
+                      }
+                      className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                    />
+                  </div>
+
+                </div>
+              </div>
+
+
+              <div className="border-t border-slate-100 pt-6">
+
+                <div className="mb-4 flex items-center gap-2">
+                  <FileText className="h-3.5 w-3.5 text-slate-500" />
+
+                  <h3 className="text-0.5xl font-semibold uppercase tracking-[0.08em] text-slate-700">
+                    Document Content
+                  </h3>
+                </div>
+
+                <div className="space-y-5">
+
+                  <div>
+                    <label className="mb-2 block text-0.5xl font-medium text-slate-700">
+                      Prerequisites
+                    </label>
+
+                    <textarea
+                      value={globalConfig.prerequisites}
+                      onChange={(e) =>
+                        setGlobalConfig((p: any) => ({
+                          ...p,
+                          prerequisites: e.target.value,
+                        }))
+                      }
+                      rows={3}
+                      className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-0.5xl font-medium text-slate-700">
+                      Terms & Conditions
+                    </label>
+
+                    <textarea
+                      value={globalConfig.terms}
+                      onChange={(e) =>
+                        setGlobalConfig((p: any) => ({
+                          ...p,
+                          terms: e.target.value,
+                        }))
+                      }
+                      rows={3}
+                      className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-0.5xl font-medium text-slate-700">Payment Info</label>
+                    <textarea
+                      value={globalConfig.paymentInfo}
+                      onChange={(e) =>
+                        setGlobalConfig((p: any) => ({
+                          ...p,
+                          paymentInfo: e.target.value,
+                        }))
+                      }
+                      rows={3}
+                      className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                    />
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+            <div>
+              <div>
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Settings2 className="h-3.5 w-3.5 text-slate-500" />
+
+                    <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
+                      Additional Costs
                     </h3>
                   </div>
 
-                  <div className="space-y-5">
+                  <span className="text-[11px] text-slate-400">
+                    Toggle "PDF" to show on quotation
+                  </span>
+                </div>
 
+                <div className="space-y-5">
 
-                    <div>
-                      <label className="mb-2 block text-0.5xl font-medium text-slate-700">
-                        Company Logo
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <label className="text-0.5xl font-medium text-slate-700">
+                        Installation (₹/sqft)
                       </label>
-
-                      <div className="flex items-center gap-4">
-
-                        {logoPreview ? (
-                          <div className="flex h-14 w-20 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                            <img
-                              src={logoPreview}
-                              alt="Company Logo"
-                              className="max-h-12 max-w-[72px] object-contain"
-                            />
-                          </div>
-                        ) : (
-                          <div className="flex h-14 w-20 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50">
-                            <ImageIcon className="h-5 w-5 text-slate-400" />
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-2">
-
-                          <label className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-[#0F172A] hover:text-[#0F172A]">
-                            <span className="flex items-center gap-2">
-                              <Upload className="h-3.5 w-3.5" />
-                              Choose File
-                            </span>
-
-                            <input
-                              type="file"
-                              className="hidden"
-                              onChange={(e) =>
-                                handleLogoUpload(e.target.files?.[0] || null)
-                              }
-                            />
-                          </label>
-
-                          {logoPreview && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setGlobalConfig((p: any) => ({
-                                  ...p,
-                                  logo: "",
-                                  logoUrl: "",
-                                }))
-                              }
-                              className="rounded-lg px-2 py-2 text-xs font-medium text-red-500 transition hover:bg-red-50"
-                            >
-                              <span className="flex items-center gap-1.5">
-                                <Trash2 className="h-3.5 w-3.5" />
-                                Remove
-                              </span>
-                            </button>
-                          )}
-
-                        </div>
-                      </div>
                     </div>
 
-
-                    <div>
-                      <label className="mb-2 block text-0.5xl font-medium text-slate-700">
-                        Website URL
+                    <div className="flex items-center justify-between gap-3">
+                      <label className="flex items-center gap-2 text-xs text-slate-500">
+                        <input
+                          type="checkbox"
+                          checked={
+                            globalConfig.additionalCosts.showInstallation ??
+                            true
+                          }
+                          onChange={(e) =>
+                            setGlobalConfig((p: any) => ({
+                              ...p,
+                              additionalCosts: {
+                                ...p.additionalCosts,
+                                showInstallation: e.target.checked,
+                              },
+                            }))
+                          }
+                          className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
+                        />
+                        Show in PDF
                       </label>
 
                       <input
-                        value={globalConfig.website}
+                        type="number"
+                        value={globalConfig.additionalCosts.installation}
                         onChange={(e) =>
                           setGlobalConfig((p: any) => ({
                             ...p,
-                            website: e.target.value,
+                            additionalCosts: {
+                              ...p.additionalCosts,
+                              installation: Number(e.target.value) || 0,
+                            },
                           }))
                         }
-                        className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                        className="h-10 w-[138px]  rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
                       />
                     </div>
-
-                  </div>
-                </div>
-
-
-                <div className="border-t border-slate-100 pt-6">
-
-                  <div className="mb-4 flex items-center gap-2">
-                    <FileText className="h-3.5 w-3.5 text-slate-500" />
-
-                    <h3 className="text-0.5xl font-semibold uppercase tracking-[0.08em] text-slate-700">
-                      Document Content
-                    </h3>
                   </div>
 
-                  <div className="space-y-5">
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <label className="text-0.5xl font-medium text-slate-700">
+                        Transport ( ₹)
+                      </label>
+                    </div>
 
-                    <div>
-                      <label className="mb-2 block text-0.5xl font-medium text-slate-700">
-                        Prerequisites
+                    <div className="flex items-center justify-between gap-3">
+                      <label className="flex items-center gap-2 text-xs text-slate-500">
+                        <input
+                          type="checkbox"
+                          checked={
+                            globalConfig.additionalCosts.showTransport ??
+                            true
+                          }
+                          onChange={(e) =>
+                            setGlobalConfig((p: any) => ({
+                              ...p,
+                              additionalCosts: {
+                                ...p.additionalCosts,
+                                showTransport: e.target.checked,
+                              },
+                            }))
+                          }
+                          className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
+                        />
+                        Show in PDF
                       </label>
 
-                      <textarea
-                        value={globalConfig.prerequisites}
+                      <input
+                        type="number"
+                        value={globalConfig.additionalCosts.transport}
                         onChange={(e) =>
                           setGlobalConfig((p: any) => ({
                             ...p,
-                            prerequisites: e.target.value,
+                            additionalCosts: {
+                              ...p.additionalCosts,
+                              transport: Number(e.target.value) || 0,
+                            },
                           }))
                         }
-                        rows={3}
-                        className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                        className="h-10 w-[138px]  rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
                       />
                     </div>
+                  </div>
 
-                    <div>
-                      <label className="mb-2 block text-0.5xl font-medium text-slate-700">
-                        Terms & Conditions
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <label className="text-0.5xl font-medium text-slate-700">
+                        Loading & Unloading (₹)
+                      </label>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <label className="flex items-center gap-2 text-xs text-slate-500">
+                        <input
+                          type="checkbox"
+                          checked={
+                            globalConfig.additionalCosts
+                              .showLoadingUnloading ?? true
+                          }
+                          onChange={(e) =>
+                            setGlobalConfig((p: any) => ({
+                              ...p,
+                              additionalCosts: {
+                                ...p.additionalCosts,
+                                showLoadingUnloading: e.target.checked,
+                              },
+                            }))
+                          }
+                          className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
+                        />
+                        Show in PDF
                       </label>
 
-                      <textarea
-                        value={globalConfig.terms}
+                      <input
+                        type="number"
+                        value={
+                          globalConfig.additionalCosts.loadingUnloading
+                        }
                         onChange={(e) =>
                           setGlobalConfig((p: any) => ({
                             ...p,
-                            terms: e.target.value,
+                            additionalCosts: {
+                              ...p.additionalCosts,
+                              loadingUnloading:
+                                Number(e.target.value) || 0,
+                            },
                           }))
                         }
-                        rows={3}
-                        className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                        className="h-10 w-[138px]  rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
                       />
                     </div>
+                  </div>
 
-                    <div>
-                      <label className="mb-2 block text-0.5xl font-medium text-slate-700">Payment Info</label>
-                      <textarea
-                        value={globalConfig.paymentInfo}
+
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <label className="text-0.5xl font-medium text-slate-700">
+                        Discount (%)
+                      </label>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <label className="flex items-center gap-2 text-xs text-slate-500">
+                        <input
+                          type="checkbox"
+                          checked={
+                            globalConfig.additionalCosts.showDiscount ??
+                            true
+                          }
+                          onChange={(e) =>
+                            setGlobalConfig((p: any) => ({
+                              ...p,
+                              additionalCosts: {
+                                ...p.additionalCosts,
+                                showDiscount: e.target.checked,
+                              },
+                            }))
+                          }
+                          className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
+                        />
+                        Show in PDF
+                      </label>
+
+                      <input
+                        type="number"
+                        value={
+                          globalConfig.additionalCosts.discountPercent
+                        }
                         onChange={(e) =>
                           setGlobalConfig((p: any) => ({
                             ...p,
-                            paymentInfo: e.target.value,
+                            additionalCosts: {
+                              ...p.additionalCosts,
+                              discountPercent:
+                                Number(e.target.value) || 0,
+                            },
                           }))
                         }
-                        rows={3}
-                        className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+                        className="h-10 w-[138px] rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
                       />
                     </div>
-
                   </div>
+
                 </div>
-
               </div>
-              <div>
-                <div>
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Settings2 className="h-3.5 w-3.5 text-slate-500" />
 
-                      <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
-                        Additional Costs
-                      </h3>
-                    </div>
-
-                    <span className="text-[11px] text-slate-400">
-                      Toggle "PDF" to show on quotation
-                    </span>
-                  </div>
-
-                  <div className="space-y-5">
-
-                    <div>
-                      <div className="mb-2 flex items-center justify-between">
-                        <label className="text-0.5xl font-medium text-slate-700">
-                          Installation (₹/sqft)
-                        </label>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-3">
-                        <label className="flex items-center gap-2 text-xs text-slate-500">
-                          <input
-                            type="checkbox"
-                            checked={
-                              globalConfig.additionalCosts.showInstallation ??
-                              true
-                            }
-                            onChange={(e) =>
-                              setGlobalConfig((p: any) => ({
-                                ...p,
-                                additionalCosts: {
-                                  ...p.additionalCosts,
-                                  showInstallation: e.target.checked,
-                                },
-                              }))
-                            }
-                            className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
-                          />
-                          Show in PDF
-                        </label>
-
-                        <input
-                          type="number"
-                          value={globalConfig.additionalCosts.installation}
-                          onChange={(e) =>
-                            setGlobalConfig((p: any) => ({
-                              ...p,
-                              additionalCosts: {
-                                ...p.additionalCosts,
-                                installation: Number(e.target.value) || 0,
-                              },
-                            }))
-                          }
-                          className="h-10 w-[138px]  rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="mb-2 flex items-center justify-between">
-                        <label className="text-0.5xl font-medium text-slate-700">
-                          Transport ( ₹)
-                        </label>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-3">
-                        <label className="flex items-center gap-2 text-xs text-slate-500">
-                          <input
-                            type="checkbox"
-                            checked={
-                              globalConfig.additionalCosts.showTransport ??
-                              true
-                            }
-                            onChange={(e) =>
-                              setGlobalConfig((p: any) => ({
-                                ...p,
-                                additionalCosts: {
-                                  ...p.additionalCosts,
-                                  showTransport: e.target.checked,
-                                },
-                              }))
-                            }
-                            className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
-                          />
-                          Show in PDF
-                        </label>
-
-                        <input
-                          type="number"
-                          value={globalConfig.additionalCosts.transport}
-                          onChange={(e) =>
-                            setGlobalConfig((p: any) => ({
-                              ...p,
-                              additionalCosts: {
-                                ...p.additionalCosts,
-                                transport: Number(e.target.value) || 0,
-                              },
-                            }))
-                          }
-                          className="h-10 w-[138px]  rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="mb-2 flex items-center justify-between">
-                        <label className="text-0.5xl font-medium text-slate-700">
-                          Loading & Unloading (₹)
-                        </label>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-3">
-                        <label className="flex items-center gap-2 text-xs text-slate-500">
-                          <input
-                            type="checkbox"
-                            checked={
-                              globalConfig.additionalCosts
-                                .showLoadingUnloading ?? true
-                            }
-                            onChange={(e) =>
-                              setGlobalConfig((p: any) => ({
-                                ...p,
-                                additionalCosts: {
-                                  ...p.additionalCosts,
-                                  showLoadingUnloading: e.target.checked,
-                                },
-                              }))
-                            }
-                            className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
-                          />
-                          Show in PDF
-                        </label>
-
-                        <input
-                          type="number"
-                          value={
-                            globalConfig.additionalCosts.loadingUnloading
-                          }
-                          onChange={(e) =>
-                            setGlobalConfig((p: any) => ({
-                              ...p,
-                              additionalCosts: {
-                                ...p.additionalCosts,
-                                loadingUnloading:
-                                  Number(e.target.value) || 0,
-                              },
-                            }))
-                          }
-                          className="h-10 w-[138px]  rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
-                        />
-                      </div>
-                    </div>
-
-
-                    <div>
-                      <div className="mb-2 flex items-center justify-between">
-                        <label className="text-0.5xl font-medium text-slate-700">
-                          Discount (%)
-                        </label>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-3">
-                        <label className="flex items-center gap-2 text-xs text-slate-500">
-                          <input
-                            type="checkbox"
-                            checked={
-                              globalConfig.additionalCosts.showDiscount ??
-                              true
-                            }
-                            onChange={(e) =>
-                              setGlobalConfig((p: any) => ({
-                                ...p,
-                                additionalCosts: {
-                                  ...p.additionalCosts,
-                                  showDiscount: e.target.checked,
-                                },
-                              }))
-                            }
-                            className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
-                          />
-                          Show in PDF
-                        </label>
-
-                        <input
-                          type="number"
-                          value={
-                            globalConfig.additionalCosts.discountPercent
-                          }
-                          onChange={(e) =>
-                            setGlobalConfig((p: any) => ({
-                              ...p,
-                              additionalCosts: {
-                                ...p.additionalCosts,
-                                discountPercent:
-                                  Number(e.target.value) || 0,
-                              },
-                            }))
-                          }
-                          className="h-10 w-[138px] rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
-                        />
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
-
-              </div>
             </div>
           </div>
-        </>
-      )}
+        </div>
+      </>
+      {/* )} */}
 
       {/* SAVE */}
       <div className="mt-7 flex justify-end border-t border-slate-100 pt-5">
@@ -3511,7 +3503,8 @@ export function QuotationBuilder({
                   className="flex w-full flex-col items-start gap-3 rounded-[20px] border border-slate-200 bg-white p-6 min-h-[160px] justify-between shadow-sm transition hover:border-blue-200 hover:bg-blue-50 disabled:opacity-50 group"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-500 group-hover:bg-blue-100 transition-colors">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
+
+                    <LayoutGrid className="h-6 w-6" />
                   </div>
                   <div className="text-left mt-2">
                     <div className="text-lg font-bold text-slate-900">{isGeneratingGlassReport ? "Generating..." : "Glass Report"}</div>
@@ -3529,7 +3522,8 @@ export function QuotationBuilder({
                   className="flex w-full flex-col items-start gap-3 rounded-[20px] border border-slate-200 bg-white p-6 min-h-[160px] justify-between shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 disabled:opacity-50 group"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-500 group-hover:bg-emerald-100 transition-colors">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg>
+
+                    <Ruler className="h-6 w-6" />
                   </div>
                   <div className="text-left mt-2">
                     <div className="text-lg font-bold text-slate-900">{isGeneratingElevation ? "Generating..." : "Elevation"}</div>
@@ -3547,7 +3541,35 @@ export function QuotationBuilder({
                   className="flex w-full flex-col items-start gap-3 rounded-[20px] border border-slate-200 bg-white p-6 min-h-[160px] justify-between shadow-sm transition hover:border-slate-300 hover:bg-slate-100 disabled:opacity-50 group"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-[#0F172A] group-hover:bg-slate-200 transition-colors">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+
+                      <path
+                        d="M13.2 2.5L20.4 4.1C20.75 4.18 21 4.49 21 4.85V19.15C21 19.51 20.75 19.82 20.4 19.9L13.2 21.5V2.5Z"
+                        fill="#43A047"
+                      />
+
+                      <path
+                        d="M15 7H19V9H15V7ZM15 10H19V12H15V10ZM15 13H19V15H15V13ZM15 16H19V18H15V16Z"
+                        fill="white"
+                      />
+
+                      <path
+                        d="M4 5.1L13.2 3V21L4 18.9C3.42 18.77 3 18.26 3 17.67V6.33C3 5.74 3.42 5.23 4 5.1Z"
+                        fill="#2E7D32"
+                      />
+
+                      <path
+                        d="M6 7.2L8.1 7.2L9.35 9.45L10.6 7.2H12.7L10.4 11.2L12.8 15.5H10.7L9.35 13.05L8 15.5H5.9L8.3 11.2L6 7.2Z"
+                        fill="white"
+                      />
+                    </svg>
                   </div>
                   <div className="text-left mt-2">
                     <div className="text-lg font-bold text-slate-900">{typeof isGeneratingExcel !== 'undefined' && isGeneratingExcel ? "Generating..." : "Excel Data"}</div>
