@@ -1972,7 +1972,8 @@ const addArchShape = (
   archHeightRatio: number,
   stroke: string,
   strokeWidth: number,
-  opacity = 1
+  opacity = 1,
+  dash?: number[]
 ) => {
   layer.add(
     new Konva.Shape({
@@ -1982,6 +1983,7 @@ const addArchShape = (
       },
       stroke,
       strokeWidth,
+      dash,
       opacity,
       listening: false,
     })
@@ -1993,17 +1995,38 @@ function addProfileRect(layer: KonvaLayer | KonvaGroup, x: number, y: number, w:
   const safeH = safeDrawSize(h);
   const normalizedArchType = normalizeArchType(archType);
   if (normalizedArchType === "none") {
-    layer.add(new Konva.Rect({ x, y, width: safeW, height: safeH, stroke: selected ? COLORS.selected : frameColor, strokeWidth: PROFILE.outer, listening: false }));
+   
+    layer.add(new Konva.Rect({ x, y, width: safeW, height: safeH, stroke: frameColor, strokeWidth: PROFILE.outer, listening: false }));
     layer.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + 2, y: y + PROFILE.outer / 2 + 2, width: safeDrawSize(safeW - (PROFILE.outer + 4)), height: safeDrawSize(safeH - (PROFILE.outer + 4)), stroke: frameColor, strokeWidth: PROFILE.inner, listening: false }));
     layer.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + 6, y: y + PROFILE.outer / 2 + 6, width: safeDrawSize(safeW - (PROFILE.outer + 12)), height: safeDrawSize(safeH - (PROFILE.outer + 12)), stroke: frameColor, strokeWidth: 1, opacity: 0.6, listening: false }));
+    if (selected) {
+      const margin = 16;
+      layer.add(new Konva.Rect({
+        x: x - margin,
+        y: y - margin,
+        width: safeDrawSize(safeW + margin * 2),
+        height: safeDrawSize(safeH + margin * 2),
+        stroke: COLORS.selected,
+        strokeWidth: 2,
+        dash: [8, 5],
+        listening: false,
+      }));
+    }
     return;
   }
 
-  addArchShape(layer, x, y, safeW, safeH, normalizedArchType, archHeightRatio, selected ? COLORS.selected : frameColor, PROFILE.outer);
-  const innerOffset = PROFILE.outer / 2 + 2;
+  // addArchShape(layer, x, y, safeW, safeH, normalizedArchType, archHeightRatio, selected ? COLORS.selected : frameColor, PROFILE.outer);
+   addArchShape(layer, x, y, safeW, safeH, normalizedArchType, archHeightRatio, frameColor, PROFILE.outer);
+   const innerOffset = PROFILE.outer / 2 + 2;
+ 
   addArchShape(layer, x + innerOffset, y + innerOffset, safeDrawSize(safeW - innerOffset * 2), safeDrawSize(safeH - innerOffset * 2), normalizedArchType, archHeightRatio, frameColor, PROFILE.inner);
   const highlightOffset = PROFILE.outer / 2 + 6;
   addArchShape(layer, x + highlightOffset, y + highlightOffset, safeDrawSize(safeW - highlightOffset * 2), safeDrawSize(safeH - highlightOffset * 2), normalizedArchType, archHeightRatio, frameColor, 1, 0.6);
+
+  if (selected) {
+    const margin = 16;
+    addArchShape(layer, x - margin, y - margin, safeDrawSize(safeW + margin * 2), safeDrawSize(safeH + margin * 2), normalizedArchType, archHeightRatio, COLORS.selected, 2, 1, [8, 5]);
+  }
 }
 
 function addMemberRect(layer: KonvaLayer | KonvaGroup, x: number, y: number, w: number, h: number, frameColor = COLORS.frameDark) {
@@ -3291,11 +3314,40 @@ export function WindowDoorConfigurator({
         setSelectedSlidingPanelIndex(null);
       });
       g.add(leafHit);
+      const isTouchingLeft = leaf.x <= 0.001;
+      const isTouchingRight = leaf.x + leaf.w >= 0.999;
+      const isTouchingTop = leaf.y <= 0.001;
+      const isTouchingBottom = leaf.y + leaf.h >= 0.999;
+
+      const padLeft = (isTouchingLeft ? PROFILE.outer / 2 : PROFILE.mullion / 2) + PROFILE.gap + PROFILE.sash / 2;
+      const padRight = (isTouchingRight ? PROFILE.outer / 2 : PROFILE.mullion / 2) + PROFILE.gap + PROFILE.sash / 2;
+      const padTop = (isTouchingTop ? PROFILE.outer / 2 : PROFILE.mullion / 2) + PROFILE.gap + PROFILE.sash / 2;
+      const padBottom = (isTouchingBottom ? PROFILE.outer / 2 : PROFILE.mullion / 2) + PROFILE.gap + PROFILE.sash / 2;
+
+      const sashX = x + padLeft;
+      const sashY = y + padTop;
+      const sashW = safeDrawSize(w - padLeft - padRight);
+      const sashH = safeDrawSize(h - padTop - padBottom);
       if (leaf.systemType !== "Blank Area") {
-        g.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + PROFILE.gap, y: y + PROFILE.outer / 2 + PROFILE.gap, width: safeDrawSize(w - (PROFILE.outer + PROFILE.gap * 2)), height: safeDrawSize(h - (PROFILE.outer + PROFILE.gap * 2)), stroke: isSelected ? COLORS.selected : selectedFrameColor, strokeWidth: PROFILE.sash, listening: false }))
+     
+      g.add(new Konva.Rect({
+          x: sashX,
+          y: sashY,
+          width: sashW,
+          height: sashH,
+          stroke: COLORS.frameMid,
+          strokeWidth: 2,
+          listening: false
+        }));
+      }
+
+      const inset = PROFILE.sash / 2 + 4;
+      const innerBounds = {
+        x: sashX + inset,
+        y: sashY + inset,
+        w: safeDrawSize(sashW - inset * 2),
+        h: safeDrawSize(sashH - inset * 2),
       };
-      const inset = PROFILE.outer / 2 + PROFILE.sash + 6;
-      const innerBounds = getPanelBounds(x, y, w, h, inset);
       const handledByDescription = (() => {
         const desc = leaf.description;
         if (!desc) return false;
@@ -3332,9 +3384,24 @@ export function WindowDoorConfigurator({
                 const to = panelSash === "left" ? cursor + pw * 0.25 : cursor + pw * 0.75;
                 g.add(new Konva.Arrow({ points: [from, arrowY, to, arrowY], stroke: "#111827", fill: "#111827", strokeWidth: 0.6, pointerLength: 7, pointerWidth: 7, opacity: 0.7, listening: false }));
               }
-              const panelHit = new Konva.Rect({ x: cursor, y: innerY, width: pw, height: innerH, fill: "rgba(255,255,255,0.001)", stroke: isSelected && selectedSlidingPanelIndex === idx ? COLORS.selected : "rgb(30, 30, 30)", strokeWidth: 7, listening: true });
+              // const panelHit = new Konva.Rect({ x: cursor, y: innerY, width: pw, height: innerH, fill: "rgba(255,255,255,0.001)", stroke: isSelected && selectedSlidingPanelIndex === idx ? COLORS.selected : "rgb(30, 30, 30)", strokeWidth: 7, listening: true });
+              const isPanelSelected = isSelected && selectedSlidingPanelIndex === idx;
+              const panelHit = new Konva.Rect({ x: cursor, y: innerY, width: pw, height: innerH, fill: "rgba(255,255,255,0.001)", stroke: "transparent", listening: true });
               panelHit.on("mousedown touchstart", (event) => { event.cancelBubble = true; setSelectedDivider(null); setSelectedId(leaf.id); setSelectedSlidingPanelIndex(idx); });
               g.add(panelHit);
+              if (isPanelSelected) {
+                const margin = 4;
+                g.add(new Konva.Rect({
+                  x: cursor + margin,
+                  y: innerY + margin,
+                  width: safeDrawSize(pw - margin * 2),
+                  height: safeDrawSize(innerH - margin * 2),
+                  stroke: COLORS.selected,
+                  strokeWidth: 2,
+                  dash: [6, 4],
+                  listening: false,
+                }));
+              }
             }
             if (meshCount > 0 && idx >= fractions.length - meshCount) drawMeshTriangle(g, cursor + pw - 6, innerY + innerH - 6, Math.min(pw, innerH) * 0.5);
             cursor += pw;
@@ -3509,14 +3576,15 @@ export function WindowDoorConfigurator({
     if (selectedForRender && selectedForRender !== "root") {
       const selectedSection = findNode(root, selectedForRender);
       if (selectedSection) {
-        const selectionInset = Math.max(2, PROFILE.sash / 2);
-        const selectionX = fx + selectedSection.x * fw + selectionInset;
-        const selectionY = fy + selectedSection.y * fh + selectionInset;
+       
+        const selectionMargin = 16;
+        const selectionX = fx + selectedSection.x * fw + selectionMargin;
+        const selectionY = fy + selectedSection.y * fh + selectionMargin;
         const selectionWidth = safeDrawSize(
-          selectedSection.w * fw - selectionInset * 2
+          selectedSection.w * fw - selectionMargin * 2
         );
         const selectionHeight = safeDrawSize(
-          selectedSection.h * fh - selectionInset * 2
+          selectedSection.h * fh - selectionMargin * 2
         );
         layer.add(
           new Konva.Rect({
@@ -3525,7 +3593,9 @@ export function WindowDoorConfigurator({
             width: selectionWidth,
             height: selectionHeight,
             stroke: COLORS.selected,
-            strokeWidth: PROFILE.sash,
+           
+            strokeWidth: 2,
+            dash: [8, 5],
             listening: false,
           })
         );
