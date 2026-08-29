@@ -4016,88 +4016,95 @@ export function WindowDoorConfigurator({
                             <>
                               <label className="text-xs text-gray-600">Section Series<CustomSelect value={selectedNode.series} onChange={(e) => { const nextSeries = e.target.value; updateSelectedLeaves((target) => { target.series = nextSeries; target.description = ""; target.hasExhaustFan = false; target.panelFractions = undefined; target.panelMeshCount = undefined; target.panelSashes = undefined; }); }} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{seriesOptions.map((series) => <option key={series} value={series}>{series}</option>)}</CustomSelect></label>
                               <label className="text-xs text-gray-600">Section Description<CustomSelect value={selectedNode.description} onChange={(e) => { const nextDescription = e.target.value; updateSelectedSectionMeta({ meshType: "" }); if (selectedNode.systemType === "Sliding") { updateSelectedNode((target) => { target.description = nextDescription; target.hasExhaustFan = false; target.split = "none"; target.children = undefined; const pattern = parsePanelPattern(nextDescription); if (pattern) { target.panelFractions = pattern.fractions; target.panelMeshCount = pattern.meshCount; target.mesh = (pattern.meshCount ?? 0) > 0 ? "Yes" : "No"; target.panelSashes = target.panelSashes && target.panelSashes.length === pattern.fractions.length ? target.panelSashes : buildDefaultSlidingPanelSashes(pattern.fractions.length); } else { target.panelFractions = undefined; target.panelMeshCount = undefined; target.mesh = "No"; target.panelSashes = undefined; } }); return; } updateSelectedLeaves((target) => { target.description = nextDescription; target.hasExhaustFan = false; const pattern = parsePanelPattern(nextDescription); if (pattern) { target.panelFractions = pattern.fractions; target.panelMeshCount = pattern.meshCount; target.panelSashes = undefined; } else { target.panelFractions = undefined; target.panelMeshCount = undefined; target.panelSashes = undefined; } }); }} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{descriptionOptions.map((desc: Description) => <option key={desc.name} value={desc.name}>{desc.name}</option>)}</CustomSelect></label>
-                              {/* <label className="text-xs text-gray-600">Section Glass<select value={selectedNode.glass} onChange={(e) => { const value = e.target.value as YesNo; updateSelectedLeaves((target) => { target.glass = value; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="Yes">Yes</option><option value="No">No</option></select></label> */}
-                              <div className="text-xs text-gray-600">
-                                <span>Section Glass</span>
 
-                                <div className="mt-2 flex items-center gap-5">
-                                  <label className="flex items-center gap-2 text-sm text-gray-700">
-                                    <input
-                                      type="radio"
-                                      name="section-glass"
-                                      value="Yes"
-                                      checked={selectedNode.glass === "Yes"}
-                                      onChange={() => {
-                                        updateSelectedLeaves((target) => {
-                                          target.glass = "Yes";
-                                        });
-                                      }}
-                                      className="h-4 w-4 accent-[#ef0b0b]"
-                                    />
-                                    Yes
-                                  </label>
+                              <div className="flex items-start">
+  {/* Section Glass */}
+  <div className="flex-1 text-xs text-gray-600">
+    <span>Section Glass</span>
 
-                                  <label className="flex items-center gap-2 text-sm text-gray-700">
-                                    <input
-                                      type="radio"
-                                      name="section-glass"
-                                      value="No"
-                                      checked={selectedNode.glass === "No"}
-                                      onChange={() => {
-                                        updateSelectedLeaves((target) => {
-                                          target.glass = "No";
-                                        });
-                                      }}
-                                      className="h-4 w-4 accent-[#ef0b0b]"
-                                    />
-                                    No
-                                  </label>
-                                </div>
-                              </div>
+    <div className="mt-2 flex items-center gap-5">
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input
+          type="radio"
+          name="section-glass"
+          value="Yes"
+          checked={selectedNode.glass === "Yes"}
+          onChange={() => {
+            updateSelectedLeaves((target) => {
+              target.glass = "Yes";
+            });
+          }}
+          className="h-4 w-4 accent-[#ef0b0b]"
+        />
+        Yes
+      </label>
 
-                              <div className="text-xs text-gray-600">
-                                <span>Section Mesh</span>
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input
+          type="radio"
+          name="section-glass"
+          value="No"
+          checked={selectedNode.glass === "No"}
+          onChange={() => {
+            updateSelectedLeaves((target) => {
+              target.glass = "No";
+            });
+          }}
+          className="h-4 w-4 accent-[#ef0b0b]"
+        />
+        No
+      </label>
+    </div>
+  </div>
 
-                                <div className="mt-2 flex items-center gap-5">
-                                  <label className="flex items-center gap-2 text-sm text-gray-700">
-                                    <input
-                                      type="radio"
-                                      name="section-mesh"
-                                      value="Yes"
-                                      checked={selectedNode.mesh === "Yes"}
-                                      disabled={selectedNode.systemType === "Sliding"}
-                                      onChange={() => {
-                                        if (selectedNode.systemType === "Sliding") return;
+  {/* Vertical Separator */}
+  <div className="mx-5 h-12 w-px bg-slate-300" />
 
-                                        updateSelectedLeaves((target) => {
-                                          target.mesh = "Yes";
-                                        });
-                                      }}
-                                      className="h-4 w-4 accent-[#ef0b0b]"
-                                    />
-                                    Yes
-                                  </label>
+  {/* Section Mesh */}
+  <div className="relative -left-1 flex-1 text-xs text-gray-600">
+    <span>Section Mesh</span>
 
-                                  <label className="flex items-center gap-2 text-sm text-gray-700">
-                                    <input
-                                      type="radio"
-                                      name="section-mesh"
-                                      value="No"
-                                      checked={selectedNode.mesh === "No"}
-                                      disabled={selectedNode.systemType === "Sliding"}
-                                      onChange={() => {
-                                        if (selectedNode.systemType === "Sliding") return;
+    <div className="mt-2 flex items-center gap-5">
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input
+          type="radio"
+          name="section-mesh"
+          value="Yes"
+          checked={selectedNode.mesh === "Yes"}
+          disabled={selectedNode.systemType === "Sliding"}
+          onChange={() => {
+            if (selectedNode.systemType === "Sliding") return;
 
-                                        updateSelectedLeaves((target) => {
-                                          target.mesh = "No";
-                                        });
-                                      }}
-                                      className="h-4 w-4 accent-[#ef0b0b]"
-                                    />
-                                    No
-                                  </label>
-                                </div>
-                              </div>
+            updateSelectedLeaves((target) => {
+              target.mesh = "Yes";
+            });
+          }}
+          className="h-4 w-4 accent-[#ef0b0b]"
+        />
+        Yes
+      </label>
+
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input
+          type="radio"
+          name="section-mesh"
+          value="No"
+          checked={selectedNode.mesh === "No"}
+          disabled={selectedNode.systemType === "Sliding"}
+          onChange={() => {
+            if (selectedNode.systemType === "Sliding") return;
+
+            updateSelectedLeaves((target) => {
+              target.mesh = "No";
+            });
+          }}
+          className="h-4 w-4 accent-[#ef0b0b]"
+        />
+        No
+      </label>
+    </div>
+  </div>
+</div>
 
                               {archControls}
                             </>

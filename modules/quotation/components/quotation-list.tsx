@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Calendar, CopyPlus, Eye, File, HandCoins, Plus, Trash2, Search } from "lucide-react";
+import { Calendar, CopyPlus, Eye, File, HandCoins, Plus, Trash2, Search, Loader2 } from "lucide-react";
 import { ChevronDown } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +39,22 @@ export function QuotationList() {
 
   console.log(data, "DATAAAAAAA")
   const quotations = data?.quotations ?? [];
+  if (isLoading && !data) {
+  return (
+    <PageShell
+      title="Quotations"
+      description="Manage draft, submitted, revised, and converted quotations with pricing visibility and revision history."
+    >
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-slate-600" />
+          <p className="text-sm text-slate-500">Loading quotations...</p>
+        </div>
+      </div>
+    </PageShell>
+  );
+}
+
 
   const opportunityOrder: Record<string, number> = {
     Enquiry: 1,
@@ -338,7 +354,7 @@ export function QuotationList() {
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {isLoading ? <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-500">Loading quotations...</div> : null}
+          {/* {isLoading ? <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-500">Loading quotations...</div> : null} */}
           {error ? <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-600">Failed to load quotations.</div> : null}
 
           <div className="hidden md:grid grid-cols-[1.15fr_0.95fr_0.55fr_0.75fr_1.8fr] items-center border-b border-slate-200 px-4 pb-3 text-xs font-medium uppercase tracking-wide text-slate-400">

@@ -293,7 +293,7 @@ function ItemCard({
         </div>
         <div className="flex h-60 items-center justify-center overflow-hidden rounded-xl border bg-white p-1">
           {item.refImage ? (
-            <img src={item.refImage} alt={item.refCode || item.productType || "Quotation item"} className="h-full w-full object-contain" />
+            <img src={item.refImage} alt={item.refCode || item.productType || "Quotation item"} className="h-full w-full object-contain -translate-x-4" />
           ) : (
             <div className="w-full max-w-[150px] rounded-md border-[8px] border-slate-800 bg-white shadow-sm">
               <div className="grid h-16" style={{ gridTemplateColumns: `repeat(${Math.max(1, item.previewPanels || 1)}, minmax(0, 1fr))` }}>
@@ -3014,6 +3014,58 @@ export function QuotationBuilder({
       setIsGeneratingPdf(false);
     }
   };
+
+
+  const quickExportPdf = async () => {
+  try {
+    setIsGeneratingPdf(true);
+
+    const savedQuotation = await getPersistedQuotation();
+
+    const pdfQuotationId =
+      savedQuotation?._id ??
+      quotationWithGlobalConfig._id ??
+      savedQuotation?.quotationDetails.id ??
+      quotationWithGlobalConfig.quotationDetails.id;
+
+    if (!pdfQuotationId) {
+      throw new Error("Failed to resolve quotation id before PDF generation.");
+    }
+
+    const delivery = await prepareQuotationPdf(pdfQuotationId);
+
+    const fileName = getQuotationPdfDownloadName({
+      ...(savedQuotation ?? quotationWithGlobalConfig),
+      globalConfig,
+    });
+
+    if (delivery.delivery === "signed-url") {
+      const link = document.createElement("a");
+      link.href = delivery.downloadUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      const blob = await getQuotationPdfBlob(pdfQuotationId);
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(url);
+    }
+  } catch (error) {
+    console.error("Failed to quick export quotation PDF", error);
+    alert("Failed to download quotation PDF.");
+  } finally {
+    setIsGeneratingPdf(false);
+  }
+};
   const shareQuotation = async () => {
     try {
       setIsSharingQuotation(true);
@@ -3334,6 +3386,16 @@ export function QuotationBuilder({
             <div className="flex items-center gap-3">
 
               <button
+  type="button"
+  onClick={quickExportPdf}
+  disabled={isSaveBlockingExports || isAnyExportInProgress}
+  className="flex items-center gap-2 rounded-xl bg-[#0F172A] px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+>
+  <Download className="h-4 w-4" />
+  <span>{isGeneratingPdf ? "Downloading..." : "Quick Export"}</span>
+</button>
+
+              <button
                 type="button"
                 onClick={() => setIsExportModalOpen(true)}
                 disabled={isSaveBlockingExports || isAnyExportInProgress}
@@ -3584,7 +3646,7 @@ export function QuotationBuilder({
 
         {isPdfPreviewOpen && pdfPreviewUrl ? (
           <div className="fixed inset-0 z-[260] flex items-center justify-center bg-slate-950/70 p-4">
-            <div className="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div className="flex h-[90vh] w-[90vw] max-w-[90vw] flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
                 <div>
                   <div className="text-lg font-semibold text-slate-900">{pdfPreviewTitle}</div>
