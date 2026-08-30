@@ -154,6 +154,9 @@ function ItemCard({
   configuratorBasePath,
   onDeleteItem,
   onDuplicateItem,
+  onDuplicateProgress,
+  duplicateProgress,
+  isDuplicatingItems,
 }: {
   item: QuotationItem;
   index: number;
@@ -173,6 +176,13 @@ function ItemCard({
       }[];
     }
   ) => Promise<void>;
+  onDuplicateProgress: (current: number, total: number) => void;
+  duplicateProgress: {
+  current: number;
+  total: number;
+};
+isDuplicatingItems: boolean;
+
 }) {
   console.log("CARD ITEM", item);
   console.log(
@@ -262,6 +272,7 @@ function ItemCard({
     }
 
     setIsMutating(true);
+    onDuplicateProgress(0, refCodes.length);
 
     try {
       for (let index = 0; index < refCodes.length; index++) {
@@ -270,6 +281,7 @@ function ItemCard({
           refCodes[index],
           duplicateWindows[index]
         );
+        onDuplicateProgress(index + 1, refCodes.length);
       }
 
       setIsDuplicateModalOpen(false);
@@ -281,6 +293,7 @@ function ItemCard({
     } catch (error) {
       console.error("Failed to duplicate quotation item", error);
       setDuplicateError("Failed to duplicate this item.");
+      onDuplicateProgress(0, 0);
     } finally {
       setIsMutating(false);
     }
@@ -642,9 +655,37 @@ function ItemCard({
                 </div>
               )}
               {duplicateError ? <p className="mt-2 text-sm text-red-600">{duplicateError}</p> : null}
+
             </div>
+            {isMutating && duplicateProgress.total > 0 && (
+  <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-3">
+    <div className="flex items-center justify-between">
+      <span className="text-sm font-semibold text-slate-800">
+        Creating items...
+      </span>
+
+      <span className="text-sm font-semibold text-slate-700">
+        {duplicateProgress.current} / {duplicateProgress.total}
+      </span>
+    </div>
+
+    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200">
+      <div
+        className="h-full rounded-full bg-[#0F172A] transition-all duration-300"
+        style={{
+          width: `${
+            (duplicateProgress.current / duplicateProgress.total) * 100
+          }%`,
+        }}
+      />
+    </div>
+  </div>
+)}
+
+
             <div className="border-t p-6">
               <div className="mt-6 flex justify-end gap-2">
+                
                 <Button
                   variant="outline"
                   size="sm"
@@ -745,6 +786,9 @@ function SortableItem({
   configuratorBasePath,
   onDeleteItem,
   onDuplicateItem,
+  onDuplicateProgress,
+  duplicateProgress,
+  isDuplicatingItems,
 }: {
   item: QuotationItem;
   index: number;
@@ -764,6 +808,12 @@ function SortableItem({
       }[];
     }
   ) => Promise<void>;
+  onDuplicateProgress: (current: number, total: number) => void;
+  duplicateProgress: {
+  current: number;
+  total: number;
+};
+isDuplicatingItems: boolean;
 }) {
   const {
     attributes,
@@ -786,6 +836,9 @@ function SortableItem({
         configuratorBasePath={configuratorBasePath}
         onDeleteItem={onDeleteItem}
         onDuplicateItem={onDuplicateItem}
+        onDuplicateProgress={onDuplicateProgress}
+        duplicateProgress={duplicateProgress}
+       isDuplicatingItems={isDuplicatingItems}
       />
     </div>
   );
@@ -846,6 +899,10 @@ function ItemTab({
   onDeleteItem,
   onDuplicateItem,
   onReorderItems,
+  onDuplicateProgress,
+   duplicateProgress,
+  isDuplicatingItems,
+
 }: {
   quotationBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
@@ -864,10 +921,16 @@ function ItemTab({
     }
   ) => Promise<void>;
   onReorderItems: (startIndex: number, endIndex: number) => Promise<void>;
+  onDuplicateProgress: (current: number, total: number) => void;
+  duplicateProgress: {
+  current: number;
+  total: number;
+};
+isDuplicatingItems: boolean;
 }) {
   const quotation = useQuotationBuilderStore((state) => state.quotation);
   const items = quotation.items;
-  const ITEMS_PER_PAGE = 30;
+  const ITEMS_PER_PAGE = 9;
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -1047,10 +1110,13 @@ function ItemTab({
                   <SortableItem
                     key={item.id}
                     item={item}
-                    index={index}
+                    index={startIndex + index}
                     configuratorBasePath={configuratorBasePath}
                     onDeleteItem={onDeleteItem}
                     onDuplicateItem={onDuplicateItem}
+                    onDuplicateProgress={onDuplicateProgress}
+                    duplicateProgress={duplicateProgress}
+                    isDuplicatingItems={isDuplicatingItems}
                   />
                 ))}
               </div>
@@ -1500,11 +1566,6 @@ function CustomerTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSavi
 
         </div>
       </div>
-
-
-
-
-
 
       <div className="mt-6 flex justify-end">
         <Button type="button" onClick={() => void onSave()} disabled={isSaving} className="bg-slate-950 text-white hover:bg-slate-950">
@@ -2156,6 +2217,25 @@ export function QuotationBuilder({
   const itemMutationChainRef = useRef<Promise<void>>(Promise.resolve());
   const [itemMutationsInProgress, setItemMutationsInProgress] = useState(0);
   const [metadataSaveStatus, setMetadataSaveStatus] = useState<"idle" | "saving" | "failed">("idle");
+  const [duplicateProgress, setDuplicateProgress] = useState({
+  current: 0,
+  total: 0,
+});
+const [isDuplicatingItems, setIsDuplicatingItems] = useState(false);
+const handleDuplicateProgress = useCallback(
+  (current: number, total: number) => {
+    if (total === 0) {
+      setDuplicateProgress({ current: 0, total: 0 });
+      setIsDuplicatingItems(false);
+      return;
+    }
+
+    setDuplicateProgress({ current, total });
+    setIsDuplicatingItems(current < total);
+  },
+  []
+);
+
   const requestedTab = searchParams.get("tab");
   const isReturningFromConfigurator = isCreateMode && requestedTab === "item";
   const router = useRouter();
@@ -3352,6 +3432,7 @@ export function QuotationBuilder({
                   ? "Save failed"
                   : saveState}
           </Badge>
+         
           <Button
             variant="outline"
             onClick={shareQuotation}
@@ -3449,6 +3530,9 @@ export function QuotationBuilder({
                 onDeleteItem={persistDeleteItem}
                 onDuplicateItem={persistDuplicateItem}
                 onReorderItems={persistReorderedItems}
+                onDuplicateProgress={handleDuplicateProgress}
+                duplicateProgress={duplicateProgress}
+                isDuplicatingItems={isDuplicatingItems}
               />
             )}
             {activeTab === "bulk" && (
