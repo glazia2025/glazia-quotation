@@ -72,6 +72,7 @@ import { BomOrderPlacement } from "@/modules/quotation/components/bom-order-plac
 
 import type { Quotation, QuotationItem } from "@/types/quotation";
 import { formatCurrency, formatNumber } from "@/utils/format";
+import { calculateQuotationPricing } from "@/utils/quotationPricing";
 import { getQuotationPdfDownloadName } from "@/utils/quotationPdf";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loadGlobalConfig } from "../../../utils/globalConfig";
@@ -142,6 +143,8 @@ const createBuilderGlobalConfig = () => ({
     showDiscount: true,
   },
 });
+type BuilderAdditionalCosts = ReturnType<typeof createBuilderGlobalConfig>["additionalCosts"];
+type AdditionalCostKey = keyof BuilderAdditionalCosts;
 
 const getQuotationIdentity = (quotation: Quotation | null | undefined) =>
   quotation?._id || quotation?.generatedId || quotation?.quotationDetails?.id || "";
@@ -150,12 +153,14 @@ const EXHAUST_FAN_RATE_SURCHARGE = 10;
 
 function ItemCard({
   item,
+  displayItem,
   index,
   configuratorBasePath,
   onDeleteItem,
   onDuplicateItem,
 }: {
   item: QuotationItem;
+  displayItem?: QuotationItem;
   index: number;
   configuratorBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
@@ -324,7 +329,7 @@ function ItemCard({
               </p>
               <p className="mt-1 text-sm font-semibold text-red-500">
                 {/* {formatCurrency(item.rate ?? 0)} */}
-                {formatRateCurrency(item.rate ?? 0)}
+                {formatRateCurrency(displayItem?.rate ?? item.rate ?? 0)}
               </p>
             </div>
           </div>
@@ -741,12 +746,14 @@ function ItemCard({
 // function for drag and drop
 function SortableItem({
   item,
+  displayItem,
   index,
   configuratorBasePath,
   onDeleteItem,
   onDuplicateItem,
 }: {
   item: QuotationItem;
+  displayItem?: QuotationItem;
   index: number;
   configuratorBasePath: string;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
@@ -782,6 +789,7 @@ function SortableItem({
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <ItemCard
         item={item}
+        displayItem={displayItem}
         index={index}
         configuratorBasePath={configuratorBasePath}
         onDeleteItem={onDeleteItem}
@@ -843,11 +851,15 @@ function QuotationPreview({ item }: { item: QuotationItem | undefined }) {
 // };
 function ItemTab({
   quotationBasePath,
+  additionalCosts,
+  onAdditionalCostChange,
   onDeleteItem,
   onDuplicateItem,
   onReorderItems,
 }: {
   quotationBasePath: string;
+  additionalCosts: BuilderAdditionalCosts;
+  onAdditionalCostChange: (key: AdditionalCostKey, value: number | boolean) => void;
   onDeleteItem: (item: QuotationItem) => Promise<void>;
   onDuplicateItem: (
     item: QuotationItem,
@@ -872,7 +884,6 @@ function ItemTab({
   const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
-  const currentItems = items.slice(startIndex, endIndex);
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
   const router = useRouter();
   const profit = Number(quotation.breakdown?.profitPercentage) || 0;
@@ -928,47 +939,15 @@ function ItemTab({
     };
   }, []);
 
-  const totalQuantity = items.reduce((sum, item) => sum + Math.max(1, item.quantity || 1), 0);
-  const totalArea = items.reduce((sum, item) =>
-    sum + (item.area || 0) * Math.max(1, item.quantity || 1), 0);
-  const totalAmount = items.reduce((sum, item) => {
-    const area = item.area || 0;
-    const rate = item.rate || 0;
-    const qty = item.quantity || 1;
-    let amount = area * rate * qty;
-    //  Arch charge
-    if (
-      item?.systemType?.toLowerCase() === "casement" &&
-      item?.archType &&
-      item.archType !== "none"
-    ) {
-      amount += 5000;
-    }
-    return sum + amount;
-  }, 0);
-  const additionalCosts = quotation.globalConfig?.additionalCosts;
-  const installationCost = additionalCosts?.showInstallation === false
-    ? 0
-    : totalArea * (Number(additionalCosts?.installation) || 0);
-  const transportCost = additionalCosts?.showTransport === false
-    ? 0
-    : Number(additionalCosts?.transport) || 0;
-  const loadingUnloadingCost = additionalCosts?.showLoadingUnloading === false
-    ? 0
-    : Number(additionalCosts?.loadingUnloading) || 0;
-  const totalAdditionalCosts = installationCost + transportCost + loadingUnloadingCost;
-  const totalCost = totalAmount + totalAdditionalCosts;
-  const finalAmount = totalCost + (totalCost * profit) / 100;
-  const priceBeforeDiscount = optimizedFinal === null
-    ? finalAmount
-    : optimizedFinal + totalAdditionalCosts;
-  const discountPercent = additionalCosts?.showDiscount === false
-    ? 0
-    : Number(additionalCosts?.discountPercent) || 0;
-  const discountAmount = (priceBeforeDiscount * discountPercent) / 100;
-  const finalWithGSTBase = priceBeforeDiscount - discountAmount;
-  const finalWithGST = finalWithGSTBase + (finalWithGSTBase * 18) / 100;
+  const pricing = calculateQuotationPricing(items, additionalCosts, profit);
+  const totalQuantity = pricing.totalQty;
+  const totalArea = pricing.totalArea;
+  const totalAmount = pricing.baseTotal;
+  const finalAmount = pricing.beforeDiscount;
+  const finalWithGST = pricing.grandTotal;
   const ratePerSqft = totalArea > 0 ? finalWithGST / totalArea : 0;
+  const currentItems = items.slice(startIndex, endIndex);
+  const currentDisplayItems = pricing.items.slice(startIndex, endIndex) as QuotationItem[];
   useEffect(() => {
     setOptimizedFinal(null);
     setOptimizedFinalError("");
@@ -994,8 +973,11 @@ function ItemTab({
   };
   const updateProfit = (nextProfit: number) => {
     const safeProfit = Number.isFinite(nextProfit) ? nextProfit : 0;
-    const nextFinalAmount = totalCost + (totalCost * safeProfit) / 100;
-    const nextFinalWithGST = nextFinalAmount + (nextFinalAmount * 18) / 100;
+    const nextFinalWithGST = calculateQuotationPricing(
+      items,
+      additionalCosts,
+      safeProfit
+    ).grandTotal;
 
     setQuotation({
       ...quotation,
@@ -1047,6 +1029,7 @@ function ItemTab({
                   <SortableItem
                     key={item.id}
                     item={item}
+                    displayItem={currentDisplayItems[index]}
                     index={index}
                     configuratorBasePath={configuratorBasePath}
                     onDeleteItem={onDeleteItem}
@@ -1120,7 +1103,7 @@ function ItemTab({
                       </div>
 
                       <span className="text-sm font-semibold">
-                        {formatCurrency(totalAmount)}
+                        {formatRateCurrency(totalAmount)}
                       </span>
                     </div>
 
@@ -1155,6 +1138,53 @@ function ItemTab({
                       </div>
                     </div>
 
+                    <div className="space-y-2 border-t border-slate-800 pt-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300">
+                          Additional Costs
+                        </span>
+                        <span className="text-[9px] text-slate-500">Show in PDF</span>
+                      </div>
+
+                      {([
+                        ["Installation", "installation", "showInstallation", "₹/sqft"],
+                        ["Transport", "transport", "showTransport", "₹"],
+                        ["Loading / Unloading", "loadingUnloading", "showLoadingUnloading", "₹"],
+                        ["Discount", "discountPercent", "showDiscount", "%"],
+                      ] as const).map(([label, valueKey, toggleKey, suffix]) => (
+                        <div key={valueKey} className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
+                          <label className="truncate text-[10px] text-slate-400" title={label}>
+                            {label}
+                          </label>
+                          <div className="flex items-center rounded-md border border-slate-700 bg-slate-900">
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              value={Number(additionalCosts?.[valueKey]) || 0}
+                              onChange={(event) =>
+                                onAdditionalCostChange(valueKey, Math.max(0, Number(event.target.value) || 0))
+                              }
+                              className="h-7 w-16 bg-transparent px-2 text-right text-[10px] text-white outline-none"
+                              aria-label={label}
+                            />
+                            <span className="pr-2 text-[9px] text-slate-500">{suffix}</span>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={additionalCosts?.[toggleKey] !== false}
+                            onChange={(event) => onAdditionalCostChange(toggleKey, event.target.checked)}
+                            className="h-3.5 w-3.5 rounded border-slate-600 accent-red-500"
+                            aria-label={`Show ${label} in PDF`}
+                          />
+                        </div>
+                      ))}
+
+                      <p className="text-[9px] leading-3 text-slate-500">
+                        Hidden values are absorbed into item rates; Customer Price stays unchanged.
+                      </p>
+                    </div>
+
                     {/* Selling Price */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -1167,7 +1197,7 @@ function ItemTab({
                       </div>
 
                       <span className="text-sm font-semibold">
-                        {formatCurrency(finalAmount)}
+                        {formatRateCurrency(finalAmount)}
                       </span>
                     </div>
 
@@ -1184,7 +1214,7 @@ function ItemTab({
                       </div>
 
                       <div className="mt-1 text-lg font-bold text-red-500">
-                        {formatCurrency(finalWithGST)}
+                        {formatRateCurrency(finalWithGST)}
                       </div>
                     </div>
 
@@ -2965,6 +2995,19 @@ export function QuotationBuilder({
     };
     reader.readAsDataURL(file);
   };
+  const handleAdditionalCostChange = useCallback(
+    (key: AdditionalCostKey, value: number | boolean) => {
+      setGlobalConfig((current) => ({
+        ...current,
+        isOverridden: true,
+        additionalCosts: {
+          ...current.additionalCosts,
+          [key]: value,
+        },
+      }));
+    },
+    []
+  );
   const exportPdf = async () => {
     try {
       setIsGeneratingPdf(true);
@@ -3384,6 +3427,8 @@ export function QuotationBuilder({
             {activeTab === "item" && (
               <ItemTab
                 quotationBasePath={quotationBasePath}
+                additionalCosts={globalConfig.additionalCosts}
+                onAdditionalCostChange={handleAdditionalCostChange}
                 onDeleteItem={persistDeleteItem}
                 onDuplicateItem={persistDuplicateItem}
                 onReorderItems={persistReorderedItems}
