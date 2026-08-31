@@ -191,15 +191,13 @@ export function QuotationList() {
 
 
       actions={
-        <Button asChild
-          className="text-white hover:opacity-90"
+        <Link
+          href="/quotations/new"
+          className="rounded-md px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
           style={{ backgroundColor: "#EE1C25" }}
         >
-          <Link href="/quotations/new">
-            <Plus className="h-4 w-4" />
-            New quotation
-          </Link>
-        </Button>
+          + New Quotation
+        </Link>
       }
     >
       <div className="mb-6 grid gap-4 md:grid-cols-3">
