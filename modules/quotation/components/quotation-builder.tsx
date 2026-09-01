@@ -158,6 +158,9 @@ function ItemCard({
   configuratorBasePath,
   onDeleteItem,
   onDuplicateItem,
+  onDuplicateProgress,
+  duplicateProgress,
+  isDuplicatingItems,
 }: {
   item: QuotationItem;
   displayItem?: QuotationItem;
@@ -178,6 +181,13 @@ function ItemCard({
       }[];
     }
   ) => Promise<void>;
+  onDuplicateProgress: (current: number, total: number) => void;
+  duplicateProgress: {
+  current: number;
+  total: number;
+};
+isDuplicatingItems: boolean;
+
 }) {
   console.log("CARD ITEM", item);
   console.log(
@@ -267,6 +277,7 @@ function ItemCard({
     }
 
     setIsMutating(true);
+    onDuplicateProgress(0, refCodes.length);
 
     try {
       for (let index = 0; index < refCodes.length; index++) {
@@ -275,6 +286,7 @@ function ItemCard({
           refCodes[index],
           duplicateWindows[index]
         );
+        onDuplicateProgress(index + 1, refCodes.length);
       }
 
       setIsDuplicateModalOpen(false);
@@ -286,6 +298,7 @@ function ItemCard({
     } catch (error) {
       console.error("Failed to duplicate quotation item", error);
       setDuplicateError("Failed to duplicate this item.");
+      onDuplicateProgress(0, 0);
     } finally {
       setIsMutating(false);
     }
@@ -298,7 +311,7 @@ function ItemCard({
         </div>
         <div className="flex h-60 items-center justify-center overflow-hidden rounded-xl border bg-white p-1">
           {item.refImage ? (
-            <img src={item.refImage} alt={item.refCode || item.productType || "Quotation item"} className="h-full w-full object-contain" />
+            <img src={item.refImage} alt={item.refCode || item.productType || "Quotation item"} className="h-full w-full object-contain -translate-x-4" />
           ) : (
             <div className="w-full max-w-[150px] rounded-md border-[8px] border-slate-800 bg-white shadow-sm">
               <div className="grid h-16" style={{ gridTemplateColumns: `repeat(${Math.max(1, item.previewPanels || 1)}, minmax(0, 1fr))` }}>
@@ -647,9 +660,37 @@ function ItemCard({
                 </div>
               )}
               {duplicateError ? <p className="mt-2 text-sm text-red-600">{duplicateError}</p> : null}
+
             </div>
+            {isMutating && duplicateProgress.total > 0 && (
+  <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-3">
+    <div className="flex items-center justify-between">
+      <span className="text-sm font-semibold text-slate-800">
+        Creating items...
+      </span>
+
+      <span className="text-sm font-semibold text-slate-700">
+        {duplicateProgress.current} / {duplicateProgress.total}
+      </span>
+    </div>
+
+    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200">
+      <div
+        className="h-full rounded-full bg-[#0F172A] transition-all duration-300"
+        style={{
+          width: `${
+            (duplicateProgress.current / duplicateProgress.total) * 100
+          }%`,
+        }}
+      />
+    </div>
+  </div>
+)}
+
+
             <div className="border-t p-6">
               <div className="mt-6 flex justify-end gap-2">
+                
                 <Button
                   variant="outline"
                   size="sm"
@@ -751,6 +792,9 @@ function SortableItem({
   configuratorBasePath,
   onDeleteItem,
   onDuplicateItem,
+  onDuplicateProgress,
+  duplicateProgress,
+  isDuplicatingItems,
 }: {
   item: QuotationItem;
   displayItem?: QuotationItem;
@@ -771,6 +815,12 @@ function SortableItem({
       }[];
     }
   ) => Promise<void>;
+  onDuplicateProgress: (current: number, total: number) => void;
+  duplicateProgress: {
+  current: number;
+  total: number;
+};
+isDuplicatingItems: boolean;
 }) {
   const {
     attributes,
@@ -794,6 +844,9 @@ function SortableItem({
         configuratorBasePath={configuratorBasePath}
         onDeleteItem={onDeleteItem}
         onDuplicateItem={onDuplicateItem}
+        onDuplicateProgress={onDuplicateProgress}
+        duplicateProgress={duplicateProgress}
+       isDuplicatingItems={isDuplicatingItems}
       />
     </div>
   );
@@ -856,6 +909,10 @@ function ItemTab({
   onDeleteItem,
   onDuplicateItem,
   onReorderItems,
+  onDuplicateProgress,
+   duplicateProgress,
+  isDuplicatingItems,
+
 }: {
   quotationBasePath: string;
   additionalCosts: BuilderAdditionalCosts;
@@ -876,10 +933,16 @@ function ItemTab({
     }
   ) => Promise<void>;
   onReorderItems: (startIndex: number, endIndex: number) => Promise<void>;
+  onDuplicateProgress: (current: number, total: number) => void;
+  duplicateProgress: {
+  current: number;
+  total: number;
+};
+isDuplicatingItems: boolean;
 }) {
   const quotation = useQuotationBuilderStore((state) => state.quotation);
   const items = quotation.items;
-  const ITEMS_PER_PAGE = 30;
+  const ITEMS_PER_PAGE = 9;
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -1029,11 +1092,14 @@ function ItemTab({
                   <SortableItem
                     key={item.id}
                     item={item}
+                    index={startIndex + index}
                     displayItem={currentDisplayItems[index]}
-                    index={index}
                     configuratorBasePath={configuratorBasePath}
                     onDeleteItem={onDeleteItem}
                     onDuplicateItem={onDuplicateItem}
+                    onDuplicateProgress={onDuplicateProgress}
+                    duplicateProgress={duplicateProgress}
+                    isDuplicatingItems={isDuplicatingItems}
                   />
                 ))}
               </div>
@@ -1530,11 +1596,6 @@ function CustomerTab({ onSave, isSaving }: { onSave: () => Promise<void>; isSavi
 
         </div>
       </div>
-
-
-
-
-
 
       <div className="mt-6 flex justify-end">
         <Button type="button" onClick={() => void onSave()} disabled={isSaving} className="bg-slate-950 text-white hover:bg-slate-950">
@@ -2186,6 +2247,25 @@ export function QuotationBuilder({
   const itemMutationChainRef = useRef<Promise<void>>(Promise.resolve());
   const [itemMutationsInProgress, setItemMutationsInProgress] = useState(0);
   const [metadataSaveStatus, setMetadataSaveStatus] = useState<"idle" | "saving" | "failed">("idle");
+  const [duplicateProgress, setDuplicateProgress] = useState({
+  current: 0,
+  total: 0,
+});
+const [isDuplicatingItems, setIsDuplicatingItems] = useState(false);
+const handleDuplicateProgress = useCallback(
+  (current: number, total: number) => {
+    if (total === 0) {
+      setDuplicateProgress({ current: 0, total: 0 });
+      setIsDuplicatingItems(false);
+      return;
+    }
+
+    setDuplicateProgress({ current, total });
+    setIsDuplicatingItems(current < total);
+  },
+  []
+);
+
   const requestedTab = searchParams.get("tab");
   const isReturningFromConfigurator = isCreateMode && requestedTab === "item";
   const router = useRouter();
@@ -3057,6 +3137,58 @@ export function QuotationBuilder({
       setIsGeneratingPdf(false);
     }
   };
+
+
+  const quickExportPdf = async () => {
+  try {
+    setIsGeneratingPdf(true);
+
+    const savedQuotation = await getPersistedQuotation();
+
+    const pdfQuotationId =
+      savedQuotation?._id ??
+      quotationWithGlobalConfig._id ??
+      savedQuotation?.quotationDetails.id ??
+      quotationWithGlobalConfig.quotationDetails.id;
+
+    if (!pdfQuotationId) {
+      throw new Error("Failed to resolve quotation id before PDF generation.");
+    }
+
+    const delivery = await prepareQuotationPdf(pdfQuotationId);
+
+    const fileName = getQuotationPdfDownloadName({
+      ...(savedQuotation ?? quotationWithGlobalConfig),
+      globalConfig,
+    });
+
+    if (delivery.delivery === "signed-url") {
+      const link = document.createElement("a");
+      link.href = delivery.downloadUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      const blob = await getQuotationPdfBlob(pdfQuotationId);
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(url);
+    }
+  } catch (error) {
+    console.error("Failed to quick export quotation PDF", error);
+    alert("Failed to download quotation PDF.");
+  } finally {
+    setIsGeneratingPdf(false);
+  }
+};
   const shareQuotation = async () => {
     try {
       setIsSharingQuotation(true);
@@ -3343,6 +3475,7 @@ export function QuotationBuilder({
                   ? "Save failed"
                   : saveState}
           </Badge>
+         
           <Button
             variant="outline"
             onClick={shareQuotation}
@@ -3375,6 +3508,16 @@ export function QuotationBuilder({
             </div>
             {/* RIGHT SIDE BUTTONS */}
             <div className="flex items-center gap-3">
+
+              <button
+  type="button"
+  onClick={quickExportPdf}
+  disabled={isSaveBlockingExports || isAnyExportInProgress}
+  className="flex items-center gap-2 rounded-xl bg-[#0F172A] px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+>
+  <Download className="h-4 w-4" />
+  <span>{isGeneratingPdf ? "Downloading..." : "Quick Export"}</span>
+</button>
 
               <button
                 type="button"
@@ -3432,6 +3575,9 @@ export function QuotationBuilder({
                 onDeleteItem={persistDeleteItem}
                 onDuplicateItem={persistDuplicateItem}
                 onReorderItems={persistReorderedItems}
+                onDuplicateProgress={handleDuplicateProgress}
+                duplicateProgress={duplicateProgress}
+                isDuplicatingItems={isDuplicatingItems}
               />
             )}
             {activeTab === "bulk" && (
@@ -3629,7 +3775,7 @@ export function QuotationBuilder({
 
         {isPdfPreviewOpen && pdfPreviewUrl ? (
           <div className="fixed inset-0 z-[260] flex items-center justify-center bg-slate-950/70 p-4">
-            <div className="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div className="flex h-[90vh] w-[90vw] max-w-[90vw] flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
                 <div>
                   <div className="text-lg font-semibold text-slate-900">{pdfPreviewTitle}</div>

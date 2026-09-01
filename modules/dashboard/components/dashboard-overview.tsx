@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, ArrowUpRight, ClipboardList, WalletCards } from "lucide-react";
+import { CalendarDays, ArrowUpRight, ClipboardList, WalletCards, Loader2 } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/shared/stat-card";
@@ -48,7 +48,7 @@ try {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear.toString());
 
-const { data: chartApiData } = useTenantQuery({
+const { data: chartApiData, isLoading: isChartLoading } = useTenantQuery({
   queryKey: ["chart-data", year, userId],
   enabled: !!userId,
   queryFn: async () => {
@@ -59,7 +59,7 @@ const { data: chartApiData } = useTenantQuery({
   }
 });
 
-const { data: salesPerMonth } = useTenantQuery({
+const { data: salesPerMonth, isLoading: isSalesLoading } = useTenantQuery({
   queryKey: ["sales-per-month", year, userId],
   enabled: !!userId,
   queryFn: async () => {
@@ -148,7 +148,7 @@ const enquiry = labels.map((month) => {
   const found = chartApiData?.find((item: any) => item.month === month);
   return found?.data?.enquiry || 0;
 });
-const { data: stats } = useTenantQuery({
+const { data: stats, isLoading: isStatsLoading } = useTenantQuery({
   queryKey: ["dashboard-stats", year, userId],
   enabled: !!userId,
   queryFn: async () => {
@@ -312,6 +312,9 @@ datasets: [
 const total = stats?.total || 0;
 const confirmedOrders = stats?.confirmed || 0;
 const totalValue = stats?.revenue || 0;
+const isDashboardLoading =
+  isChartLoading || isSalesLoading || isStatsLoading;
+
 
 const conversionRate =
   total > 0 ? ((confirmedOrders / total) * 100).toFixed(1) + "%" : "0%";
@@ -361,6 +364,24 @@ const metrics = getDashboardMetrics(total, totalValue,confirmedOrders,conversion
       currentYear,
       currentYear+1,
     ];
+    if (isDashboardLoading) {
+  return (
+    <PageShell
+      title="Dashboard"
+      description="Daily snapshot across quotation performance, downstream fulfillment, and execution bottlenecks."
+    >
+      <div className="flex min-h-[500px] items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-slate-600" />
+          <p className="text-sm text-slate-500">
+            Loading dashboard...
+          </p>
+        </div>
+      </div>
+    </PageShell>
+  );
+}
+   
   return (
     <PageShell title="Dashboard" description="Daily snapshot across quotation performance, downstream fulfillment, and execution bottlenecks."
      actions={
@@ -542,4 +563,5 @@ const metrics = getDashboardMetrics(total, totalValue,confirmedOrders,conversion
       </div> */}
     </PageShell>
   );
+
 }
