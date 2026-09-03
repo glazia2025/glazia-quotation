@@ -1972,7 +1972,8 @@ const addArchShape = (
   archHeightRatio: number,
   stroke: string,
   strokeWidth: number,
-  opacity = 1
+  opacity = 1,
+  dash?: number[]
 ) => {
   layer.add(
     new Konva.Shape({
@@ -1982,6 +1983,7 @@ const addArchShape = (
       },
       stroke,
       strokeWidth,
+      dash,
       opacity,
       listening: false,
     })
@@ -1993,17 +1995,38 @@ function addProfileRect(layer: KonvaLayer | KonvaGroup, x: number, y: number, w:
   const safeH = safeDrawSize(h);
   const normalizedArchType = normalizeArchType(archType);
   if (normalizedArchType === "none") {
-    layer.add(new Konva.Rect({ x, y, width: safeW, height: safeH, stroke: selected ? COLORS.selected : frameColor, strokeWidth: PROFILE.outer, listening: false }));
+   
+    layer.add(new Konva.Rect({ x, y, width: safeW, height: safeH, stroke: frameColor, strokeWidth: PROFILE.outer, listening: false }));
     layer.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + 2, y: y + PROFILE.outer / 2 + 2, width: safeDrawSize(safeW - (PROFILE.outer + 4)), height: safeDrawSize(safeH - (PROFILE.outer + 4)), stroke: frameColor, strokeWidth: PROFILE.inner, listening: false }));
     layer.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + 6, y: y + PROFILE.outer / 2 + 6, width: safeDrawSize(safeW - (PROFILE.outer + 12)), height: safeDrawSize(safeH - (PROFILE.outer + 12)), stroke: frameColor, strokeWidth: 1, opacity: 0.6, listening: false }));
+    if (selected) {
+      const margin = 16;
+      layer.add(new Konva.Rect({
+        x: x - margin,
+        y: y - margin,
+        width: safeDrawSize(safeW + margin * 2),
+        height: safeDrawSize(safeH + margin * 2),
+        stroke: COLORS.selected,
+        strokeWidth: 2,
+        dash: [8, 5],
+        listening: false,
+      }));
+    }
     return;
   }
 
-  addArchShape(layer, x, y, safeW, safeH, normalizedArchType, archHeightRatio, selected ? COLORS.selected : frameColor, PROFILE.outer);
-  const innerOffset = PROFILE.outer / 2 + 2;
+  // addArchShape(layer, x, y, safeW, safeH, normalizedArchType, archHeightRatio, selected ? COLORS.selected : frameColor, PROFILE.outer);
+   addArchShape(layer, x, y, safeW, safeH, normalizedArchType, archHeightRatio, frameColor, PROFILE.outer);
+   const innerOffset = PROFILE.outer / 2 + 2;
+ 
   addArchShape(layer, x + innerOffset, y + innerOffset, safeDrawSize(safeW - innerOffset * 2), safeDrawSize(safeH - innerOffset * 2), normalizedArchType, archHeightRatio, frameColor, PROFILE.inner);
   const highlightOffset = PROFILE.outer / 2 + 6;
   addArchShape(layer, x + highlightOffset, y + highlightOffset, safeDrawSize(safeW - highlightOffset * 2), safeDrawSize(safeH - highlightOffset * 2), normalizedArchType, archHeightRatio, frameColor, 1, 0.6);
+
+  if (selected) {
+    const margin = 16;
+    addArchShape(layer, x - margin, y - margin, safeDrawSize(safeW + margin * 2), safeDrawSize(safeH + margin * 2), normalizedArchType, archHeightRatio, COLORS.selected, 2, 1, [8, 5]);
+  }
 }
 
 function addMemberRect(layer: KonvaLayer | KonvaGroup, x: number, y: number, w: number, h: number, frameColor = COLORS.frameDark) {
@@ -3291,11 +3314,40 @@ export function WindowDoorConfigurator({
         setSelectedSlidingPanelIndex(null);
       });
       g.add(leafHit);
+      const isTouchingLeft = leaf.x <= 0.001;
+      const isTouchingRight = leaf.x + leaf.w >= 0.999;
+      const isTouchingTop = leaf.y <= 0.001;
+      const isTouchingBottom = leaf.y + leaf.h >= 0.999;
+
+      const padLeft = (isTouchingLeft ? PROFILE.outer / 2 : PROFILE.mullion / 2) + PROFILE.gap + PROFILE.sash / 2;
+      const padRight = (isTouchingRight ? PROFILE.outer / 2 : PROFILE.mullion / 2) + PROFILE.gap + PROFILE.sash / 2;
+      const padTop = (isTouchingTop ? PROFILE.outer / 2 : PROFILE.mullion / 2) + PROFILE.gap + PROFILE.sash / 2;
+      const padBottom = (isTouchingBottom ? PROFILE.outer / 2 : PROFILE.mullion / 2) + PROFILE.gap + PROFILE.sash / 2;
+
+      const sashX = x + padLeft;
+      const sashY = y + padTop;
+      const sashW = safeDrawSize(w - padLeft - padRight);
+      const sashH = safeDrawSize(h - padTop - padBottom);
       if (leaf.systemType !== "Blank Area") {
-        g.add(new Konva.Rect({ x: x + PROFILE.outer / 2 + PROFILE.gap, y: y + PROFILE.outer / 2 + PROFILE.gap, width: safeDrawSize(w - (PROFILE.outer + PROFILE.gap * 2)), height: safeDrawSize(h - (PROFILE.outer + PROFILE.gap * 2)), stroke: isSelected ? COLORS.selected : selectedFrameColor, strokeWidth: PROFILE.sash, listening: false }))
+     
+      g.add(new Konva.Rect({
+          x: sashX,
+          y: sashY,
+          width: sashW,
+          height: sashH,
+          stroke: COLORS.frameMid,
+          strokeWidth: 2,
+          listening: false
+        }));
+      }
+
+      const inset = PROFILE.sash / 2 + 4;
+      const innerBounds = {
+        x: sashX + inset,
+        y: sashY + inset,
+        w: safeDrawSize(sashW - inset * 2),
+        h: safeDrawSize(sashH - inset * 2),
       };
-      const inset = PROFILE.outer / 2 + PROFILE.sash + 6;
-      const innerBounds = getPanelBounds(x, y, w, h, inset);
       const handledByDescription = (() => {
         const desc = leaf.description;
         if (!desc) return false;
@@ -3332,9 +3384,24 @@ export function WindowDoorConfigurator({
                 const to = panelSash === "left" ? cursor + pw * 0.25 : cursor + pw * 0.75;
                 g.add(new Konva.Arrow({ points: [from, arrowY, to, arrowY], stroke: "#111827", fill: "#111827", strokeWidth: 0.6, pointerLength: 7, pointerWidth: 7, opacity: 0.7, listening: false }));
               }
-              const panelHit = new Konva.Rect({ x: cursor, y: innerY, width: pw, height: innerH, fill: "rgba(255,255,255,0.001)", stroke: isSelected && selectedSlidingPanelIndex === idx ? COLORS.selected : "rgb(30, 30, 30)", strokeWidth: 7, listening: true });
+              // const panelHit = new Konva.Rect({ x: cursor, y: innerY, width: pw, height: innerH, fill: "rgba(255,255,255,0.001)", stroke: isSelected && selectedSlidingPanelIndex === idx ? COLORS.selected : "rgb(30, 30, 30)", strokeWidth: 7, listening: true });
+              const isPanelSelected = isSelected && selectedSlidingPanelIndex === idx;
+              const panelHit = new Konva.Rect({ x: cursor, y: innerY, width: pw, height: innerH, fill: "rgba(255,255,255,0.001)", stroke: "transparent", listening: true });
               panelHit.on("mousedown touchstart", (event) => { event.cancelBubble = true; setSelectedDivider(null); setSelectedId(leaf.id); setSelectedSlidingPanelIndex(idx); });
               g.add(panelHit);
+              if (isPanelSelected) {
+                const margin = 4;
+                g.add(new Konva.Rect({
+                  x: cursor + margin,
+                  y: innerY + margin,
+                  width: safeDrawSize(pw - margin * 2),
+                  height: safeDrawSize(innerH - margin * 2),
+                  stroke: COLORS.selected,
+                  strokeWidth: 2,
+                  dash: [6, 4],
+                  listening: false,
+                }));
+              }
             }
             if (meshCount > 0 && idx >= fractions.length - meshCount) drawMeshTriangle(g, cursor + pw - 6, innerY + innerH - 6, Math.min(pw, innerH) * 0.5);
             cursor += pw;
@@ -3509,14 +3576,15 @@ export function WindowDoorConfigurator({
     if (selectedForRender && selectedForRender !== "root") {
       const selectedSection = findNode(root, selectedForRender);
       if (selectedSection) {
-        const selectionInset = Math.max(2, PROFILE.sash / 2);
-        const selectionX = fx + selectedSection.x * fw + selectionInset;
-        const selectionY = fy + selectedSection.y * fh + selectionInset;
+       
+        const selectionMargin = 16;
+        const selectionX = fx + selectedSection.x * fw + selectionMargin;
+        const selectionY = fy + selectedSection.y * fh + selectionMargin;
         const selectionWidth = safeDrawSize(
-          selectedSection.w * fw - selectionInset * 2
+          selectedSection.w * fw - selectionMargin * 2
         );
         const selectionHeight = safeDrawSize(
-          selectedSection.h * fh - selectionInset * 2
+          selectedSection.h * fh - selectionMargin * 2
         );
         layer.add(
           new Konva.Rect({
@@ -3525,7 +3593,9 @@ export function WindowDoorConfigurator({
             width: selectionWidth,
             height: selectionHeight,
             stroke: COLORS.selected,
-            strokeWidth: PROFILE.sash,
+           
+            strokeWidth: 2,
+            dash: [8, 5],
             listening: false,
           })
         );
@@ -4016,88 +4086,95 @@ export function WindowDoorConfigurator({
                             <>
                               <label className="text-xs text-gray-600">Section Series<CustomSelect value={selectedNode.series} onChange={(e) => { const nextSeries = e.target.value; updateSelectedLeaves((target) => { target.series = nextSeries; target.description = ""; target.hasExhaustFan = false; target.panelFractions = undefined; target.panelMeshCount = undefined; target.panelSashes = undefined; }); }} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{seriesOptions.map((series) => <option key={series} value={series}>{series}</option>)}</CustomSelect></label>
                               <label className="text-xs text-gray-600">Section Description<CustomSelect value={selectedNode.description} onChange={(e) => { const nextDescription = e.target.value; updateSelectedSectionMeta({ meshType: "" }); if (selectedNode.systemType === "Sliding") { updateSelectedNode((target) => { target.description = nextDescription; target.hasExhaustFan = false; target.split = "none"; target.children = undefined; const pattern = parsePanelPattern(nextDescription); if (pattern) { target.panelFractions = pattern.fractions; target.panelMeshCount = pattern.meshCount; target.mesh = (pattern.meshCount ?? 0) > 0 ? "Yes" : "No"; target.panelSashes = target.panelSashes && target.panelSashes.length === pattern.fractions.length ? target.panelSashes : buildDefaultSlidingPanelSashes(pattern.fractions.length); } else { target.panelFractions = undefined; target.panelMeshCount = undefined; target.mesh = "No"; target.panelSashes = undefined; } }); return; } updateSelectedLeaves((target) => { target.description = nextDescription; target.hasExhaustFan = false; const pattern = parsePanelPattern(nextDescription); if (pattern) { target.panelFractions = pattern.fractions; target.panelMeshCount = pattern.meshCount; target.panelSashes = undefined; } else { target.panelFractions = undefined; target.panelMeshCount = undefined; target.panelSashes = undefined; } }); }} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{descriptionOptions.map((desc: Description) => <option key={desc.name} value={desc.name}>{desc.name}</option>)}</CustomSelect></label>
-                              {/* <label className="text-xs text-gray-600">Section Glass<select value={selectedNode.glass} onChange={(e) => { const value = e.target.value as YesNo; updateSelectedLeaves((target) => { target.glass = value; }); }} className="mt-1 w-full rounded-md border border-gray-400 px-2 py-2 text-sm focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="Yes">Yes</option><option value="No">No</option></select></label> */}
-                              <div className="text-xs text-gray-600">
-                                <span>Section Glass</span>
 
-                                <div className="mt-2 flex items-center gap-5">
-                                  <label className="flex items-center gap-2 text-sm text-gray-700">
-                                    <input
-                                      type="radio"
-                                      name="section-glass"
-                                      value="Yes"
-                                      checked={selectedNode.glass === "Yes"}
-                                      onChange={() => {
-                                        updateSelectedLeaves((target) => {
-                                          target.glass = "Yes";
-                                        });
-                                      }}
-                                      className="h-4 w-4 accent-[#ef0b0b]"
-                                    />
-                                    Yes
-                                  </label>
+                              <div className="flex items-start">
+  {/* Section Glass */}
+  <div className="flex-1 text-xs text-gray-600">
+    <span>Section Glass</span>
 
-                                  <label className="flex items-center gap-2 text-sm text-gray-700">
-                                    <input
-                                      type="radio"
-                                      name="section-glass"
-                                      value="No"
-                                      checked={selectedNode.glass === "No"}
-                                      onChange={() => {
-                                        updateSelectedLeaves((target) => {
-                                          target.glass = "No";
-                                        });
-                                      }}
-                                      className="h-4 w-4 accent-[#ef0b0b]"
-                                    />
-                                    No
-                                  </label>
-                                </div>
-                              </div>
+    <div className="mt-2 flex items-center gap-5">
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input
+          type="radio"
+          name="section-glass"
+          value="Yes"
+          checked={selectedNode.glass === "Yes"}
+          onChange={() => {
+            updateSelectedLeaves((target) => {
+              target.glass = "Yes";
+            });
+          }}
+          className="h-4 w-4 accent-[#ef0b0b]"
+        />
+        Yes
+      </label>
 
-                              <div className="text-xs text-gray-600">
-                                <span>Section Mesh</span>
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input
+          type="radio"
+          name="section-glass"
+          value="No"
+          checked={selectedNode.glass === "No"}
+          onChange={() => {
+            updateSelectedLeaves((target) => {
+              target.glass = "No";
+            });
+          }}
+          className="h-4 w-4 accent-[#ef0b0b]"
+        />
+        No
+      </label>
+    </div>
+  </div>
 
-                                <div className="mt-2 flex items-center gap-5">
-                                  <label className="flex items-center gap-2 text-sm text-gray-700">
-                                    <input
-                                      type="radio"
-                                      name="section-mesh"
-                                      value="Yes"
-                                      checked={selectedNode.mesh === "Yes"}
-                                      disabled={selectedNode.systemType === "Sliding"}
-                                      onChange={() => {
-                                        if (selectedNode.systemType === "Sliding") return;
+  {/* Vertical Separator */}
+  <div className="mx-5 h-12 w-px bg-slate-300" />
 
-                                        updateSelectedLeaves((target) => {
-                                          target.mesh = "Yes";
-                                        });
-                                      }}
-                                      className="h-4 w-4 accent-[#ef0b0b]"
-                                    />
-                                    Yes
-                                  </label>
+  {/* Section Mesh */}
+  <div className="relative -left-1 flex-1 text-xs text-gray-600">
+    <span>Section Mesh</span>
 
-                                  <label className="flex items-center gap-2 text-sm text-gray-700">
-                                    <input
-                                      type="radio"
-                                      name="section-mesh"
-                                      value="No"
-                                      checked={selectedNode.mesh === "No"}
-                                      disabled={selectedNode.systemType === "Sliding"}
-                                      onChange={() => {
-                                        if (selectedNode.systemType === "Sliding") return;
+    <div className="mt-2 flex items-center gap-5">
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input
+          type="radio"
+          name="section-mesh"
+          value="Yes"
+          checked={selectedNode.mesh === "Yes"}
+          disabled={selectedNode.systemType === "Sliding"}
+          onChange={() => {
+            if (selectedNode.systemType === "Sliding") return;
 
-                                        updateSelectedLeaves((target) => {
-                                          target.mesh = "No";
-                                        });
-                                      }}
-                                      className="h-4 w-4 accent-[#ef0b0b]"
-                                    />
-                                    No
-                                  </label>
-                                </div>
-                              </div>
+            updateSelectedLeaves((target) => {
+              target.mesh = "Yes";
+            });
+          }}
+          className="h-4 w-4 accent-[#ef0b0b]"
+        />
+        Yes
+      </label>
+
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        <input
+          type="radio"
+          name="section-mesh"
+          value="No"
+          checked={selectedNode.mesh === "No"}
+          disabled={selectedNode.systemType === "Sliding"}
+          onChange={() => {
+            if (selectedNode.systemType === "Sliding") return;
+
+            updateSelectedLeaves((target) => {
+              target.mesh = "No";
+            });
+          }}
+          className="h-4 w-4 accent-[#ef0b0b]"
+        />
+        No
+      </label>
+    </div>
+  </div>
+</div>
 
                               {archControls}
                             </>
