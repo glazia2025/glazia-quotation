@@ -378,7 +378,7 @@ function RateSection({
           />
         </div>
 
-        <button
+       {title !== 'Glass Rate' && <button
           type="button"
           // onClick={onAdd}
           onClick={() => setIsAddModalOpen(true)}
@@ -387,7 +387,7 @@ function RateSection({
         >
           <Plus className="w-4 h-4" />
           Add Item
-        </button>
+        </button>}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
