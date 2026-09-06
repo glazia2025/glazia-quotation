@@ -5,6 +5,7 @@ import { create } from "zustand";
 import { calculateQuotationTotals } from "@/modules/quotation/utils/calculations";
 import { createDefaultItem, createEmptyQuotation } from "@/modules/quotation/utils/factory";
 import type { Quotation, QuotationItem } from "@/types/quotation";
+import { generateDuplicatePreview } from "@/modules/quotation/utils/duplicate-preview";
 
 const getQuotationItemIdentity = (item: QuotationItem | null | undefined) => {
   if (!item) return "";
@@ -64,7 +65,7 @@ if (dimensions) {
 }
 
 
-  return {
+  const nextDuplicate: QuotationItem = {
     // ...cloneNested(itemWithoutBackendId),
     ...duplicate,
     id: crypto.randomUUID(),
@@ -97,6 +98,9 @@ if (dimensions) {
   };
 }),
   };
+  nextDuplicate.refImage = generateDuplicatePreview(nextDuplicate);
+  nextDuplicate.subItems = nextDuplicate.subItems?.map(subItem => ({ ...subItem, refImage: "" }));
+  return nextDuplicate;
 };
 
 interface QuotationBuilderState {
