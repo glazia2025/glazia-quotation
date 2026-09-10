@@ -165,8 +165,6 @@ function toBackendSubItem(subItem: QuotationSubItem) {
 }
 
 export function toBackendItem(item: Quotation["items"][number]) {
-   console.log("ITEM SUBITEMS BEFORE BACKEND");
-  console.dir(item.subItems, { depth: null });
   const handleType = item.handleType || "";
   const frameCutAngle = normalizeCutAngle(item.frameCutAngle);
   const shutterCutAngle = normalizeCutAngle(item.shutterCutAngle);

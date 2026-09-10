@@ -12,11 +12,10 @@ import {
   X,
 } from "lucide-react";
 import { CustomSelect } from "@/components/ui/CustomSelect";
-import { useDescriptionsQuery, useOptionsQuery, useSeriesQuery, useSystemsQuery } from "@/lib/quotations/queries";
-import { fetchDescriptions, fetchOptions } from "@/lib/quotations/api";
+import { descriptionsQueryOptions, optionsQueryOptions, useDescriptionsQuery, useOptionsQuery, useSeriesQuery, useSystemsQuery } from "@/lib/quotations/queries";
 import type { Description, HandleOption, OptionWithRate, OptionsResponse } from "@/lib/quotations/types";
 import type { QuotationItem, QuotationSubItem } from "@/components/QuotationItemRow";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { fetchLouversRates } from "@/lib/quotations/api";
 import { calculateQuotationRates, type RateCalculationResult } from "@/services/quotation-service";
 
@@ -2114,6 +2113,15 @@ export function WindowDoorConfigurator({
   initialItem?: QuotationItem | null;
   profitPercentage: number;
 }) {
+  const queryClient = useQueryClient();
+  const fetchDescriptions = useCallback(
+    (systemType: string, series: string) => queryClient.ensureQueryData(descriptionsQueryOptions(systemType, series)),
+    [queryClient]
+  );
+  const fetchOptions = useCallback(
+    (systemType: string) => queryClient.ensureQueryData(optionsQueryOptions(systemType)),
+    [queryClient]
+  );
   const persistedItem = initialItem ?? null;
   const isBlankAddItem = Boolean(
     persistedItem &&
@@ -2425,6 +2433,35 @@ export function WindowDoorConfigurator({
     mapLeafNodes(root, (leaf) => leaves.push(leaf));
     return leaves.sort((a, b) => (a.y - b.y) || (a.x - b.x));
   }, [root]);
+  // Load every section's lookup data while editing and keep it observed until
+  // the configurator closes. Saving reuses this snapshot even after staleTime.
+  const lookupSections = Array.from(new Map(
+    leafNodesForMode
+      .filter((leaf) => leaf.systemType !== "Blank Area")
+      .map((leaf) => {
+        const series = isLouverSystem(leaf.systemType) ? "_" : leaf.series || "";
+        return [JSON.stringify([leaf.systemType, series]), { systemType: leaf.systemType, series }] as const;
+      })
+  ).values());
+  const saveDescriptionsQueries = useQueries({
+    queries: lookupSections.map(({ systemType, series }) => ({
+      ...descriptionsQueryOptions(systemType, series),
+      enabled: Boolean(series),
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+    })),
+  });
+  const saveOptionsQueries = useQueries({
+    queries: Array.from(new Set(lookupSections.map(({ systemType }) => systemType))).map((systemType) => ({
+      ...optionsQueryOptions(systemType),
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+    })),
+  });
+  const saveLookupsReady = [...saveDescriptionsQueries, ...saveOptionsQueries]
+    .every((query) => query.isSuccess && !query.isFetching);
+  const saveLookupsFailed = [...saveDescriptionsQueries, ...saveOptionsQueries]
+    .some((query) => query.isError);
   const isCombinationDraft = leafNodesForMode.length > 1;
   const selectedIsWholeFrame = selectedId === null || selectedNode.id === "root";
   const isCombinationParentSelection = isCombinationDraft && selectedIsWholeFrame;
@@ -2798,6 +2835,12 @@ export function WindowDoorConfigurator({
 
   const handleSaveItem = async () => {
     if (isSaving) return;
+    if (saveLookupsFailed) {
+      await Promise.all([...saveDescriptionsQueries, ...saveOptionsQueries]
+        .filter((query) => query.isError).map((query) => query.refetch()));
+      return;
+    }
+    if (!saveLookupsReady) return;
     if (!areAllDescriptionsFilled(root)) { alert("Please fill description for all windows"); return; }
     const trimmedRefCode = meta.refCode.trim();
     if (!trimmedRefCode) { alert("Ref Code is required."); return; }
@@ -2888,7 +2931,7 @@ export function WindowDoorConfigurator({
       const optionsCache = new Map<string, OptionsResponse>();
       const descriptionsCache = new Map<string, Description[]>();
       const getOptions = async (systemType: string) => {
-        if (!systemType) return undefined;
+        if (!systemType || systemType === "Blank Area") return undefined;
         if (!optionsCache.has(systemType)) {
           try { optionsCache.set(systemType, await fetchOptions(systemType)); }
           catch { optionsCache.set(systemType, { colorFinishes: [], meshTypes: [], glassSpecs: [], handleOptions: [] }); }
@@ -2897,7 +2940,7 @@ export function WindowDoorConfigurator({
       };
       const getDescriptions = async (systemType: string, series: string) => {
         const key = `${systemType}::${series}`;
-        if (!systemType || (!series && !isLouverSystem(systemType))) return [];
+        if (!systemType || systemType === "Blank Area" || (!series && !isLouverSystem(systemType))) return [];
         if (!descriptionsCache.has(key)) {
           try { descriptionsCache.set(key, (await fetchDescriptions(systemType, isLouverSystem(systemType) ? "_" : series)).descriptions ?? []); }
           catch { descriptionsCache.set(key, []); }
@@ -2914,9 +2957,10 @@ export function WindowDoorConfigurator({
           leaf.systemType === "Blank Area" || leaf.description === "Blank Area"
             ? 0
             : mmToSqft(leaf.w * widthMm, effectiveHeightMm);
-        const descriptions = await getDescriptions(systemType, series);
-        console.log("DESCRIPTIONS", descriptions);
-        const options = await getOptions(systemType);
+        const [descriptions, options] = await Promise.all([
+          getDescriptions(systemType, series),
+          getOptions(systemType),
+        ]);
         const calc = calculateRateForItem({ area: itemArea, description, systemType: leaf.systemType, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "", hasExhaustFan: Boolean(leaf.hasExhaustFan) }, descriptions, options, systemsQuery.data?.systems, louversRates);
         const resolvedRate = manualCombinationRateForSave
           ? calculatedRatesForSave[leaf.id] ?? 0
@@ -4461,7 +4505,7 @@ export function WindowDoorConfigurator({
               <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"><span className="text-gray-500">Height</span><span className="font-semibold">{heightMm} mm</span></div>
               <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"><span className="text-gray-500">Area</span><span className="font-semibold">{effectiveAreaSqft} sq ft</span></div>
               <div className="pt-2">
-                <button type="button" onClick={handleSaveItem} disabled={isSaving} className="w-full rounded-lg bg-[#0f172A] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0f172A] disabled:opacity-60">{isSaving ? "Saving..." : editingItem ? "Update Item" : "Add to Quotation"}</button>
+                <button type="button" onClick={handleSaveItem} disabled={isSaving || (!saveLookupsReady && !saveLookupsFailed)} className="w-full rounded-lg bg-[#0f172A] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0f172A] disabled:opacity-60">{isSaving ? "Saving..." : saveLookupsFailed ? "Retry loading options" : !saveLookupsReady ? "Loading options..." : editingItem ? "Update Item" : "Add to Quotation"}</button>
                 <button type="button" onClick={onClose} className="mt-2 w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
               </div>
               <div className="text-xs text-gray-400">Selected: <span className="font-medium text-gray-600">{selectedId === null ? "None" : selectedNode.id === "root" ? "Whole Frame" : isSlidingPanelSelection ? `Sliding Panel ${selectedSlidingPanelIndex! + 1}` : "Section"}</span></div>
@@ -4471,7 +4515,7 @@ export function WindowDoorConfigurator({
         {!showSummaryPopup && (
           <div className="pointer-events-none absolute bottom-4 right-4 z-30">
             <div className="pointer-events-auto flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
-              <button type="button" onClick={handleSaveItem} disabled={isSaving} className="rounded-lg bg-[#124657] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b3642] disabled:opacity-60">{isSaving ? "Saving..." : editingItem ? "Update Item" : "Add to Quotation"}</button>
+              <button type="button" onClick={handleSaveItem} disabled={isSaving || (!saveLookupsReady && !saveLookupsFailed)} className="rounded-lg bg-[#124657] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b3642] disabled:opacity-60">{isSaving ? "Saving..." : saveLookupsFailed ? "Retry loading options" : !saveLookupsReady ? "Loading options..." : editingItem ? "Update Item" : "Add to Quotation"}</button>
               <button type="button" onClick={onClose} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
             </div>
           </div>
