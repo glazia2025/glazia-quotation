@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-import { MAIN_API_BASE_URL } from "@/services/api";
+import { QUOTATION_API_BASE_URL } from "@/services/api";
 import { useAuthStore } from "@/store/auth-store";
 import { getAuthToken } from "@/utils/auth-cookie";
 
@@ -25,16 +25,18 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const setSession = useAuthStore((state) => state.setSession);
   const logout = useAuthStore((state) => state.logout);
   const [bootstrapping, setBootstrapping] = useState(false);
+  const checkedTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     const cookieToken = token || getAuthToken();
 
-    if (!hydrated || !cookieToken || user) return;
+    if (!hydrated || !cookieToken || checkedTokenRef.current === cookieToken) return;
+    checkedTokenRef.current = cookieToken;
 
     let cancelled = false;
     setBootstrapping(true);
 
-    fetch(`${MAIN_API_BASE_URL}/api/user/getUser`, {
+    fetch(`${QUOTATION_API_BASE_URL}/api/auth/session`, {
       credentials: "include",
       headers: {
         Authorization: `Bearer ${cookieToken}`,
@@ -48,9 +50,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         const payload = await response.json();
         const currentUser = payload?.user;
 
-        if (!currentUser || cancelled) return;
+        if (!currentUser || cancelled) throw new Error("User session is unavailable");
 
-        setSession({
+        if (!user) setSession({
           token: cookieToken,
           user: {
             id: String(currentUser._id || currentUser.id || "usr-1"),

@@ -93,13 +93,13 @@ export function LoginScreen() {
     console.log(MAIN_API_BASE_URL);
 
     try {
-      await axios.post(`${MAIN_API_BASE_URL}/api/auth/send-otp`, { phoneNumber }, { withCredentials: true });
+      await axios.post(`${MAIN_API_BASE_URL}/api/auth/send-otp`, { phoneNumber, accessModule: "QUOTATION_ERP" }, { withCredentials: true });
       setStep("otp");
       setCountdown(30);
       startCountdown();
     } catch (err) {
       console.error("Error sending OTP:", err);
-      setError("Failed to send OTP. Please try again.");
+      setError(axios.isAxiosError(err) ? err.response?.data?.message || "Failed to send OTP. Please try again." : "Failed to send OTP. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -134,7 +134,7 @@ export function LoginScreen() {
     try {
       const response = await axios.post(
         `${MAIN_API_BASE_URL}/api/auth/verify-otp`,
-        { phoneNumber, otp: otpValue },
+        { phoneNumber, otp: otpValue, accessModule: "QUOTATION_ERP" },
         { withCredentials: true }
       );
       const { userExists, token: authToken, existingUser } = response.data as {
@@ -212,7 +212,7 @@ export function LoginScreen() {
       }
     } catch (err) {
       console.error("OTP Verification Error:", err);
-      setError("Failed to verify OTP. Please try again.");
+      setError(axios.isAxiosError(err) ? err.response?.data?.message || "Failed to verify OTP. Please try again." : "Failed to verify OTP. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -222,11 +222,11 @@ export function LoginScreen() {
     setIsLoading(true);
     setError("");
     try {
-      await axios.post(`${MAIN_API_BASE_URL}/api/auth/send-otp`, { phoneNumber }, { withCredentials: true });
+      await axios.post(`${MAIN_API_BASE_URL}/api/auth/send-otp`, { phoneNumber, accessModule: "QUOTATION_ERP" }, { withCredentials: true });
       setCountdown(30);
       startCountdown();
-    } catch {
-      setError("Failed to resend OTP. Please try again.");
+    } catch (err) {
+      setError(axios.isAxiosError(err) ? err.response?.data?.message || "Failed to resend OTP. Please try again." : "Failed to resend OTP. Please try again.");
     } finally {
       setIsLoading(false);
     }
