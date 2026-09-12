@@ -1912,15 +1912,15 @@ const useHistory = (initial: SectionNode) => {
 
 const COLORS = {
   bg: "#FFFFFF",
-  grid: "#E2E8F0",
-  frameDark: "#C0C0C0",
-  frameMid: "#D1D5DB",
-  frameLight: "#E5E7EB",
-  glass: "#D9F2FF",
-  glassStroke: "#67AFC4",
-  labelStroke: "#111827",
+  grid: "#CBD5E1",
+  frameDark: "#64748B",
+  frameMid: "#94A3B8",
+  frameLight: "#E2E8F0",
+  glass: "#E0F2FE",
+  glassStroke: "#38BDF8",
+  labelStroke: "#0F172A",
   labelFill: "#FFFFFF",
-  mesh: "#CBD5E1",
+  mesh: "#475569",
   text: "#0F172A",
   selected: "#8B5E34",
   handleStroke: "#0F172A",
@@ -2035,13 +2035,65 @@ function addMemberRect(layer: KonvaLayer | KonvaGroup, x: number, y: number, w: 
   layer.add(new Konva.Rect({ x: x + 2, y: y + 2, width: safeDrawSize(safeW - 4), height: safeDrawSize(safeH - 4), stroke: frameColor, strokeWidth: 1, opacity: 0.7, listening: false }));
 }
 
+function addSectionHeader(group: KonvaGroup, x: number, y: number, text: string, maxW?: number) {
+  if (!text) return;
+  const padX = 6;
+  const padY = 3;
+  const availableW = maxW ? Math.max(24, maxW - 12) : undefined;
+  
+  let fontSize = 11;
+  if (availableW && availableW < 80) {
+    fontSize = 9;
+  } else if (availableW && availableW < 130) {
+    fontSize = 10;
+  }
+  
+  const t = new Konva.Text({
+    x: x + padX,
+    y: y + padY,
+    text,
+    fontSize,
+    fontStyle: "bold",
+    fill: "#0F172A",
+    listening: false,
+  });
+  
+  const naturalW = t.width() + padX * 2;
+  if (availableW && naturalW > availableW) {
+    t.width(availableW - padX * 2);
+    t.ellipsis(true);
+    t.wrap("none");
+  }
+  
+  const bgW = availableW ? Math.min(availableW, naturalW) : naturalW;
+  const bgH = t.height() + padY * 2;
+  
+  group.add(
+    new Konva.Rect({
+      x,
+      y,
+      width: bgW,
+      height: bgH,
+      fill: "rgba(255, 255, 255, 0.95)",
+      stroke: "#94A3B8",
+      strokeWidth: 1,
+      cornerRadius: 3,
+      shadowColor: "rgba(0, 0, 0, 0.05)",
+      shadowBlur: 2,
+      shadowOffsetY: 1,
+      listening: false,
+    })
+  );
+  group.add(t);
+}
+
 function addTag(layer: KonvaLayer | KonvaGroup, x: number, y: number, text: string) {
   const padX = 6;
   const padY = 4;
-  const t = new Konva.Text({ x, y, text, fontSize: 12, fontStyle: "bold", fill: COLORS.text, listening: false });
+  const t = new Konva.Text({ x, y, text, fontSize: 13, fontStyle: "bold", fill: "#0F172A", listening: false });
   const w = t.width() + padX * 2;
   const h = t.height() + padY * 2;
-  layer.add(new Konva.Rect({ x: x - padX, y: y - padY, width: w, height: h, fill: COLORS.labelFill, stroke: COLORS.labelStroke, strokeWidth: 1, listening: false }));
+  layer.add(new Konva.Rect({ x: x - padX, y: y - padY, width: w, height: h, fill: COLORS.labelFill, stroke: "#0F172A", strokeWidth: 1.2, cornerRadius: 2, listening: false }));
   layer.add(t);
 }
 
@@ -2092,13 +2144,39 @@ function drawMeshTriangle(group: KonvaGroup, x: number, y: number, size: number)
   const topY = y - meshSize;
   const leftX = x - meshSize;
   const leftY = y;
-  group.add(new Konva.Line({ points: [leftX, leftY, x, y, topX, topY, leftX, leftY], stroke: COLORS.frameDark, strokeWidth: 1, listening: false }));
+  // Mesh background shade to make the mesh area clearly slightly darker and visible
+  group.add(
+    new Konva.Line({
+      points: [leftX, leftY, x, y, topX, topY, leftX, leftY],
+      closed: true,
+      fill: "rgba(15, 23, 42, 0.14)",
+      stroke: "#0F172A",
+      strokeWidth: 1.5,
+      listening: false,
+    })
+  );
   const step = Math.max(6, Math.round(meshSize / 7));
   for (let i = step; i < meshSize; i += step) {
-    group.add(new Konva.Line({ points: [x - i, y, x, y - i], stroke: "#334155", strokeWidth: 0.8, opacity: 0.8, listening: false }));
+    group.add(
+      new Konva.Line({
+        points: [x - i, y, x, y - i],
+        stroke: "#0F172A",
+        strokeWidth: 1.2,
+        opacity: 0.95,
+        listening: false,
+      })
+    );
   }
   for (let i = step; i < meshSize; i += step) {
-    group.add(new Konva.Line({ points: [x - i, y, x - i, y - (meshSize - i)], stroke: "#334155", strokeWidth: 0.8, opacity: 0.75, listening: false }));
+    group.add(
+      new Konva.Line({
+        points: [x - i, y, x - i, y - (meshSize - i)],
+        stroke: "#0F172A",
+        strokeWidth: 1.2,
+        opacity: 0.95,
+        listening: false,
+      })
+    );
   }
 }
 
@@ -2911,9 +2989,9 @@ export function WindowDoorConfigurator({
       await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       // gridGroupRef.current?.visible(false);
       layerRef.current?.draw();
-      const cropLeft = Math.max(0, view.offsetX - 140);
-      const cropTop = Math.max(0, view.offsetY - 10);
-      const cropRight = Math.min(stageSize.w, view.offsetX + view.drawW + 10);
+      const cropLeft = Math.max(0, view.offsetX - 145);
+      const cropTop = Math.max(0, view.offsetY - 20);
+      const cropRight = Math.min(stageSize.w, view.offsetX + view.drawW + 25);
       const cropBottom = Math.min(stageSize.h, view.offsetY + view.drawH + 75);
       const dataUrl = stageRef.current?.toDataURL({
         x: cropLeft,
@@ -3555,11 +3633,9 @@ export function WindowDoorConfigurator({
           addDimensionLine(g, fanGeometry.centerX + fanGeometry.outerRadius + dimOffset, fanGeometry.centerY - fanGeometry.outerRadius, fanGeometry.centerX + fanGeometry.outerRadius + dimOffset, fanGeometry.centerY + fanGeometry.outerRadius, `${fanDiameterMm} mm`);
         }
       }
-      g.add(new Konva.Text({ text: getSectionLabel(leaf, meta.productType), x: x + 8, y: y + 8, fontSize: 12, fill: COLORS.text, listening: false }));
-      g.add(new Konva.Circle({ x: x + w / 2, y: y + h / 2 - 10, radius: 14, fill: "#FFFFFF", stroke: COLORS.frameDark, strokeWidth: 0.6, listening: false }));
-      g.add(new Konva.Text({ x: x + w / 2 - 14, y: y + h / 2 - 18, width: 28, align: "center", text: String(idx + 1), fontSize: 12, fontStyle: "bold", fill: COLORS.text, listening: false }));
-      g.add(new Konva.Line({ points: [x + w / 2 - 10, y + h / 2 + 8, x + w / 2 + 10, y + h / 2 + 8], stroke: COLORS.frameDark, strokeWidth: 0.6, opacity: 0.85, listening: false }));
-      g.add(new Konva.Line({ points: [x + w / 2, y + h / 2 - 2, x + w / 2, y + h / 2 + 18], stroke: COLORS.frameDark, strokeWidth: 0.6, opacity: 0.85, listening: false }));
+      addSectionHeader(g, innerBounds.x + 6, innerBounds.y + 6, getSectionLabel(leaf, meta.productType), innerBounds.w);
+      g.add(new Konva.Circle({ x: x + w / 2, y: y + h / 2, radius: 14, fill: "#FFFFFF", stroke: "#334155", strokeWidth: 1.5, shadowColor: "rgba(0,0,0,0.06)", shadowBlur: 2, listening: false }));
+      g.add(new Konva.Text({ x: x + w / 2 - 14, y: y + h / 2 - 7, width: 28, align: "center", text: String(idx + 1), fontSize: 12, fontStyle: "bold", fill: "#0F172A", listening: false }));
       contentGroup.add(g);
     });
 
