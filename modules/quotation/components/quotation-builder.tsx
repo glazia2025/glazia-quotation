@@ -305,13 +305,23 @@ isDuplicatingItems: boolean;
   };
   return (
     <>
-      <div className="self-start space-y-2 rounded-2xl border bg-white p-3 shadow-sm transition hover:shadow-md">
-        <div className="px-1 text-xs font-medium text-gray-400">
-          {String(index + 1).padStart(2, "0")}
+      <div className="self-start space-y-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-300">
+        <div className="flex items-center justify-between px-0.5">
+          <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
+            #{String(index + 1).padStart(2, "0")}
+          </span>
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+            {systemLabel}
+          </span>
         </div>
-        <div className="flex h-60 items-center justify-center overflow-hidden rounded-xl border bg-white p-1">
+
+        <div className="flex h-64 sm:h-72 items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-gradient-to-b from-slate-50/50 to-white p-2 shadow-inner">
           {item.refImage ? (
-            <img src={item.refImage} alt={item.refCode || item.productType || "Quotation item"} className="h-full w-full object-contain -translate-x-4" />
+            <img
+              src={item.refImage}
+              alt={item.refCode || item.productType || "Quotation item"}
+              className="h-full w-full object-contain transition-transform duration-300 hover:scale-[1.02]"
+            />
           ) : (
             <div className="w-full max-w-[150px] rounded-md border-[8px] border-slate-800 bg-white shadow-sm">
               <div className="grid h-16" style={{ gridTemplateColumns: `repeat(${Math.max(1, item.previewPanels || 1)}, minmax(0, 1fr))` }}>
@@ -324,120 +334,136 @@ isDuplicatingItems: boolean;
             </div>
           )}
         </div>
-        <div className="mt-3 space-y-3">
 
-          <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2.5">
+          <div className="flex items-baseline justify-between gap-2 border-b border-slate-100 pb-2.5">
             <div>
-              <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 REF CODE
               </p>
-              <p className="mt-1 text-sm font-semibold text-gray-900">
+              <p className="text-base font-bold text-slate-900 tracking-tight">
                 {refCodeLabel}
               </p>
             </div>
-
             <div className="text-right">
-              <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 RATE
               </p>
-              <p className="mt-1 text-sm font-semibold text-red-500">
-                {/* {formatCurrency(item.rate ?? 0)} */}
+              <p className="text-base font-bold text-rose-600">
                 {formatRateCurrency(displayItem?.rate ?? item.rate ?? 0)}
               </p>
             </div>
           </div>
 
-          {/* Location + Area */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="rounded-lg bg-slate-50 p-2 border border-slate-100/80">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
                 LOCATION
               </p>
-              <p className="mt-1 text-xs font-semibold text-gray-900">
+              <p className="mt-0.5 font-medium text-slate-800 truncate" title={locationLabel}>
                 {locationLabel}
               </p>
             </div>
-
-            <div className="text-right">
-              <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">
+            <div className="rounded-lg bg-slate-50 p-2 text-right border border-slate-100/80">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
                 AREA
               </p>
-              <p className="mt-1 text-xs font-semibold text-gray-900">
+              <p className="mt-0.5 font-semibold text-slate-800">
                 {formatNumber(item.area ?? getArea(item))} sq.ft
               </p>
             </div>
           </div>
+
           <div>
-            <p className="text-[9px] font-medium uppercase tracking-wide text-gray-400">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
               SYSTEM
             </p>
-            <p className="mt-1 text-xs font-semibold text-gray-900">
+            <p className="mt-0.5 text-xs font-semibold text-slate-900">
               {systemLabel}
             </p>
           </div>
-
         </div>
-        {/*  Arch Note */}
+
+        {/* Arch Note */}
         {item?.systemType?.toLowerCase() === "casement" &&
           item?.archType &&
           item.archType !== "none" && (
-            <div className="text-xs text-black-600 mt-1 px-1">
-              + ₹5000 added in amount for arching the product
+            <div className="rounded-md bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-800 border border-amber-200/60">
+              + ₹5000 added for arching
             </div>
           )}
 
-        <div className="flex flex-nowwrap items-center gap-1 border-t pt-2" onPointerDown={(event) => event.stopPropagation()}>
-          <Button size="sm" asChild className=" h-8 shrink-0 px-2.5 bg-[#0F172A] hover:bg-[#0F172A]">
+        <div className="flex items-center gap-1.5 border-t border-slate-100 pt-2.5" onPointerDown={(event) => event.stopPropagation()}>
+          <Button size="sm" asChild className="h-8 flex-1 bg-slate-900 text-xs font-semibold text-white shadow-sm hover:bg-slate-800 rounded-lg">
             <Link href={`${configuratorBasePath}/${itemIdentity}`}>Edit</Link>
           </Button>
-          <Button size="sm" variant="outline" onClick={handleDuplicate} title="Duplicate item" className=" h-8 shrink-0  gap-1 px-2.5 whitespace-nowrap">
-            <Copy className="h-4 w-4" />
+          <Button size="sm" variant="outline" onClick={handleDuplicate} title="Duplicate item" className="h-8 gap-1 px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-lg border-slate-200">
+            <Copy className="h-3.5 w-3.5 text-slate-500" />
             Duplicate
           </Button>
           {hasSections ? (
-            <Button size="sm" variant="outline" onClick={() => setShowSections(true)} className="h-8 shrink-0 px-2.5 whitespace-nowrap">
-              Show Sections
+            <Button size="sm" variant="outline" onClick={() => setShowSections(true)} className="h-8 gap-1 px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-lg border-slate-200">
+              <LayoutGrid className="h-3.5 w-3.5 text-slate-500" />
+              Sections
             </Button>
           ) : null}
-          <Button size="sm" variant="outline" onClick={handleDelete} className="h-10 w-10 shrink-0 text-red-600 hover:text-red-700">
-            <Trash2 className="h-6 w-6" />
+          <Button size="sm" variant="ghost" onClick={handleDelete} className="h-8 w-8 p-0 text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors">
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       </div>
       {/* </div> */}
       {showSections ? (
-        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-slate-950/60 p-4" onPointerDown={(event) => event.stopPropagation()}>
-          <div className="w-full max-w-5xl rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b px-6 py-4">
+        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" onPointerDown={(event) => event.stopPropagation()}>
+          <div className="w-full max-w-5xl rounded-2xl bg-white shadow-2xl overflow-hidden border border-slate-200">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50/50">
               <div>
-                <h3 className="text-lg font-semibold text-slate-900">Sections</h3>
-                <p className="text-sm text-slate-500">{refCodeLabel} | {locationLabel}</p>
+                <h3 className="text-lg font-bold text-slate-900">Item Sections Breakdown</h3>
+                <p className="text-xs text-slate-500 font-medium">{refCodeLabel} &bull; {locationLabel} &bull; {systemLabel}</p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => setShowSections(false)} className="border-[#0F172A] bg-[#0F172A] text-white hover:bg-[#0F172A] hover:text-white">
+              <Button variant="outline" size="sm" onClick={() => setShowSections(false)} className="h-8 rounded-lg border-slate-300 text-slate-700 hover:bg-slate-100">
                 Close
               </Button>
             </div>
             <div className="max-h-[70vh] overflow-auto p-6">
               <table className="w-full min-w-[760px] border-collapse text-sm">
                 <thead>
-                  <tr className="border-b text-left text-slate-900">
-                    <th className="px-3 py-2 font-medium">Ref Code</th>
-                    <th className="px-3 py-2 font-medium">Location</th>
-                    <th className="px-3 py-2 font-medium">System</th>
-                    <th className="px-3 py-2 font-medium">Size</th>
-                    <th className="px-3 py-2 font-medium">Area</th>
-                    <th className="px-3 py-2 font-medium">Qty</th>
+                  <tr className="border-b border-slate-200 text-left text-xs font-bold uppercase tracking-wider text-slate-500 bg-slate-50/80">
+                    <th className="px-4 py-3">Section Ref</th>
+                    <th className="px-4 py-3">Location</th>
+                    <th className="px-4 py-3">System</th>
+                    <th className="px-4 py-3">Size (W × H)</th>
+                    <th className="px-4 py-3">Area</th>
+                    <th className="px-4 py-3">Qty</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {(item.subItems ?? []).map((section) => (
-                    <tr key={section.id} className="border-b last:border-b-0">
-                      <td className="px-3 py-3 font-medium text-slate-900">{section.refCode}</td>
-                      <td className="px-3 py-3 text-slate-600">{section.location}</td>
-                      <td className="px-3 py-3 text-slate-600">{section.systemType}</td>
-                      <td className="px-3 py-3 text-slate-600">{formatSizeMm(section.width, section.height)}</td>
-                      <td className="px-3 py-3 text-slate-600">{formatNumber(section.area)}</td>
-                      <td className="px-3 py-3 text-slate-600">{section.quantity}</td>
+                <tbody className="divide-y divide-slate-100">
+                  {((item.subItems && item.subItems.length > 0)
+                    ? item.subItems
+                    : [
+                        {
+                          id: item.id || "1",
+                          refCode: item.refCode || refCodeLabel,
+                          location: item.location || locationLabel,
+                          systemType: item.systemType || systemLabel,
+                          width: item.width,
+                          height: item.height,
+                          area: item.area ?? getArea(item),
+                          quantity: item.quantity ?? 1,
+                        },
+                      ]
+                  ).map((section, sIdx) => (
+                    <tr key={section.id || sIdx} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-4 py-3.5 font-bold text-slate-900">{section.refCode}</td>
+                      <td className="px-4 py-3.5 text-slate-600 font-medium">{section.location || "-"}</td>
+                      <td className="px-4 py-3.5 text-slate-600 font-medium">
+                        <span className="inline-block rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                          {section.systemType || systemLabel}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-slate-600 font-medium">{formatSizeMm(section.width, section.height)}</td>
+                      <td className="px-4 py-3.5 text-slate-600 font-medium">{formatNumber(section.area)} sq.ft</td>
+                      <td className="px-4 py-3.5 text-slate-600 font-medium">{section.quantity ?? 1}</td>
                     </tr>
                   ))}
                 </tbody>
