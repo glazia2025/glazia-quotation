@@ -2,6 +2,7 @@ import axios from "axios";
 
 import { QUOTATION_API_BASE_URL } from "@/services/api";
 import type { Description, HandleOption, OptionWithRate, OptionsResponse } from "@/lib/quotations/types";
+import { getAuthToken } from "@/utils/auth-cookie";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -155,17 +156,14 @@ export async function fetchLouversRates() {
   return res.data.rates;
 }
 export async function fetchOptions(systemType: string) {
-  const authData = localStorage.getItem("glazia-auth");
-  let token = "";
-  if (authData) {
-    const parsed = JSON.parse(authData);
-    token = parsed?.state?.token;
-  }
+  // Read the canonical auth cookie instead of parsing Zustand's persisted
+  // storage directly. Older/corrupt persisted state used to make this request
+  // throw before it reached the API, leaving the configurator stuck on retry.
+  const token = getAuthToken();
   const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations/options`, {
     params: systemType ? { systemType } : undefined,
-     headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    withCredentials: true,
   });
   const rawOptions = unwrapData<unknown>(response.data, ["options"]);
   const record = asRecord(rawOptions);
