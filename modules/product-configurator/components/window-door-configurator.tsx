@@ -1917,7 +1917,7 @@ const COLORS = {
   frameMid: "#94A3B8",
   frameLight: "#E2E8F0",
   glass: "#E0F2FE",
-  glassStroke: "#38BDF8",
+  glassStroke: "#64748B",
   labelStroke: "#0F172A",
   labelFill: "#FFFFFF",
   mesh: "#475569",
@@ -3470,11 +3470,17 @@ export function WindowDoorConfigurator({
         w: safeDrawSize(sashW - inset * 2),
         h: safeDrawSize(sashH - inset * 2),
       };
+      const isSlidingSystem =
+        leaf.systemType === "Sliding" ||
+        meta.systemType === "Sliding" ||
+        baseSystemType === "Sliding" ||
+        /track|sliding|glass.*mesh|mesh.*glass|panel/i.test(leaf.description || "") ||
+        /track|sliding|glass.*mesh|mesh.*glass|panel/i.test(meta.description || "");
       const handledByDescription = (() => {
         const desc = leaf.description;
         if (!desc) return false;
         const { x: innerX, y: innerY, w: innerW, h: innerH } = innerBounds;
-        const fixedPanel = (px: number, py: number, pw: number, ph: number) =>
+        const fixedPanel = (px: number, py: number, pw: number, ph: number, strokeColor?: string) =>
           drawArchedPanel(
             g,
             px,
@@ -3484,16 +3490,16 @@ export function WindowDoorConfigurator({
             "none",
             DEFAULT_ARCH_HEIGHT_RATIO,
             leaf.glass === "Yes" ? COLORS.glass : "#FFFFFF",
-            COLORS.glassStroke,
+            strokeColor ?? selectedFrameColor,
             leaf.glass === "Yes" ? 0.85 : 0.6
           );
         const drawPanels = (fractions: number[], sashTypes?: SashType[], meshCount = 0) => {
-          const isPanelizedSliding = leaf.systemType === "Sliding" && fractions.length > 1;
+          const isPanelizedSliding = isSlidingSystem || fractions.length > 1;
           const panelSashes = isPanelizedSliding ? (leaf.panelSashes && leaf.panelSashes.length === fractions.length ? leaf.panelSashes : buildDefaultSlidingPanelSashes(fractions.length)) : [];
           let cursor = innerX;
           fractions.forEach((frac, idx) => {
             const pw = innerW * frac;
-            fixedPanel(cursor, innerY, pw, innerH);
+            fixedPanel(cursor, innerY, pw, innerH, selectedFrameColor);
             if (sashTypes?.[idx]) drawSashGlyph(g, cursor, innerY, pw, innerH, sashTypes[idx], selectedFrameColor);
             if (isPanelizedSliding) {
               const panelSash = panelSashes[idx] ?? "fixed";
@@ -3530,33 +3536,33 @@ export function WindowDoorConfigurator({
           });
         };
         const isOneOf = (...variants: string[]) => variants.includes(desc);
-        if (leaf.systemType === "Louvers" || desc === "Louvers") { fixedPanel(innerX, innerY, innerW, innerH); drawLouversGuide(g, innerX, innerY, innerW, innerH); return true; }
-        if (leaf.hasExhaustFan) { fixedPanel(innerX, innerY, innerW, innerH); drawExhaustFanGuide(g, innerX, innerY, innerW, innerH, leaf.exhaustFanX, leaf.exhaustFanY, leaf.exhaustFanSize); return true; }
+        if (leaf.systemType === "Louvers" || desc === "Louvers") { fixedPanel(innerX, innerY, innerW, innerH, selectedFrameColor); drawLouversGuide(g, innerX, innerY, innerW, innerH); return true; }
+        if (leaf.hasExhaustFan) { fixedPanel(innerX, innerY, innerW, innerH, selectedFrameColor); drawExhaustFanGuide(g, innerX, innerY, innerW, innerH, leaf.exhaustFanX, leaf.exhaustFanY, leaf.exhaustFanSize); return true; }
         if (isBlankSystem(leaf.systemType ||
           desc === "Blank Area")) {
           drawBlankArea(g, x, y, w, h);
           return true;
         }
-        if (desc === "Fix") { fixedPanel(innerX, innerY, innerW, innerH); return true; }
-        if (isOneOf("Left Openable", "Left Openable Door-Window", "Left Openable Window", "Left Openable Door", "Outward Window L", "Outward Door L", "Inward Door L", "Inward Window L")) { fixedPanel(innerX, innerY, innerW, innerH); drawCasementSwingGuide(g, innerX, innerY, innerW, innerH, "left"); return true; }
-        if (isOneOf("Right Openable", "Right Openable Door-Window", "Right Openable Window", "Right Openable Door", "Outward Window R", "Outward Door R", "Inward Door R", "Inward Window R")) { fixedPanel(innerX, innerY, innerW, innerH); drawCasementSwingGuide(g, innerX, innerY, innerW, innerH, "right"); return true; }
-        if (desc === "Top Hung Window") { fixedPanel(innerX, innerY, innerW, innerH); drawTopHungGuide(g, innerX, innerY, innerW, innerH); return true; }
-        if (desc === "Bottom Hung Window") { fixedPanel(innerX, innerY, innerW, innerH); drawBottomHungGuide(g, innerX, innerY, innerW, innerH); return true; }
-        if (desc === "Parallel Window") { fixedPanel(innerX, innerY, innerW, innerH); drawSashGlyph(g, innerX, innerY, innerW, innerH, "double", selectedFrameColor); return true; }
-        if (desc === "Tilt and Turn Window") { fixedPanel(innerX, innerY, innerW, innerH); drawTiltTurnGuide(g, innerX, innerY, innerW, innerH); return true; }
+        if (desc === "Fix") { fixedPanel(innerX, innerY, innerW, innerH, selectedFrameColor); return true; }
+        if (isOneOf("Left Openable", "Left Openable Door-Window", "Left Openable Window", "Left Openable Door", "Outward Window L", "Outward Door L", "Inward Door L", "Inward Window L")) { fixedPanel(innerX, innerY, innerW, innerH, selectedFrameColor); drawCasementSwingGuide(g, innerX, innerY, innerW, innerH, "left"); return true; }
+        if (isOneOf("Right Openable", "Right Openable Door-Window", "Right Openable Window", "Right Openable Door", "Outward Window R", "Outward Door R", "Inward Door R", "Inward Window R")) { fixedPanel(innerX, innerY, innerW, innerH, selectedFrameColor); drawCasementSwingGuide(g, innerX, innerY, innerW, innerH, "right"); return true; }
+        if (desc === "Top Hung Window") { fixedPanel(innerX, innerY, innerW, innerH, selectedFrameColor); drawTopHungGuide(g, innerX, innerY, innerW, innerH); return true; }
+        if (desc === "Bottom Hung Window") { fixedPanel(innerX, innerY, innerW, innerH, selectedFrameColor); drawBottomHungGuide(g, innerX, innerY, innerW, innerH); return true; }
+        if (desc === "Parallel Window") { fixedPanel(innerX, innerY, innerW, innerH, selectedFrameColor); drawSashGlyph(g, innerX, innerY, innerW, innerH, "double", selectedFrameColor); return true; }
+        if (desc === "Tilt and Turn Window") { fixedPanel(innerX, innerY, innerW, innerH, selectedFrameColor); drawTiltTurnGuide(g, innerX, innerY, innerW, innerH); return true; }
         if (isOneOf("French Door-Window", "French Door", "French Window")) {
           const centerGap = Math.max(10, Math.min(22, innerW * 0.05));
           const panelW = (innerW - centerGap) / 2;
-          fixedPanel(innerX, innerY, panelW, innerH);
-          fixedPanel(innerX + panelW + centerGap, innerY, panelW, innerH);
+          fixedPanel(innerX, innerY, panelW, innerH, selectedFrameColor);
+          fixedPanel(innerX + panelW + centerGap, innerY, panelW, innerH, selectedFrameColor);
           drawFrenchGuide(g, innerX, innerY, innerW, innerH);
           return true;
         }
-        if (leaf.systemType === "Slide N Fold" && isSlideNFoldTwoPanelOnePlusOne(desc)) { fixedPanel(innerX, innerY, innerW, innerH); drawSlideNFoldTwoPanelGuide(g, innerX, innerY, innerW, innerH); return true; }
-        if (leaf.systemType === "Slide N Fold" && isSlideNFoldThreePanelOnePlusTwo(desc)) { fixedPanel(innerX, innerY, innerW, innerH); drawSlideNFoldThreePanelOnePlusTwoGuide(g, innerX, innerY, innerW, innerH); return true; }
-        if (leaf.systemType === "Slide N Fold" && isSlideNFoldFourPanelOnePlusThree(desc)) { fixedPanel(innerX, innerY, innerW, innerH); drawSlideNFoldFourPanelOnePlusThreeGuide(g, innerX, innerY, innerW, innerH); return true; }
-        if (leaf.systemType === "Slide N Fold" && isSlideNFoldFivePanelOnePlusFour(desc)) { fixedPanel(innerX, innerY, innerW, innerH); drawSlideNFoldFivePanelOnePlusFourGuide(g, innerX, innerY, innerW, innerH); return true; }
-        if (leaf.systemType === "Slide N Fold" && isSlideNFoldSixPanelOnePlusFive(desc)) { fixedPanel(innerX, innerY, innerW, innerH); drawSlideNFoldSixPanelOnePlusFiveGuide(g, innerX, innerY, innerW, innerH); return true; }
+        if (leaf.systemType === "Slide N Fold" && isSlideNFoldTwoPanelOnePlusOne(desc)) { fixedPanel(innerX, innerY, innerW, innerH, selectedFrameColor); drawSlideNFoldTwoPanelGuide(g, innerX, innerY, innerW, innerH); return true; }
+        if (leaf.systemType === "Slide N Fold" && isSlideNFoldThreePanelOnePlusTwo(desc)) { fixedPanel(innerX, innerY, innerW, innerH, selectedFrameColor); drawSlideNFoldThreePanelOnePlusTwoGuide(g, innerX, innerY, innerW, innerH); return true; }
+        if (leaf.systemType === "Slide N Fold" && isSlideNFoldFourPanelOnePlusThree(desc)) { fixedPanel(innerX, innerY, innerW, innerH, selectedFrameColor); drawSlideNFoldFourPanelOnePlusThreeGuide(g, innerX, innerY, innerW, innerH); return true; }
+        if (leaf.systemType === "Slide N Fold" && isSlideNFoldFivePanelOnePlusFour(desc)) { fixedPanel(innerX, innerY, innerW, innerH, selectedFrameColor); drawSlideNFoldFivePanelOnePlusFourGuide(g, innerX, innerY, innerW, innerH); return true; }
+        if (leaf.systemType === "Slide N Fold" && isSlideNFoldSixPanelOnePlusFive(desc)) { fixedPanel(innerX, innerY, innerW, innerH, selectedFrameColor); drawSlideNFoldSixPanelOnePlusFiveGuide(g, innerX, innerY, innerW, innerH); return true; }
         if (desc === "Left Openable + Fixed") { drawPanels([0.5, 0.5], ["left", "fixed"]); return true; }
         if (desc === "Right Openable + Fixed") { drawPanels([0.5, 0.5], ["fixed", "right"]); return true; }
         if (desc === "Left Openable + Fixed + Right Openable") { drawPanels([0.33, 0.34, 0.33], ["left", "fixed", "right"]); return true; }
@@ -3578,7 +3584,7 @@ export function WindowDoorConfigurator({
           "none",
           DEFAULT_ARCH_HEIGHT_RATIO,
           leaf.glass === "Yes" ? COLORS.glass : "#FFFFFF",
-          COLORS.glassStroke,
+          selectedFrameColor,
           leaf.glass === "Yes" ? 0.85 : 0.6
         );
       }
