@@ -484,6 +484,14 @@ export type BomOrderData = {
     phone?: string;
   };
   rows: BomOrderRow[];
+  profileRows?: BomOrderRow[];
+  hardwareRows?: BomOrderRow[];
+  profileQuantity?: number;
+  profileWeight?: number;
+  profileSubtotal?: number;
+  hardwareQuantity?: number;
+  hardwareSubtotal?: number;
+  totalWeight?: number;
   totals: Record<string, number> & { grand: number };
   notes: string[];
 };
