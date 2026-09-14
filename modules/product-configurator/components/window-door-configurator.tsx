@@ -2249,6 +2249,8 @@ export function WindowDoorConfigurator({
   const [baseGlass, setBaseGlass] = useState<YesNo>("Yes");
   const [baseMesh, setBaseMesh] = useState<YesNo>("No");
   const [isSaving, setIsSaving] = useState(false);
+  const [isRetryingLookups, setIsRetryingLookups] = useState(false);
+  const [lookupLoadError, setLookupLoadError] = useState("");
   const [hideSelectionForExport, setHideSelectionForExport] = useState(false);
   const [manualChildRates, setManualChildRates] = useState<Record<string, number>>({});
   const [autoChildRates, setAutoChildRates] = useState<Record<string, number>>({});
@@ -2489,7 +2491,61 @@ export function WindowDoorConfigurator({
         cursor += pw;
       });
     });
-    return labels;
+
+    // Nested splits and narrow panels can put several 88px inputs at almost
+    // the same coordinate. Pack colliding width labels into separate rows and
+    // height labels into separate columns while keeping every box on-canvas.
+    const placed: Array<{ x: number; y: number; w: number; h: number }> = [];
+    const overlapsPlaced = (rect: { x: number; y: number; w: number; h: number }) =>
+      placed.some((other) =>
+        rect.x < other.x + other.w + 6 &&
+        rect.x + rect.w + 6 > other.x &&
+        rect.y < other.y + other.h + 6 &&
+        rect.y + rect.h + 6 > other.y
+      );
+    const alternatingOffsets = (step: number, count: number) => {
+      const offsets = [0];
+      for (let index = 1; index <= count; index += 1) {
+        offsets.push(index * step, -index * step);
+      }
+      return offsets;
+    };
+    const rowOffsets = alternatingOffsets(boxH + 8, 8);
+    const columnOffsets = alternatingOffsets(boxW + 8, 6);
+
+    return labels.map((label) => {
+      const labelHeight = label.staticValue === undefined ? boxH : boxH + 24;
+      const isHeightLabel = label.id === "height" || label.id.startsWith("sub-h-");
+      const primaryOffsets = isHeightLabel ? columnOffsets : rowOffsets;
+      const secondaryOffsets = isHeightLabel ? rowOffsets : columnOffsets;
+      let resolvedX = clampX(label.x);
+      let resolvedY = clampY(label.y);
+      let found = false;
+
+      for (const primary of primaryOffsets) {
+        for (const secondary of secondaryOffsets) {
+          const candidateX = clampX(label.x + (isHeightLabel ? primary : secondary));
+          const candidateY = Math.max(
+            0,
+            Math.min(label.y + (isHeightLabel ? secondary : primary), stageSize.h - labelHeight)
+          );
+          const candidate = { x: candidateX, y: candidateY, w: boxW, h: labelHeight };
+          if (!overlapsPlaced(candidate)) {
+            resolvedX = candidateX;
+            resolvedY = candidateY;
+            placed.push(candidate);
+            found = true;
+            break;
+          }
+        }
+        if (found) break;
+      }
+
+      if (!found) {
+        placed.push({ x: resolvedX, y: resolvedY, w: boxW, h: labelHeight });
+      }
+      return { ...label, x: resolvedX, y: resolvedY };
+    });
   }, [heightMm, root, stageSize, updateChildDimension, updateLeafPanelDimension, view, widthMm]);
 
   // const areaSqft = useMemo(() => mmToSqft(widthMm, heightMm), [widthMm, heightMm]);
@@ -2912,13 +2968,28 @@ export function WindowDoorConfigurator({
   ]);
 
   const handleSaveItem = async () => {
-    if (isSaving) return;
+    if (isSaving || isRetryingLookups) return;
     if (saveLookupsFailed) {
-      await Promise.all([...saveDescriptionsQueries, ...saveOptionsQueries]
-        .filter((query) => query.isError).map((query) => query.refetch()));
-      return;
+      setIsRetryingLookups(true);
+      setLookupLoadError("");
+      try {
+        const results = await Promise.all([...saveDescriptionsQueries, ...saveOptionsQueries]
+          .filter((query) => query.isError)
+          .map((query) => query.refetch()));
+        if (results.some((result) => result.isError)) {
+          setLookupLoadError("Could not load product options. Check your connection and try again.");
+          return;
+        }
+      } catch {
+        setLookupLoadError("Could not load product options. Check your connection and try again.");
+        return;
+      } finally {
+        setIsRetryingLookups(false);
+      }
+      // Continue saving on the same click once all failed lookups recover.
     }
-    if (!saveLookupsReady) return;
+    if (!saveLookupsReady && !saveLookupsFailed) return;
+    setLookupLoadError("");
     if (!areAllDescriptionsFilled(root)) { alert("Please fill description for all windows"); return; }
     const trimmedRefCode = meta.refCode.trim();
     if (!trimmedRefCode) { alert("Ref Code is required."); return; }
@@ -3450,6 +3521,16 @@ export function WindowDoorConfigurator({
       const sashY = y + padTop;
       const sashW = safeDrawSize(w - padLeft - padRight);
       const sashH = safeDrawSize(h - padTop - padBottom);
+      const blankPadLeft = (isTouchingLeft ? PROFILE.outer / 2 : PROFILE.mullion / 2) + PROFILE.gap;
+      const blankPadRight = (isTouchingRight ? PROFILE.outer / 2 : PROFILE.mullion / 2) + PROFILE.gap;
+      const blankPadTop = (isTouchingTop ? PROFILE.outer / 2 : PROFILE.mullion / 2) + PROFILE.gap;
+      const blankPadBottom = (isTouchingBottom ? PROFILE.outer / 2 : PROFILE.mullion / 2) + PROFILE.gap;
+      const blankBounds = {
+        x: x + blankPadLeft,
+        y: y + blankPadTop,
+        w: safeDrawSize(w - blankPadLeft - blankPadRight),
+        h: safeDrawSize(h - blankPadTop - blankPadBottom),
+      };
       if (leaf.systemType !== "Blank Area") {
      
       g.add(new Konva.Rect({
@@ -3532,9 +3613,8 @@ export function WindowDoorConfigurator({
         const isOneOf = (...variants: string[]) => variants.includes(desc);
         if (leaf.systemType === "Louvers" || desc === "Louvers") { fixedPanel(innerX, innerY, innerW, innerH); drawLouversGuide(g, innerX, innerY, innerW, innerH); return true; }
         if (leaf.hasExhaustFan) { fixedPanel(innerX, innerY, innerW, innerH); drawExhaustFanGuide(g, innerX, innerY, innerW, innerH, leaf.exhaustFanX, leaf.exhaustFanY, leaf.exhaustFanSize); return true; }
-        if (isBlankSystem(leaf.systemType ||
-          desc === "Blank Area")) {
-          drawBlankArea(g, x, y, w, h);
+        if (isBlankSystem(leaf.systemType) || desc === "Blank Area") {
+          drawBlankArea(g, blankBounds.x, blankBounds.y, blankBounds.w, blankBounds.h);
           return true;
         }
         if (desc === "Fix") { fixedPanel(innerX, innerY, innerW, innerH); return true; }
@@ -3634,8 +3714,23 @@ export function WindowDoorConfigurator({
         }
       }
       addSectionHeader(g, innerBounds.x + 6, innerBounds.y + 6, getSectionLabel(leaf, meta.productType), innerBounds.w);
-      g.add(new Konva.Circle({ x: x + w / 2, y: y + h / 2, radius: 14, fill: "#FFFFFF", stroke: "#334155", strokeWidth: 1.5, shadowColor: "rgba(0,0,0,0.06)", shadowBlur: 2, listening: false }));
-      g.add(new Konva.Text({ x: x + w / 2 - 14, y: y + h / 2 - 7, width: 28, align: "center", text: String(idx + 1), fontSize: 12, fontStyle: "bold", fill: "#0F172A", listening: false }));
+      // A centered number badge hides the exhaust fan almost completely in
+      // compact sections. Keep the badge in the lower-right corner instead,
+      // and omit it when there is not enough room for both visual elements.
+      const showSectionBadge = !isExhaust || Math.min(innerBounds.w, innerBounds.h) >= 52;
+      if (showSectionBadge) {
+        const badgeRadius = isExhaust
+          ? Math.max(8, Math.min(11, Math.min(innerBounds.w, innerBounds.h) / 7))
+          : 14;
+        const badgeX = isExhaust
+          ? innerBounds.x + innerBounds.w - badgeRadius - 3
+          : x + w / 2;
+        const badgeY = isExhaust
+          ? innerBounds.y + innerBounds.h - badgeRadius - 3
+          : y + h / 2;
+        g.add(new Konva.Circle({ x: badgeX, y: badgeY, radius: badgeRadius, fill: "#FFFFFF", stroke: "#334155", strokeWidth: 1.5, shadowColor: "rgba(0,0,0,0.06)", shadowBlur: 2, listening: false }));
+        g.add(new Konva.Text({ x: badgeX - badgeRadius, y: badgeY - 6, width: badgeRadius * 2, align: "center", text: String(idx + 1), fontSize: isExhaust ? 10 : 12, fontStyle: "bold", fill: "#0F172A", listening: false }));
+      }
       contentGroup.add(g);
     });
 
@@ -4581,7 +4676,8 @@ export function WindowDoorConfigurator({
               <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"><span className="text-gray-500">Height</span><span className="font-semibold">{heightMm} mm</span></div>
               <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"><span className="text-gray-500">Area</span><span className="font-semibold">{effectiveAreaSqft} sq ft</span></div>
               <div className="pt-2">
-                <button type="button" onClick={handleSaveItem} disabled={isSaving || (!saveLookupsReady && !saveLookupsFailed)} className="w-full rounded-lg bg-[#0f172A] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0f172A] disabled:opacity-60">{isSaving ? "Saving..." : saveLookupsFailed ? "Retry loading options" : !saveLookupsReady ? "Loading options..." : editingItem ? "Update Item" : "Add to Quotation"}</button>
+                <button type="button" onClick={handleSaveItem} disabled={isSaving || isRetryingLookups || (!saveLookupsReady && !saveLookupsFailed)} className="w-full rounded-lg bg-[#0f172A] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0f172A] disabled:opacity-60">{isSaving ? "Saving..." : isRetryingLookups ? "Retrying..." : saveLookupsFailed ? "Retry loading options" : !saveLookupsReady ? "Loading options..." : editingItem ? "Update Item" : "Add to Quotation"}</button>
+                {lookupLoadError ? <p role="alert" className="mt-2 text-xs font-medium text-red-600">{lookupLoadError}</p> : null}
                 <button type="button" onClick={onClose} className="mt-2 w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
               </div>
               <div className="text-xs text-gray-400">Selected: <span className="font-medium text-gray-600">{selectedId === null ? "None" : selectedNode.id === "root" ? "Whole Frame" : isSlidingPanelSelection ? `Sliding Panel ${selectedSlidingPanelIndex! + 1}` : "Section"}</span></div>
@@ -4591,7 +4687,10 @@ export function WindowDoorConfigurator({
         {!showSummaryPopup && (
           <div className="pointer-events-none absolute bottom-4 right-4 z-30">
             <div className="pointer-events-auto flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
-              <button type="button" onClick={handleSaveItem} disabled={isSaving || (!saveLookupsReady && !saveLookupsFailed)} className="rounded-lg bg-[#124657] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b3642] disabled:opacity-60">{isSaving ? "Saving..." : saveLookupsFailed ? "Retry loading options" : !saveLookupsReady ? "Loading options..." : editingItem ? "Update Item" : "Add to Quotation"}</button>
+              <div>
+                <button type="button" onClick={handleSaveItem} disabled={isSaving || isRetryingLookups || (!saveLookupsReady && !saveLookupsFailed)} className="rounded-lg bg-[#124657] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b3642] disabled:opacity-60">{isSaving ? "Saving..." : isRetryingLookups ? "Retrying..." : saveLookupsFailed ? "Retry loading options" : !saveLookupsReady ? "Loading options..." : editingItem ? "Update Item" : "Add to Quotation"}</button>
+                {lookupLoadError ? <p role="alert" className="mt-1 max-w-[260px] text-xs font-medium text-red-600">{lookupLoadError}</p> : null}
+              </div>
               <button type="button" onClick={onClose} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
             </div>
           </div>
