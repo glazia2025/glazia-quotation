@@ -3704,15 +3704,6 @@ export function WindowDoorConfigurator({
         g.add(new Konva.Line({ points: [foldX, y + inset, foldX, y + h - inset], stroke: "#334155", strokeWidth: 0.6, dash: [4, 3], opacity: 0.8, listening: false }));
         g.add(new Konva.Arrow({ points: [foldX - 18, y + h * 0.2, foldX + 18, y + h * 0.2], stroke: "#111827", fill: "#111827", strokeWidth: 0.6, pointerLength: 6, pointerWidth: 6, opacity: 0.65, listening: false }));
       }
-      if (isExhaust) {
-        const fanGeometry = getExhaustFanGeometry(innerBounds.x, innerBounds.y, innerBounds.w, innerBounds.h, leaf.exhaustFanX, leaf.exhaustFanY, leaf.exhaustFanSize);
-        const fanDiameterMm = Math.round(Math.min(leaf.w * widthMm, leaf.h * heightMm) * clampValue(leaf.exhaustFanSize ?? DEFAULT_EXHAUST_FAN_SIZE, 0.2, 0.9) * 1.18);
-        const dimOffset = 22;
-        if (!hideSelectionForExport) {
-          addDimensionLine(g, fanGeometry.centerX - fanGeometry.outerRadius, fanGeometry.centerY - fanGeometry.outerRadius - dimOffset, fanGeometry.centerX + fanGeometry.outerRadius, fanGeometry.centerY - fanGeometry.outerRadius - dimOffset, `${fanDiameterMm} mm`);
-          addDimensionLine(g, fanGeometry.centerX + fanGeometry.outerRadius + dimOffset, fanGeometry.centerY - fanGeometry.outerRadius, fanGeometry.centerX + fanGeometry.outerRadius + dimOffset, fanGeometry.centerY + fanGeometry.outerRadius, `${fanDiameterMm} mm`);
-        }
-      }
       addSectionHeader(g, innerBounds.x + 6, innerBounds.y + 6, getSectionLabel(leaf, meta.productType), innerBounds.w);
       // A centered number badge hides the exhaust fan almost completely in
       // compact sections. Keep the badge in the lower-right corner instead,
