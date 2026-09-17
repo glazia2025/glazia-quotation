@@ -309,15 +309,35 @@ function toQuotationsPage(payload: unknown): QuotationsPage {
   };
 }
 
-export async function getQuotations(page = 1, limit = 20, search = ""): Promise<QuotationsPage> {
+export async function getQuotations(page = 1, limit = 20, search = "", userId?: string): Promise<QuotationsPage> {
+  let effectiveUserId = userId;
+  if (!effectiveUserId && typeof window !== "undefined") {
+    try {
+      const user = JSON.parse(window.localStorage.getItem("glazia-user") || "{}");
+      effectiveUserId = user?.id || user?._id;
+      if (!effectiveUserId) {
+        const auth = JSON.parse(window.localStorage.getItem("glazia-auth") || "{}");
+        effectiveUserId = auth?.state?.user?.id;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations`, {
     headers: getAuthHeaders(),
     withCredentials: true,
-    params: { page, limit, search}
+    params: {
+      page,
+      limit,
+      search,
+      ...(effectiveUserId ? { userId: effectiveUserId } : {})
+    }
   });
 
   return toQuotationsPage(response.data);
 }
+
 
 export async function getQuotation(quotationId: string): Promise<BackendQuotationRecord | null> {
   try {
