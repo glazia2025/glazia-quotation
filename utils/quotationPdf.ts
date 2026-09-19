@@ -556,38 +556,71 @@ function buildDocumentStyles() {
     .cover-top {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
-      gap: 10mm;
+      align-items: center;
+      gap: 6mm;
       padding-top: 3mm;
+      width: 100%;
     }
 
     .cover-brand {
       display: flex;
-      align-items: center;
-      min-height: 26mm;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      min-height: 24mm;
+      width: 46mm;
+      flex: 0 0 46mm;
     }
 
     .logo-img {
-      max-width: 48mm;
-      max-height: 22mm;
+      max-width: 44mm;
+      max-height: 20mm;
       object-fit: contain;
     }
 
     .logo-fallback {
-      font-size: 24px;
+      font-size: 18px;
       font-weight: 800;
       letter-spacing: 0.03em;
-      color: #d62828;
+      color: #111111;
       text-transform: uppercase;
     }
 
-    .cover-company {
-      max-width: 84mm;
-      text-align: right;
-      font-size: 3.6mm;
+    .cover-center {
+      flex: 1;
+      text-align: center;
+      font-size: 3.3mm;
       line-height: 1.35;
-      font-weight: 700;
       color: #111111;
+      padding: 0 3mm;
+    }
+
+    .cover-center .company-name {
+      font-size: 4.2mm;
+      font-weight: 700;
+      margin-bottom: 0.8mm;
+    }
+
+    .cover-center .customer-box {
+      margin-top: 2mm;
+      padding-top: 1.5mm;
+      border-top: 0.25mm dashed #ccc;
+    }
+
+    .cover-glazia {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: center;
+      min-height: 24mm;
+      width: 46mm;
+      flex: 0 0 46mm;
+    }
+
+    .cover-glazia .glazia-logo {
+      max-width: 42mm;
+      max-height: 18mm;
+      object-fit: contain;
     }
 
     .cover-separator {
@@ -1123,21 +1156,40 @@ function renderCoverPage(params: {
     "-";
   const recipientName = customer.name || "Customer";
 
+  const customerAddress = [customer.address, customer.city, customer.state, customer.pincode].filter(Boolean).join(", ");
+
   return `
     <section class="page">
       <div class="page-content">
         <div class="cover-top avoid-break">
           <div class="cover-brand">
             ${logoSrc ? `<img class="logo-img" src="${logoSrc}" alt="Company logo">` : `<div class="logo-fallback">${escapeHtml(companyName)}</div>`}
+            ${website ? `<div style="margin-top: 1.5mm; font-size: 2.8mm;"><a href="${website.startsWith("http") ? website : `https://${website}`}" target="_blank">${escapeHtml(website)}</a></div>` : ""}
           </div>
-          <div class="cover-company">
-            <div>${escapeHtml(companyName)}</div>
+          <div class="cover-center">
+            <div class="company-name">${escapeHtml(companyName)}</div>
             ${userData.completeAddress ? `<div>${escapeHtml(userData.completeAddress)}</div>` : ""}
             ${[userData.city, userData.state, userData.pincode].filter(Boolean).length ? `<div>${escapeHtml([userData.city, userData.state, userData.pincode].filter(Boolean).join(", "))}</div>` : ""}
-            ${contactPhone ? `<div>Contact No. : ${escapeHtml(contactPhone)}</div>` : ""}
-            ${userData.email ? `<div>Email : ${escapeHtml(userData.email)}</div>` : ""}
-            ${website ? `<div>Website : ${escapeHtml(website)}</div>` : ""}
-            ${userData.gstNumber ? `<div>GSTIN : ${escapeHtml(userData.gstNumber)}</div>` : ""}
+            <div>
+              ${contactPhone ? `<span>Contact: ${escapeHtml(contactPhone)}</span>` : ""}
+              ${contactPhone && userData.email ? `<span> | </span>` : ""}
+              ${userData.email ? `<span>Email: ${escapeHtml(userData.email)}</span>` : ""}
+            </div>
+            ${userData.gstNumber ? `<div>GSTIN: ${escapeHtml(userData.gstNumber)}</div>` : ""}
+            <div class="customer-box">
+              <div>Customer: <strong>${escapeHtml(recipientName)}</strong></div>
+              ${customerAddress ? `<div>${escapeHtml(customerAddress)}</div>` : ""}
+              ${customer.phone || customer.email ? `
+                <div>
+                  ${customer.phone ? `<span>Contact: ${escapeHtml(customer.phone)}</span>` : ""}
+                  ${customer.phone && customer.email ? `<span> | </span>` : ""}
+                  ${customer.email ? `<span>Email: ${escapeHtml(customer.email)}</span>` : ""}
+                </div>
+              ` : ""}
+            </div>
+          </div>
+          <div class="cover-glazia">
+            <img class="glazia-logo" src="/images/glazia-new-logo.jpeg" alt="Glazia Logo" />
           </div>
         </div>
 
