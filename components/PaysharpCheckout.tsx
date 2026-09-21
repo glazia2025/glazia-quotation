@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { MAIN_API_BASE_URL as API_BASE_URL } from "@/services/api";
@@ -10,7 +11,7 @@ type Order = { paymentProvider: "PAYSHARP" | "LEGACY"; _id: string; orderId: num
 type Account = { virtualAccountNo: string; ifscCode: string; beneficiaryName: string; bankName: string; creditPaise: number };
 type Receipt = { reference: string; method: string; utr: string; receivedAt: string; amountPaise: number };
 type PaymentData = { upiStatus?: string; order: Order; account: Account | null; receipts: Receipt[] };
-type Quote = { paymentProvider: "PAYSHARP" | "LEGACY"; totalPaise: number; subtotalPaise: number; taxPaise: number; products: { productId: string; description: string; quantity: number; amount: number }[] };
+export type PaymentQuote = { paymentProvider: "PAYSHARP" | "LEGACY"; totalPaise: number; subtotalPaise: number; taxPaise: number; products: { productId: string; description: string; quantity: number; amount: number }[] };
 const money = (paise: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(paise / 100);
 async function request<T>(path: string, body?: unknown): Promise<T> {
   const token = getAuthToken();
@@ -62,27 +63,16 @@ export function PaysharpPaymentStatus({ orderId, onPaid }: { orderId: string; on
         <p className="font-semibold">Outstanding: {money(Math.max(0, data.order.totalPaise - data.order.paidPaise))}</p>
       </div>
       {!paid && <>
-        <div className="rounded-xl border p-4 space-y-2">
-          <h3 className="font-semibold">Pay by net banking / bank transfer</h3>
-          <p className="text-sm text-slate-600">Add these beneficiary details in your bank app or net banking and transfer the amount due. Paysharp collects the payment for Glazia.</p>
-          {data.account ? <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2 break-all">
-            <div><dt className="text-sm text-slate-500">Account number</dt><dd className="font-mono select-all">{data.account.virtualAccountNo}</dd></div>
-            <div><dt className="text-sm text-slate-500">IFSC</dt><dd className="font-mono select-all">{data.account.ifscCode}</dd></div>
-            <div><dt className="text-sm text-slate-500">Beneficiary</dt><dd className="select-all">{data.account.beneficiaryName}</dd></div>
-            <div><dt className="text-sm text-slate-500">Bank</dt><dd>{data.account.bankName}</dd></div>
-          </dl> : <p>Bank details are temporarily unavailable. Please contact Glazia.</p>}
-          <p className="text-sm text-slate-600">Bank payments settle your oldest unpaid order first. Excess remains as credit for future orders. No payment screenshot is required.</p>
-        </div>
         {data.order.upiAllowed ? <div className="rounded-xl border p-4 space-y-3">
-          <h3 className="font-semibold">Or pay by UPI</h3>
-          {["FAILED", "EXPIRED"].includes(data.upiStatus || "") && <p className="text-sm text-amber-700">The previous UPI request {data.upiStatus === "EXPIRED" ? "expired" : "failed"}. You can try again or use bank transfer.</p>}
+          <h3 className="font-semibold">Pay by UPI</h3>
+          {["FAILED", "EXPIRED"].includes(data.upiStatus || "") && <p className="text-sm text-amber-700">The previous UPI request {data.upiStatus === "EXPIRED" ? "expired" : "failed"}. You can try again.</p>}
           <button type="button" disabled={busy} onClick={generateQr} className="rounded-lg bg-red-600 px-4 py-2 text-white disabled:opacity-50">{busy ? "Loading…" : "Pay using UPI"}</button>
           {qr?.intentUrl && <a href={qr.intentUrl} className="inline-block rounded-lg bg-green-700 px-4 py-2 text-white">Open UPI app — {money(qr.amountPaise)}</a>}
           {qr?.qrCode && <div><Image unoptimized src={qr.qrCode} alt="Scan with your UPI app to pay this order" width={240} height={240} /><p>QR amount: {money(qr.amountPaise)}. Pay using one method only.</p></div>}
-        </div> : <p className="text-sm text-slate-600">Bank transfer is required for orders of ₹1,00,000 or more, or an outstanding balance below ₹1.</p>}
+        </div> : <p className="text-sm text-slate-600">UPI is unavailable for this order. Please contact Glazia to arrange payment.</p>}
         <button type="button" disabled={busy} onClick={async () => { setBusy(true); await refresh(true); setBusy(false); }} className="rounded-lg border px-4 py-2 disabled:opacity-50">Check payment status</button>
         <a href={`https://glazia.in/account/orders/${orderId}`} className="block text-blue-700 underline">View this order in your account</a>
-        <p className="text-sm text-slate-500">Your order is saved. You can return to it while the bank transfer is being processed.</p>
+        <p className="text-sm text-slate-500">Your order is saved. You can return to it to complete your UPI payment.</p>
       </>}
       {!!data.account?.creditPaise && <p>Unapplied account credit: {money(data.account.creditPaise)}</p>}
       {data.receipts.map(receipt => <div key={receipt.reference} className="rounded border p-3 text-sm">
@@ -94,11 +84,10 @@ export function PaysharpPaymentStatus({ orderId, onPaid }: { orderId: string; on
   </section>;
 }
 
-export function PaysharpCheckout({ checkout, onDone, onCancel }: { checkout: CheckoutRequest; onDone: () => void; onCancel: () => void }) {
-  const [quote, setQuote] = useState<Quote | null>(null);
+export function PaysharpCheckout({ checkout, onDone, onCancel, renderLegacy }: { checkout: CheckoutRequest; onDone: () => void; onCancel: () => void; renderLegacy: (quote: PaymentQuote, checkoutKey: string, onDone: () => void, onResumePaysharp: (orderId: string) => void) => ReactNode }) {
+  const [quote, setQuote] = useState<PaymentQuote | null>(null);
   const [orderId, setOrderId] = useState("");
   const [savedProvider, setSavedProvider] = useState("PAYSHARP");
-  const [proof, setProof] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [key, setKey] = useState("");
@@ -113,7 +102,7 @@ export function PaysharpCheckout({ checkout, onDone, onCancel }: { checkout: Che
         const existing = sessionStorage.getItem(storage);
         const checkoutKey = existing || crypto.randomUUID();
         sessionStorage.setItem(storage, checkoutKey);
-        const result = await request<Quote>("/api/payments/quote", JSON.parse(serialized));
+        const result = await request<PaymentQuote>("/api/payments/quote", JSON.parse(serialized));
         if (!cancelled) { setKey(checkoutKey); setStorageKey(storage); setQuote(result); }
       } catch (caught) { if (!cancelled) setError(caught instanceof Error ? caught.message : "Unable to prepare checkout"); }
     };
@@ -124,14 +113,28 @@ export function PaysharpCheckout({ checkout, onDone, onCancel }: { checkout: Che
     if (!quote || busy || !key) return;
     setBusy(true); setError("");
     try {
-      const result = await request<{ order: Order }>("/api/user/pi-generate", { ...checkout, checkoutKey: key, expectedTotalPaise: quote.totalPaise, paymentProvider: quote.paymentProvider, ...(quote.paymentProvider === "LEGACY" ? { payment: { proof } } : {}) });
+      const result = await request<{ order: Order }>("/api/user/pi-generate", { ...checkout, checkoutKey: key, expectedTotalPaise: quote.totalPaise, paymentProvider: quote.paymentProvider });
       setOrderId(result.order._id); setSavedProvider(result.order.paymentProvider);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to place order");
-      try { setQuote(await request<Quote>("/api/payments/quote", checkout)); } catch { /* Keep the actionable creation error. */ }
+      try { setQuote(await request<PaymentQuote>("/api/payments/quote", checkout)); } catch { /* Keep the actionable creation error. */ }
     } finally { setBusy(false); }
   };
-  return <div className="space-y-4 p-4 sm:p-6">
+  if (!quote && !orderId) {
+    const loading = <div className="space-y-4 p-6" aria-live="polite">
+      {error ? <p role="alert" className="text-red-700">{error}</p> : <p>Loading checkout…</p>}
+      <button type="button" onClick={onCancel} className="rounded border px-4 py-2">Cancel</button>
+    </div>;
+    return <div className="fixed inset-0 z-[280] flex items-center justify-center bg-slate-950/75 p-4"><div className="w-full max-w-4xl rounded-3xl bg-white">{loading}</div></div>;
+  }
+  const finish = () => { sessionStorage.removeItem(storageKey); onDone(); };
+  // Render the original checkout as a whole, including its own layout and steps.
+  if (!orderId && quote?.paymentProvider === "LEGACY" && key) {
+    return renderLegacy(quote, key, finish, id => { setOrderId(id); setSavedProvider("PAYSHARP"); });
+  }
+  return <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Place BOM order">
+    <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white">
+    <div className="space-y-4 p-4 sm:p-6">
     <h2 className="text-xl font-semibold">{orderId ? (savedProvider === "LEGACY" ? "Payment proof submitted" : "Complete your payment") : "Review and place order"}</h2>
     {error && <p role="alert" className="rounded bg-red-50 p-3 text-red-700">{error}</p>}
     {orderId ? <>{savedProvider === "PAYSHARP" ? <PaysharpPaymentStatus orderId={orderId} /> : <p>Your order is saved. Glazia will review your payment proof.</p>}<button type="button" className="rounded-lg bg-slate-900 px-4 py-2 text-white" onClick={() => { sessionStorage.removeItem(storageKey); onDone(); }}>Done</button></> : <>
@@ -140,65 +143,15 @@ export function PaysharpCheckout({ checkout, onDone, onCancel }: { checkout: Che
         <div className="max-h-64 overflow-auto rounded border"><table className="w-full text-left text-sm"><thead><tr><th className="p-2">Item</th><th>Qty</th><th>Amount</th></tr></thead><tbody>{quote.products.map((p, i) => <tr key={`${p.productId}-${i}`}><td className="p-2">{p.description || p.productId}</td><td>{p.quantity}</td><td>{money(Math.round(p.amount * 100))}</td></tr>)}</tbody></table></div>
         <p>Subtotal: {money(quote.subtotalPaise)} · GST: {money(quote.taxPaise)}</p>
         <p className="text-lg font-semibold">Total: {money(quote.totalPaise)}</p>
-        {quote.paymentProvider === "LEGACY" && <div className="space-y-4 rounded-xl border p-4">
-          <h3 className="font-semibold">Pay and upload your payment proof</h3>
-          {quote.totalPaise < 10000000 && <div><Image unoptimized src="/upi.jpeg" alt="Glazia payment QR code" width={192} height={192} /><p>UPI: navdeepkamboj08-3@okhdfcbank</p></div>}
-          <dl className="space-y-1"><div>Beneficiary: Glazia Windoors Pvt Ltd</div><div>Bank: HDFC Bank</div><div>Account: <span className="select-all">50200084871361</span></div><div>IFSC: <span className="select-all">HDFC0004809</span></div></dl>
-          <label className="block">Upload payment screenshot or PDF (up to 5 MB)
-            <input type="file" accept="image/png,image/jpeg,image/webp,application/pdf" disabled={busy} onChange={async event => {
-              const file = event.target.files?.[0]; setProof("");
-              if (!file) return;
-              if (!["image/png", "image/jpeg", "image/webp", "application/pdf"].includes(file.type) || file.size > 5 * 1024 * 1024) { setError("Select a PNG, JPEG, WebP image or PDF up to 5 MB."); return; }
-              setBusy(true); setError("");
-              const reader = new FileReader();
-              reader.onload = () => { setProof(String(reader.result)); setBusy(false); };
-              reader.onerror = () => { setError("Unable to read the proof. Please try again."); setBusy(false); };
-              reader.readAsDataURL(file);
-            }} />
-          </label>
-          {proof && <p className="text-sm text-green-700">Payment proof ready to submit.</p>}
-        </div>}
-        {quote.paymentProvider === "PAYSHARP" && <p className="text-sm">{quote.totalPaise < 10000000 ? "Pay by UPI or bank transfer." : "Pay by bank transfer to your assigned virtual account."}</p>}
-        <button type="button" disabled={busy || !key || (quote.paymentProvider === "LEGACY" && !proof)} onClick={place} className="rounded-lg bg-red-600 px-4 py-2 text-white disabled:opacity-50">{busy ? "Saving order…" : quote.paymentProvider === "LEGACY" ? "Submit proof and place order" : "Place order and pay"}</button>
+        {quote.paymentProvider === "PAYSHARP" && <p className="text-sm">Pay by UPI. Payment is confirmed automatically after verification.</p>}
+        <button type="button" disabled={busy || !key} onClick={place} className="rounded-lg bg-red-600 px-4 py-2 text-white disabled:opacity-50">{busy ? "Saving order…" : quote.paymentProvider === "LEGACY" ? "Submit proof and place order" : "Place order and pay"}</button>
       </>}
     </>}
     <button type="button" disabled={busy} onClick={onCancel} className="rounded-lg border px-4 py-2 ml-2">{orderId ? "Close" : "Cancel"}</button>
-  </div>;
+  </div></div></div>;
 }
 
+// Virtual-account provisioning is paused during the UPI-only rollout.
 export function PaysharpAccountCard() {
-  const [enabled, setEnabled] = useState(false);
-  useEffect(() => {
-    let mounted = true;
-    request<{ paymentProvider: string }>("/api/payments/config").then(config => { if (mounted) setEnabled(config.paymentProvider === "PAYSHARP"); }).catch(() => { if (mounted) setEnabled(false); });
-    return () => { mounted = false; };
-  }, []);
-  const [account, setAccount] = useState<Account | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const load = async () => {
-    setLoading(true); setError("");
-    try { setAccount(await request<Account>("/api/payments/account")); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to load bank details"); }
-    finally { setLoading(false); }
-  };
-  if (!enabled) return null;
-  return <section className="rounded-xl border bg-white p-5 space-y-3 text-slate-900">
-    <h2 className="text-lg font-semibold">Your Glazia payment account</h2>
-    <p className="text-sm text-slate-600">Use your assigned bank details to pay Glazia from net banking or your bank app.</p>
-    {!account && <button type="button" disabled={loading} onClick={load} className="rounded-lg bg-slate-900 px-4 py-2 text-white disabled:opacity-50">{loading ? "Loading…" : "View my bank details"}</button>}
-    {error && <p role="alert" className="text-red-700">{error}</p>}
-    {account && <>
-      <dl className="grid gap-3 sm:grid-cols-2 break-all">
-        <div><dt className="text-sm text-slate-500">Account number</dt><dd className="font-mono select-all">{account.virtualAccountNo}</dd></div>
-        <div><dt className="text-sm text-slate-500">IFSC</dt><dd className="font-mono select-all">{account.ifscCode}</dd></div>
-        <div><dt className="text-sm text-slate-500">Beneficiary</dt><dd className="select-all">{account.beneficiaryName}</dd></div>
-        <div><dt className="text-sm text-slate-500">Bank</dt><dd>{account.bankName}</dd></div>
-      </dl>
-      <p>Unapplied credit: {money(account.creditPaise)}</p>
-      <p className="text-sm text-slate-600">Paysharp collects payments for Glazia. Transfers settle your oldest unpaid order first; excess remains as credit for future orders.</p>
-      <button type="button" disabled={loading} onClick={load} className="text-sm underline">Refresh balance</button>
-    </>}
-    <a href="https://glazia.in/account/orders" className="block text-sm text-blue-700 underline">View orders and payments</a>
-  </section>;
+  return null;
 }
