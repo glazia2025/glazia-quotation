@@ -30,14 +30,26 @@ export function QuotationList() {
   } | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const pageSize = 20;
+
+  let userId: string | null = null;
+  try {
+    const user = JSON.parse(localStorage.getItem("glazia-user") || "{}");
+    userId = user?.id || user?._id;
+    if (!userId) {
+      const auth = JSON.parse(localStorage.getItem("glazia-auth") || "{}");
+      userId = auth?.state?.user?.id;
+    }
+  } catch (e) {
+    // ignore
+  }
+
   const { data, isLoading, error, refetch } = useTenantQuery({
-    queryKey: ["quotations", String(page), search],
-    queryFn: () => getQuotations(page, pageSize, search)
+    queryKey: ["quotations", String(page), search, userId || ""],
+    queryFn: () => getQuotations(page, pageSize, search, userId || undefined)
   });
   const quotationDetails = useQuotationBuilderStore((s) => s.quotation.quotationDetails);
   const updateQuotationField = useQuotationBuilderStore((s) => s.updateQuotationField);
 
-  console.log(data, "DATAAAAAAA")
   const quotations = data?.quotations ?? [];
   if (isLoading && !data) {
   return (

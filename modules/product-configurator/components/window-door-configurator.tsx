@@ -1922,15 +1922,49 @@ const COLORS = {
   labelFill: "#FFFFFF",
   mesh: "#475569",
   text: "#0F172A",
-  selected: "#8B5E34",
+  selected: "#4A3525",
   handleStroke: "#0F172A",
 };
 
-function validFrameColor(value?: string) {
-  return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value : COLORS.frameDark;
+function resolveFrameColor(colorFinishName?: string, explicitColor?: string): string {
+  if (typeof explicitColor === "string" && /^#[0-9a-f]{6}$/i.test(explicitColor)) {
+    return explicitColor;
+  }
+  const name = String(colorFinishName || "").trim().toLowerCase();
+  if (!name) return COLORS.frameDark;
+
+  const hexMatch = name.match(/#([0-9a-f]{6})\b/i);
+  if (hexMatch) return `#${hexMatch[1]}`;
+
+  if (name.includes("champagne")) return "#C5A059";
+  if (name.includes("bronze")) return "#5B4033";
+  if (name.includes("black")) return "#1E232A";
+  if (name.includes("white")) return "#ECEFF1";
+  if (name.includes("wenge")) return "#3B2618";
+  if (name.includes("teak") || name.includes("wood")) return "#6D4C41";
+  if (name.includes("walnut")) return "#4E342E";
+  if (name.includes("oak")) return "#A17238";
+  if (name.includes("silver") || name.includes("natural")) return "#9CA3AF";
+  if (name.includes("grey") || name.includes("gray")) {
+    if (name.includes("2200")) return "#64748B";
+    if (name.includes("2900")) return "#475569";
+    if (name.includes("dark") || name.includes("anthracite")) return "#374151";
+    return "#5B6777";
+  }
+  if (name.includes("anthracite")) return "#2E3440";
+  if (name.includes("ivory") || name.includes("beige") || name.includes("cream")) return "#E8D8C8";
+  if (name.includes("charcoal")) return "#2D3748";
+  if (name.includes("brown")) return "#4E342E";
+  if (name.includes("gold")) return "#D4AF37";
+
+  return COLORS.frameDark;
 }
 
-const PROFILE = { outer: 10, inner: 4, mullion: 12, sash: 6, gap: 2 };
+function validFrameColor(value?: string, colorFinishName?: string) {
+  return resolveFrameColor(colorFinishName, value);
+}
+
+const PROFILE = { outer: 10, inner: 4, mullion: 8, sash: 6, gap: 2 };
 
 const applyArchPath = (
   ctx: PathContext,
@@ -2005,7 +2039,7 @@ function addProfileRect(layer: KonvaLayer | KonvaGroup, x: number, y: number, w:
         y: y - margin,
         width: safeDrawSize(safeW + margin * 2),
         height: safeDrawSize(safeH + margin * 2),
-        stroke: COLORS.selected,
+        stroke: frameColor,
         strokeWidth: 2,
         dash: [8, 5],
         listening: false,
@@ -2024,15 +2058,14 @@ function addProfileRect(layer: KonvaLayer | KonvaGroup, x: number, y: number, w:
 
   if (selected) {
     const margin = 16;
-    addArchShape(layer, x - margin, y - margin, safeDrawSize(safeW + margin * 2), safeDrawSize(safeH + margin * 2), normalizedArchType, archHeightRatio, COLORS.selected, 2, 1, [8, 5]);
+    addArchShape(layer, x - margin, y - margin, safeDrawSize(safeW + margin * 2), safeDrawSize(safeH + margin * 2), normalizedArchType, archHeightRatio, frameColor, 2, 1, [8, 5]);
   }
 }
 
 function addMemberRect(layer: KonvaLayer | KonvaGroup, x: number, y: number, w: number, h: number, frameColor = COLORS.frameDark) {
   const safeW = safeDrawSize(w);
   const safeH = safeDrawSize(h);
-  layer.add(new Konva.Rect({ x, y, width: safeW, height: safeH, fill: "#FFFFFF", stroke: frameColor, strokeWidth: 2, listening: false }));
-  layer.add(new Konva.Rect({ x: x + 2, y: y + 2, width: safeDrawSize(safeW - 4), height: safeDrawSize(safeH - 4), stroke: frameColor, strokeWidth: 1, opacity: 0.7, listening: false }));
+  layer.add(new Konva.Rect({ x, y, width: safeW, height: safeH, fill: frameColor, stroke: frameColor, strokeWidth: 1, listening: false }));
 }
 
 function addSectionHeader(group: KonvaGroup, x: number, y: number, text: string, maxW?: number) {
@@ -3368,10 +3401,10 @@ export function WindowDoorConfigurator({
     push(next);
   }, [push, root, selectedId]);
 
-  const selectedFrameColor = validFrameColor(
-    (combinationOptionsQuery.data?.colorFinishes ?? metaOptionsQuery.data?.colorFinishes ?? [])
-      .find((option) => option.name === meta.colorFinish)?.color
-  );
+  const activeColorFinishName = selectedSectionMeta.colorFinish || meta.colorFinish;
+  const activeColorOption = (combinationOptionsQuery.data?.colorFinishes ?? metaOptionsQuery.data?.colorFinishes ?? [])
+    .find((option) => option.name === activeColorFinishName);
+  const selectedFrameColor = resolveFrameColor(activeColorFinishName, activeColorOption?.color);
 
   const renderCanvas = useCallback(() => {
     const stage = stageRef.current;
@@ -3538,7 +3571,7 @@ export function WindowDoorConfigurator({
           y: sashY,
           width: sashW,
           height: sashH,
-          stroke: COLORS.frameMid,
+          stroke: selectedFrameColor,
           strokeWidth: 2,
           listening: false
         }));
@@ -3578,6 +3611,8 @@ export function WindowDoorConfigurator({
           const isPanelizedSliding = isSlidingSystem || fractions.length > 1;
           const panelSashes = isPanelizedSliding ? (leaf.panelSashes && leaf.panelSashes.length === fractions.length ? leaf.panelSashes : buildDefaultSlidingPanelSashes(fractions.length)) : [];
           let cursor = innerX;
+          const splitLineWidth = PROFILE.mullion; // 7.5px (between half [5px] and frame width [10px])
+          let selectedPanelRect: { x: number; y: number; w: number; height: number } | null = null;
           fractions.forEach((frac, idx) => {
             const pw = innerW * frac;
             fixedPanel(cursor, innerY, pw, innerH, selectedFrameColor);
@@ -3586,12 +3621,12 @@ export function WindowDoorConfigurator({
               const panelSash = panelSashes[idx] ?? "fixed";
               const arrowY = innerY + innerH / 2;
               if (panelSash === "double") {
-                g.add(new Konva.Arrow({ points: [cursor + pw * 0.5, arrowY, cursor + pw * 0.25, arrowY], stroke: "#111827", fill: "#111827", strokeWidth: 0.6, pointerLength: 7, pointerWidth: 7, opacity: 0.7, listening: false }));
-                g.add(new Konva.Arrow({ points: [cursor + pw * 0.5, arrowY, cursor + pw * 0.75, arrowY], stroke: "#111827", fill: "#111827", strokeWidth: 0.6, pointerLength: 7, pointerWidth: 7, opacity: 0.7, listening: false }));
+                g.add(new Konva.Arrow({ points: [cursor + pw * 0.5, arrowY, cursor + pw * 0.25, arrowY], stroke: "#0F172A", fill: "#0F172A", strokeWidth: 1.6, pointerLength: 8, pointerWidth: 8, opacity: 0.95, listening: false }));
+                g.add(new Konva.Arrow({ points: [cursor + pw * 0.5, arrowY, cursor + pw * 0.75, arrowY], stroke: "#0F172A", fill: "#0F172A", strokeWidth: 1.6, pointerLength: 8, pointerWidth: 8, opacity: 0.95, listening: false }));
               } else if (panelSash === "left" || panelSash === "right") {
                 const from = panelSash === "left" ? cursor + pw * 0.75 : cursor + pw * 0.25;
                 const to = panelSash === "left" ? cursor + pw * 0.25 : cursor + pw * 0.75;
-                g.add(new Konva.Arrow({ points: [from, arrowY, to, arrowY], stroke: "#111827", fill: "#111827", strokeWidth: 0.6, pointerLength: 7, pointerWidth: 7, opacity: 0.7, listening: false }));
+                g.add(new Konva.Arrow({ points: [from, arrowY, to, arrowY], stroke: "#0F172A", fill: "#0F172A", strokeWidth: 1.6, pointerLength: 8, pointerWidth: 8, opacity: 0.95, listening: false }));
               }
               // const panelHit = new Konva.Rect({ x: cursor, y: innerY, width: pw, height: innerH, fill: "rgba(255,255,255,0.001)", stroke: isSelected && selectedSlidingPanelIndex === idx ? COLORS.selected : "rgb(30, 30, 30)", strokeWidth: 7, listening: true });
               const isPanelSelected = isSelected && selectedSlidingPanelIndex === idx;
@@ -3599,22 +3634,52 @@ export function WindowDoorConfigurator({
               panelHit.on("mousedown touchstart", (event) => { event.cancelBubble = true; setSelectedDivider(null); setSelectedId(leaf.id); setSelectedSlidingPanelIndex(idx); });
               g.add(panelHit);
               if (isPanelSelected) {
-                const margin = 4;
-                g.add(new Konva.Rect({
+                const margin = 10;
+                selectedPanelRect = {
                   x: cursor + margin,
                   y: innerY + margin,
-                  width: safeDrawSize(pw - margin * 2),
+                  w: safeDrawSize(pw - margin * 2),
                   height: safeDrawSize(innerH - margin * 2),
-                  stroke: COLORS.selected,
-                  strokeWidth: 2,
-                  dash: [6, 4],
-                  listening: false,
-                }));
+                };
               }
             }
             if (meshCount > 0 && idx >= fractions.length - meshCount) drawMeshTriangle(g, cursor + pw - 6, innerY + innerH - 6, Math.min(pw, innerH) * 0.5);
             cursor += pw;
           });
+          // Draw split line meeting stiles AFTER all panels are rendered so no semi-transparent glass overlaps them
+          let splitCursor = innerX;
+          const splitWidth = Math.round(splitLineWidth);
+          for (let i = 0; i < fractions.length - 1; i++) {
+            splitCursor += innerW * fractions[i];
+            const sx = Math.round(splitCursor - splitWidth / 2);
+            g.add(
+              new Konva.Rect({
+                x: sx,
+                y: innerY,
+                width: splitWidth,
+                height: innerH,
+                fill: selectedFrameColor,
+                stroke: selectedFrameColor,
+                strokeWidth: 0,
+                listening: false,
+              })
+            );
+          }
+          const panelSelection = selectedPanelRect as { x: number; y: number; w: number; height: number } | null;
+          if (panelSelection) {
+            g.add(
+              new Konva.Rect({
+                x: panelSelection.x,
+                y: panelSelection.y,
+                width: panelSelection.w,
+                height: panelSelection.height,
+                stroke: selectedFrameColor,
+                strokeWidth: 2.5,
+                dash: [8, 5],
+                listening: false,
+              })
+            );
+          }
         };
         const isOneOf = (...variants: string[]) => variants.includes(desc);
         if (leaf.systemType === "Louvers" || desc === "Louvers") { fixedPanel(innerX, innerY, innerW, innerH, selectedFrameColor); drawLouversGuide(g, innerX, innerY, innerW, innerH); return true; }
@@ -3696,12 +3761,12 @@ export function WindowDoorConfigurator({
         }
         const arrowY = y + h / 2;
         if (leaf.sash === "double") {
-          g.add(new Konva.Arrow({ points: [x + w * 0.5, arrowY, x + w * 0.28, arrowY], stroke: "#111827", fill: "#111827", strokeWidth: 0.6, pointerLength: 8, pointerWidth: 8, opacity: 0.7, listening: false }));
-          g.add(new Konva.Arrow({ points: [x + w * 0.5, arrowY, x + w * 0.72, arrowY], stroke: "#111827", fill: "#111827", strokeWidth: 0.6, pointerLength: 8, pointerWidth: 8, opacity: 0.7, listening: false }));
+          g.add(new Konva.Arrow({ points: [x + w * 0.5, arrowY, x + w * 0.28, arrowY], stroke: "#0F172A", fill: "#0F172A", strokeWidth: 1.6, pointerLength: 8, pointerWidth: 8, opacity: 0.95, listening: false }));
+          g.add(new Konva.Arrow({ points: [x + w * 0.5, arrowY, x + w * 0.72, arrowY], stroke: "#0F172A", fill: "#0F172A", strokeWidth: 1.6, pointerLength: 8, pointerWidth: 8, opacity: 0.95, listening: false }));
         } else {
           const from = leaf.sash === "left" ? x + w * 0.72 : x + w * 0.28;
           const to = leaf.sash === "left" ? x + w * 0.28 : x + w * 0.72;
-          g.add(new Konva.Arrow({ points: [from, arrowY, to, arrowY], stroke: "#111827", fill: "#111827", strokeWidth: 0.6, pointerLength: 8, pointerWidth: 8, opacity: 0.7, listening: false }));
+          g.add(new Konva.Arrow({ points: [from, arrowY, to, arrowY], stroke: "#0F172A", fill: "#0F172A", strokeWidth: 1.6, pointerLength: 8, pointerWidth: 8, opacity: 0.95, listening: false }));
         }
       }
       if (isSliding) g.add(new Konva.Line({ points: [x + inset, y + h - (PROFILE.outer / 2 + 6), x + w - inset, y + h - (PROFILE.outer / 2 + 6)], stroke: "#475569", strokeWidth: 0.6, opacity: 0.8, listening: false }));
@@ -3804,7 +3869,7 @@ export function WindowDoorConfigurator({
             y: selectionY,
             width: selectionWidth,
             height: selectionHeight,
-            stroke: COLORS.selected,
+            stroke: selectedFrameColor,
            
             strokeWidth: 2,
             dash: [8, 5],
