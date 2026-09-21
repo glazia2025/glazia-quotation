@@ -3,6 +3,7 @@
 import { CalendarDays, ArrowUpRight, ClipboardList, WalletCards, Loader2 } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PaysharpAccountCard } from "@/components/PaysharpCheckout";
 import { StatCard } from "@/components/shared/stat-card";
 import { useTenantQuery } from "@/hooks/use-tenant-query";
 import { getDashboardMetrics } from "@/services/dashboard-service";
@@ -446,6 +447,7 @@ const metrics = getDashboardMetrics(total, totalValue,confirmedOrders,conversion
     <div className="grid gap-4 lg:grid-cols-4">
         {metrics?.map((metric) => <StatCard key={metric.id} {...metric} />)}
       </div>
+      <PaysharpAccountCard />
       <div className="grid gap-6">
         <Card>
   <CardHeader className="flex flex-row items-center justify-between">

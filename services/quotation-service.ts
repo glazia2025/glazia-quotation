@@ -476,6 +476,7 @@ export type BomOrderRow = {
 };
 
 export type BomOrderData = {
+  quotationId: string;
   project: string;
   projectCode: string;
   customer: {
