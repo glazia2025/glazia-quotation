@@ -111,13 +111,14 @@ export function LegacyBomOrderPlacement({
         }),
       });
 
-      const result = (await response.json().catch(() => ({}))) as { message?: string; order?: { _id: string; paymentProvider: string } };
+      const result = (await response.json().catch(() => ({}))) as { message?: string; order?: { _id: string; paymentProvider: string }; checkout?: { _id: string } };
       if (!response.ok) {
         throw new Error(result.message || "Failed to place the order.");
       }
 
-      if (result.order?.paymentProvider === 'PAYSHARP') {
-        onResumePaysharp(result.order._id);
+      const pendingPayment = result.checkout ?? (result.order?.paymentProvider === 'PAYSHARP' ? result.order : null);
+      if (pendingPayment) {
+        onResumePaysharp(pendingPayment._id);
         return;
       }
       setStep("success");

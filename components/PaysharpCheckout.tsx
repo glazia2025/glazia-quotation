@@ -7,10 +7,10 @@ import { MAIN_API_BASE_URL as API_BASE_URL } from "@/services/api";
 import { getAuthToken } from "@/utils/auth-cookie";
 
 type CheckoutRequest = { products?: { productId: string; quantity: number }[]; quotationId?: string; sourceOrderId?: string };
-type Order = { paymentProvider: "PAYSHARP" | "LEGACY"; _id: string; orderId: number; totalPaise: number; paidPaise: number; paymentStatus: string; upiAllowed: boolean };
+type Order = { paymentProvider: "PAYSHARP" | "LEGACY"; _id: string; orderId?: number; totalPaise: number; paidPaise: number; paymentStatus: string; upiAllowed: boolean };
 type Account = { virtualAccountNo: string; ifscCode: string; beneficiaryName: string; bankName: string; creditPaise: number };
 type Receipt = { reference: string; method: string; utr: string; receivedAt: string; amountPaise: number };
-type PaymentData = { upiStatus?: string; order: Order; account: Account | null; receipts: Receipt[] };
+type PaymentData = { upiStatus?: string; order: Order | null; checkout?: Order; account: Account | null; receipts: Receipt[] };
 export type PaymentQuote = { paymentProvider: "PAYSHARP" | "LEGACY"; totalPaise: number; subtotalPaise: number; taxPaise: number; products: { productId: string; description: string; quantity: number; amount: number }[] };
 const money = (paise: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(paise / 100);
 async function request<T>(path: string, body?: unknown): Promise<T> {
@@ -37,7 +37,7 @@ export function PaysharpPaymentStatus({ orderId, onPaid }: { orderId: string; on
       const next = await request<PaymentData>(`/api/payments/orders/${orderId}${verify ? "/refresh" : ""}`, verify ? {} : undefined);
       setData(next); setError("");
       if (["FAILED", "EXPIRED"].includes(next.upiStatus || "")) setQr(null);
-      if (next.order.paymentStatus === "PAID" && !paidNotified.current) { paidNotified.current = true; onPaidRef.current?.(); }
+      if (next.order?.paymentStatus === "PAID" && !paidNotified.current) { paidNotified.current = true; onPaidRef.current?.(); }
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to load payment status"); }
   }, [orderId]);
   useEffect(() => {
@@ -53,17 +53,18 @@ export function PaysharpPaymentStatus({ orderId, onPaid }: { orderId: string; on
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to generate QR"); }
     finally { setBusy(false); }
   };
-  const paid = data?.order.paymentStatus === "PAID";
+  const payment = data?.order ?? data?.checkout;
+  const paid = data?.order?.paymentStatus === "PAID";
   return <section className="space-y-4 text-slate-900" aria-live="polite">
     {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-700">{error}</p>}
-    {!data ? <button type="button" onClick={() => void refresh()} className="rounded border px-4 py-2">Load payment details</button> : <>
+    {!data || !payment ? <button type="button" onClick={() => void refresh()} className="rounded border px-4 py-2">Load payment details</button> : <>
       <div className="rounded-xl bg-slate-50 p-4">
-        <h3 className="font-semibold">Order #{data.order.orderId} — {paid ? "Payment received" : data.order.paidPaise ? "Partially paid" : "Awaiting payment"}</h3>
-        <p>Total: {money(data.order.totalPaise)} · Received: {money(data.order.paidPaise)}</p>
-        <p className="font-semibold">Outstanding: {money(Math.max(0, data.order.totalPaise - data.order.paidPaise))}</p>
+        <h3 className="font-semibold">{data.order ? `Order #${data.order.orderId}` : "Checkout"} — {paid ? "Payment received — order placed" : payment.paidPaise ? "Partially paid" : "Awaiting payment"}</h3>
+        <p>Total: {money(payment.totalPaise)} · Received: {money(payment.paidPaise)}</p>
+        <p className="font-semibold">Outstanding: {money(Math.max(0, payment.totalPaise - payment.paidPaise))}</p>
       </div>
       {!paid && <>
-        {data.order.upiAllowed ? <div className="rounded-xl border p-4 space-y-3">
+        {payment.upiAllowed ? <div className="rounded-xl border p-4 space-y-3">
           <h3 className="font-semibold">Pay by UPI</h3>
           {["FAILED", "EXPIRED"].includes(data.upiStatus || "") && <p className="text-sm text-amber-700">The previous UPI request {data.upiStatus === "EXPIRED" ? "expired" : "failed"}. You can try again.</p>}
           <button type="button" disabled={busy} onClick={generateQr} className="rounded-lg bg-red-600 px-4 py-2 text-white disabled:opacity-50">{busy ? "Loading…" : "Pay using UPI"}</button>
@@ -71,9 +72,9 @@ export function PaysharpPaymentStatus({ orderId, onPaid }: { orderId: string; on
           {qr?.qrCode && <div><Image unoptimized src={qr.qrCode} alt="Scan with your UPI app to pay this order" width={240} height={240} /><p>QR amount: {money(qr.amountPaise)}. Pay using one method only.</p></div>}
         </div> : <p className="text-sm text-slate-600">UPI is unavailable for this order. Please contact Glazia to arrange payment.</p>}
         <button type="button" disabled={busy} onClick={async () => { setBusy(true); await refresh(true); setBusy(false); }} className="rounded-lg border px-4 py-2 disabled:opacity-50">Check payment status</button>
-        <a href={`https://glazia.in/account/orders/${orderId}`} className="block text-blue-700 underline">View this order in your account</a>
-        <p className="text-sm text-slate-500">Your order is saved. You can return to it to complete your UPI payment.</p>
+        <p className="text-sm text-slate-500">{data.checkout ? "Your order will be placed only after UPI payment is verified. Closing this screen keeps your cart and lets you resume payment." : "Complete payment for this existing order."}</p>
       </>}
+      {data.order && <a href={`https://glazia.in/account/orders/${data.order._id}`} className="block text-blue-700 underline">View this order in your account</a>}
       {!!data.account?.creditPaise && <p>Unapplied account credit: {money(data.account.creditPaise)}</p>}
       {data.receipts.map(receipt => <div key={receipt.reference} className="rounded border p-3 text-sm">
         <p>{receipt.method === "UPI" ? "UPI" : "Bank transfer"}: {money(receipt.amountPaise)}</p>
@@ -88,6 +89,7 @@ export function PaysharpCheckout({ checkout, onDone, onCancel, renderLegacy }: {
   const [quote, setQuote] = useState<PaymentQuote | null>(null);
   const [orderId, setOrderId] = useState("");
   const [savedProvider, setSavedProvider] = useState("PAYSHARP");
+  const [paymentComplete, setPaymentComplete] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [key, setKey] = useState("");
@@ -113,8 +115,11 @@ export function PaysharpCheckout({ checkout, onDone, onCancel, renderLegacy }: {
     if (!quote || busy || !key) return;
     setBusy(true); setError("");
     try {
-      const result = await request<{ order: Order }>("/api/user/pi-generate", { ...checkout, checkoutKey: key, expectedTotalPaise: quote.totalPaise, paymentProvider: quote.paymentProvider });
-      setOrderId(result.order._id); setSavedProvider(result.order.paymentProvider);
+      const result = await request<{ order: Order | null; checkout?: Order }>("/api/user/pi-generate", { ...checkout, checkoutKey: key, expectedTotalPaise: quote.totalPaise, paymentProvider: quote.paymentProvider });
+      const target = result.order ?? result.checkout;
+      if (!target) throw new Error("Unable to start payment. Please retry.");
+      setOrderId(target._id); setSavedProvider(target.paymentProvider);
+      setPaymentComplete(result.order?.paymentStatus === "PAID" || result.order?.paymentProvider === "LEGACY");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to place order");
       try { setQuote(await request<PaymentQuote>("/api/payments/quote", checkout)); } catch { /* Keep the actionable creation error. */ }
@@ -135,19 +140,19 @@ export function PaysharpCheckout({ checkout, onDone, onCancel, renderLegacy }: {
   return <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Place BOM order">
     <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white">
     <div className="space-y-4 p-4 sm:p-6">
-    <h2 className="text-xl font-semibold">{orderId ? (savedProvider === "LEGACY" ? "Payment proof submitted" : "Complete your payment") : "Review and place order"}</h2>
+    <h2 className="text-xl font-semibold">{orderId ? (savedProvider === "LEGACY" ? "Payment proof submitted" : paymentComplete ? "Order placed" : "Complete your payment") : "Review and pay"}</h2>
     {error && <p role="alert" className="rounded bg-red-50 p-3 text-red-700">{error}</p>}
-    {orderId ? <>{savedProvider === "PAYSHARP" ? <PaysharpPaymentStatus orderId={orderId} /> : <p>Your order is saved. Glazia will review your payment proof.</p>}<button type="button" className="rounded-lg bg-slate-900 px-4 py-2 text-white" onClick={() => { sessionStorage.removeItem(storageKey); onDone(); }}>Done</button></> : <>
+    {orderId ? <>{savedProvider === "PAYSHARP" ? <PaysharpPaymentStatus orderId={orderId} onPaid={() => setPaymentComplete(true)} /> : <p>Your order is saved. Glazia will review your payment proof.</p>}{paymentComplete && <button type="button" className="rounded-lg bg-slate-900 px-4 py-2 text-white" onClick={finish}>Done</button>}</> : <>
       {!quote && !error && <p>Calculating current prices…</p>}
       {quote && <>
         <div className="max-h-64 overflow-auto rounded border"><table className="w-full text-left text-sm"><thead><tr><th className="p-2">Item</th><th>Qty</th><th>Amount</th></tr></thead><tbody>{quote.products.map((p, i) => <tr key={`${p.productId}-${i}`}><td className="p-2">{p.description || p.productId}</td><td>{p.quantity}</td><td>{money(Math.round(p.amount * 100))}</td></tr>)}</tbody></table></div>
         <p>Subtotal: {money(quote.subtotalPaise)} · GST: {money(quote.taxPaise)}</p>
         <p className="text-lg font-semibold">Total: {money(quote.totalPaise)}</p>
-        {quote.paymentProvider === "PAYSHARP" && <p className="text-sm">Pay by UPI. Payment is confirmed automatically after verification.</p>}
-        <button type="button" disabled={busy || !key} onClick={place} className="rounded-lg bg-red-600 px-4 py-2 text-white disabled:opacity-50">{busy ? "Saving order…" : quote.paymentProvider === "LEGACY" ? "Submit proof and place order" : "Place order and pay"}</button>
+        {quote.paymentProvider === "PAYSHARP" && <p className="text-sm">Pay by UPI. Your order is placed only after payment is verified.</p>}
+        <button type="button" disabled={busy || !key} onClick={place} className="rounded-lg bg-red-600 px-4 py-2 text-white disabled:opacity-50">{busy ? "Preparing payment…" : quote.paymentProvider === "LEGACY" ? "Submit proof and place order" : "Continue to UPI payment"}</button>
       </>}
     </>}
-    <button type="button" disabled={busy} onClick={onCancel} className="rounded-lg border px-4 py-2 ml-2">{orderId ? "Close" : "Cancel"}</button>
+    <button type="button" disabled={busy} onClick={paymentComplete ? finish : onCancel} className="rounded-lg border px-4 py-2 ml-2">{orderId ? "Close" : "Cancel"}</button>
   </div></div></div>;
 }
 
