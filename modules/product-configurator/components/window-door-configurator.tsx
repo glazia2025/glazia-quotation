@@ -365,14 +365,16 @@ const mapLeafNodes = (node: SectionNode, cb: (leaf: SectionNode) => void) => {
   node.children.forEach((child) => mapLeafNodes(child, cb));
 };
 
-const areAllDescriptionsFilled = (root: SectionNode) => {
-  let isValid = true;
+type RequiredField = "refCode" | "series" | "description";
+
+const findMissingSectionField = (root: SectionNode): { nodeId: string; field: RequiredField } | null => {
+  let missing: { nodeId: string; field: RequiredField } | null = null;
   mapLeafNodes(root, (leaf) => {
-    if (!leaf.description || leaf.description.trim() === "") {
-      isValid = false;
-    }
+    if (missing || !isCatalogSystem(leaf.systemType)) return;
+    if (!leaf.series?.trim()) missing = { nodeId: leaf.id, field: "series" };
+    else if (!leaf.description?.trim()) missing = { nodeId: leaf.id, field: "description" };
   });
-  return isValid;
+  return missing;
 };
 
 const buildSplitChildren = (
@@ -575,6 +577,8 @@ const normalizeStoredSectionNode = (value: unknown, fallbackSystemType: SystemTy
   };
 };
 
+const isFixedDescription = (description?: string) => /^(fix|fixed)$/i.test(description?.trim() ?? "");
+
 const calculateRateForItem = (
   next: {
     area: number;
@@ -628,7 +632,7 @@ const calculateRateForItem = (
       : 0;
   const glassRate = options?.glassSpecs.find((g) => g.name === next.glassSpec)?.rate ?? 0;
   const handleOpt = options?.handleOptions.find((h) => h.name === next.handleType);
-  const handleCount = desc?.defaultHandleCount ?? 0;
+  const handleCount = isFixedDescription(next.description) ? 0 : (desc?.defaultHandleCount ?? 0);
   const handleUnitRate = handleOpt?.colors.find((c) => c.name === next.handleColor)?.rate ?? 0;
   const handleRate = handleCount > 0 ? (handleCount * handleUnitRate) / (next.area || 1) : 0;
 
@@ -3000,8 +3004,49 @@ export function WindowDoorConfigurator({
     louversRates,
   ]);
 
+  const requiredFieldRefs = useRef<Partial<Record<RequiredField, HTMLLabelElement | null>>>({});
+  const [validationAttempt, setValidationAttempt] = useState(0);
+  const [validationTarget, setValidationTarget] = useState<{ nodeId: string; field: RequiredField } | null>(null);
+  const missingRequiredField = !meta.refCode.trim()
+    ? { nodeId: root.id, field: "refCode" as const }
+    : findMissingSectionField(root);
+  const validationStillMissing = validationTarget && (validationTarget.field === "refCode"
+    ? !meta.refCode.trim()
+    : !findNode(root, validationTarget.nodeId)?.[validationTarget.field]?.trim());
+  const requiredFieldProps = (field: RequiredField) => ({
+    ref: (element: HTMLLabelElement | null) => { requiredFieldRefs.current[field] = element; },
+    "data-configurator-invalid": Boolean(validationStillMissing && validationTarget?.field === field && validationTarget.nodeId === selectedNode.id),
+  });
+
+  useEffect(() => {
+    if (!validationTarget || !validationStillMissing) return;
+    const frame = requestAnimationFrame(() => {
+      const label = requiredFieldRefs.current[validationTarget.field];
+      if (!label) return;
+      label.scrollIntoView({ behavior: "smooth", block: "center" });
+      const control = label.querySelector<HTMLElement>("input, button, select");
+      control?.focus({ preventScroll: true });
+      control?.setAttribute("aria-invalid", "true");
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        label.animate([{ transform: "translateX(0)" }, { transform: "translateX(-5px)" }, { transform: "translateX(5px)" }, { transform: "translateX(-3px)" }, { transform: "translateX(0)" }], { duration: 300 });
+      }
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      requiredFieldRefs.current[validationTarget.field]?.querySelector("[aria-invalid]")?.removeAttribute("aria-invalid");
+    };
+  }, [validationAttempt, validationTarget, validationStillMissing, selectedNode.id]);
+
   const handleSaveItem = async () => {
     if (isSaving || isRetryingLookups) return;
+    if (missingRequiredField) {
+      setSelectedDivider(null);
+      setSelectedSlidingPanelIndex(null);
+      setSelectedId(missingRequiredField.nodeId);
+      setValidationTarget(missingRequiredField);
+      setValidationAttempt((attempt) => attempt + 1);
+      return;
+    }
     if (saveLookupsFailed) {
       setIsRetryingLookups(true);
       setLookupLoadError("");
@@ -3023,9 +3068,7 @@ export function WindowDoorConfigurator({
     }
     if (!saveLookupsReady && !saveLookupsFailed) return;
     setLookupLoadError("");
-    if (!areAllDescriptionsFilled(root)) { alert("Please fill description for all windows"); return; }
     const trimmedRefCode = meta.refCode.trim();
-    if (!trimmedRefCode) { alert("Ref Code is required."); return; }
     const firstLeaf = leafNodesForMode[0];
 
     const itemFrameCutAngle = isCombinationDraft
@@ -3143,7 +3186,7 @@ export function WindowDoorConfigurator({
           getDescriptions(systemType, series),
           getOptions(systemType),
         ]);
-        const calc = calculateRateForItem({ area: itemArea, description, systemType: leaf.systemType, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: leafMeta.handleType, handleColor: leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "", hasExhaustFan: Boolean(leaf.hasExhaustFan) }, descriptions, options, systemsQuery.data?.systems, louversRates);
+        const calc = calculateRateForItem({ area: itemArea, description, systemType: leaf.systemType, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: isFixedDescription(description) ? "" : leafMeta.handleType, handleColor: isFixedDescription(description) ? "" : leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "", hasExhaustFan: Boolean(leaf.hasExhaustFan) }, descriptions, options, systemsQuery.data?.systems, louversRates);
         const resolvedRate = manualCombinationRateForSave
           ? calculatedRatesForSave[leaf.id] ?? 0
           : manualChildRates[leaf.id] ?? calculatedRatesForSave[leaf.id] ?? autoChildRates[leaf.id] ?? 0;
@@ -3170,8 +3213,8 @@ export function WindowDoorConfigurator({
           colorFinish: meta.colorFinish,
           glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "",
           hardwareOpeningType: leaf.systemType === "Casement" ? leafMeta.hardwareOpeningType : "",
-          handleType: leafMeta.handleType,
-          handleColor: leafMeta.handleColor,
+          handleType: isFixedDescription(description) ? "" : leafMeta.handleType,
+          handleColor: isFixedDescription(description) ? "" : leafMeta.handleColor,
           handleCount: calc.handleCount,
           meshPresent: leaf.mesh === "Yes",
           meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "",
@@ -3257,8 +3300,8 @@ export function WindowDoorConfigurator({
         colorFinish: meta.colorFinish,
         glassSpec: isCombination ? "" : singleLeaf?.glass === "Yes" ? (meta.glassSpec || "Yes") : "",
         hardwareOpeningType: isCombination ? "" : singleLeaf?.systemType === "Casement" ? meta.hardwareOpeningType : "",
-        handleType: isCombination ? "" : meta.handleType,
-        handleColor: isCombination ? "" : meta.handleColor,
+        handleType: isCombination || isFixedDescription(singleLeaf?.description) ? "" : meta.handleType,
+        handleColor: isCombination || isFixedDescription(singleLeaf?.description) ? "" : meta.handleColor,
         handleCount,
         meshPresent: isCombination ? undefined : singleLeaf?.mesh === "Yes",
         meshType: isCombination ? "" : anyMesh ? meta.meshType : "",
@@ -4251,7 +4294,7 @@ export function WindowDoorConfigurator({
                 {!selectedDivider && (
                   isCombinationParentSelection ? (
                     <>
-                      <label className="text-xs text-gray-600">Ref Code<input value={meta.refCode} onChange={(e) => setMeta((prev) => ({ ...prev, refCode: e.target.value }))} required className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                      <label {...requiredFieldProps("refCode")} className="text-xs text-gray-600">Ref Code<input value={meta.refCode} onChange={(e) => setMeta((prev) => ({ ...prev, refCode: e.target.value }))} required className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                       <label className="text-xs text-gray-600">Location<input value={meta.location} placeholder="Living Room" onChange={(e) => setMeta((prev) => ({ ...prev, location: e.target.value }))} className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                       <label className="text-xs text-gray-600">System<input value={COMBINATION_SYSTEM} readOnly className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                       {archControls}
@@ -4280,7 +4323,7 @@ export function WindowDoorConfigurator({
                         <label className="text-xs text-gray-600">Ref Code (Auto)<input value={childAutoRef || "Will be generated from parent ref"} readOnly className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                       ) : (
                         <>
-                          <label className="text-xs text-gray-600">Ref Code<input value={meta.refCode} onChange={(e) => setMeta((prev) => ({ ...prev, refCode: e.target.value }))} required className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
+                          <label {...requiredFieldProps("refCode")} className="text-xs text-gray-600">Ref Code<input value={meta.refCode} onChange={(e) => setMeta((prev) => ({ ...prev, refCode: e.target.value }))} required className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                           <label className="text-xs text-gray-600">Location<input value={meta.location} placeholder="Living Room" onChange={(e) => setMeta((prev) => ({ ...prev, location: e.target.value }))} className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-normal text-gray-700 shadow-sm transition-all focus:outline-none focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" /></label>
                         </>
                       )}
@@ -4361,8 +4404,8 @@ export function WindowDoorConfigurator({
                           </label>
                           {selectedSystemSupportsCatalog && (
                             <>
-                              <label className="text-xs text-gray-600">Section Series<CustomSelect value={selectedNode.series} onChange={(e) => { const nextSeries = e.target.value; updateSelectedLeaves((target) => { target.series = nextSeries; target.description = ""; target.hasExhaustFan = false; target.panelFractions = undefined; target.panelMeshCount = undefined; target.panelSashes = undefined; }); }} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{seriesOptions.map((series) => <option key={series} value={series}>{series}</option>)}</CustomSelect></label>
-                              <label className="text-xs text-gray-600">Section Description<CustomSelect value={selectedNode.description} onChange={(e) => { const nextDescription = e.target.value; updateSelectedSectionMeta({ meshType: "" }); if (selectedNode.systemType === "Sliding") { updateSelectedNode((target) => { target.description = nextDescription; target.hasExhaustFan = false; target.split = "none"; target.children = undefined; const pattern = parsePanelPattern(nextDescription); if (pattern) { target.panelFractions = pattern.fractions; target.panelMeshCount = pattern.meshCount; target.mesh = (pattern.meshCount ?? 0) > 0 ? "Yes" : "No"; target.panelSashes = target.panelSashes && target.panelSashes.length === pattern.fractions.length ? target.panelSashes : buildDefaultSlidingPanelSashes(pattern.fractions.length); } else { target.panelFractions = undefined; target.panelMeshCount = undefined; target.mesh = "No"; target.panelSashes = undefined; } }); return; } updateSelectedLeaves((target) => { target.description = nextDescription; target.hasExhaustFan = false; const pattern = parsePanelPattern(nextDescription); if (pattern) { target.panelFractions = pattern.fractions; target.panelMeshCount = pattern.meshCount; target.panelSashes = undefined; } else { target.panelFractions = undefined; target.panelMeshCount = undefined; target.panelSashes = undefined; } }); }} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{descriptionOptions.map((desc: Description) => <option key={desc.name} value={desc.name}>{desc.name}</option>)}</CustomSelect></label>
+                              <label {...requiredFieldProps("series")} className="text-xs text-gray-600">Section Series<CustomSelect value={selectedNode.series} onChange={(e) => { const nextSeries = e.target.value; updateSelectedLeaves((target) => { target.series = nextSeries; target.description = ""; target.hasExhaustFan = false; target.panelFractions = undefined; target.panelMeshCount = undefined; target.panelSashes = undefined; }); }} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{seriesOptions.map((series) => <option key={series} value={series}>{series}</option>)}</CustomSelect></label>
+                              <label {...requiredFieldProps("description")} className="text-xs text-gray-600">Section Description<CustomSelect value={selectedNode.description} onChange={(e) => { const nextDescription = e.target.value; updateSelectedSectionMeta({ meshType: "", ...(isFixedDescription(nextDescription) ? { handleType: "", handleColor: "" } : {}) }); if (selectedNode.systemType === "Sliding") { updateSelectedNode((target) => { target.description = nextDescription; target.hasExhaustFan = false; target.split = "none"; target.children = undefined; const pattern = parsePanelPattern(nextDescription); if (pattern) { target.panelFractions = pattern.fractions; target.panelMeshCount = pattern.meshCount; target.mesh = (pattern.meshCount ?? 0) > 0 ? "Yes" : "No"; target.panelSashes = target.panelSashes && target.panelSashes.length === pattern.fractions.length ? target.panelSashes : buildDefaultSlidingPanelSashes(pattern.fractions.length); } else { target.panelFractions = undefined; target.panelMeshCount = undefined; target.mesh = "No"; target.panelSashes = undefined; } }); return; } updateSelectedLeaves((target) => { target.description = nextDescription; target.hasExhaustFan = false; const pattern = parsePanelPattern(nextDescription); if (pattern) { target.panelFractions = pattern.fractions; target.panelMeshCount = pattern.meshCount; target.panelSashes = undefined; } else { target.panelFractions = undefined; target.panelMeshCount = undefined; target.panelSashes = undefined; } }); }} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{descriptionOptions.map((desc: Description) => <option key={desc.name} value={desc.name}>{desc.name}</option>)}</CustomSelect></label>
 
                               <div className="flex items-start">
   {/* Section Glass */}
@@ -4562,8 +4605,8 @@ export function WindowDoorConfigurator({
     </div>
   )}
 
-                              <label className="text-xs text-gray-600">Handle Type<CustomSelect value={selectedSectionMeta.handleType} onChange={(e) => updateSelectedSectionMeta({ handleType: e.target.value, handleColor: DEFAULT_HANDLE_COLOR })} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.handleOptions.map((opt: HandleOption) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</CustomSelect></label>
-                              <label className="text-xs text-gray-600">Handle Color<CustomSelect value={selectedSectionMeta.handleColor} onChange={(e) => updateSelectedSectionMeta({ handleColor: e.target.value })} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{(metaHandleOption?.colors ?? []).map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</CustomSelect></label>
+                              <label className="text-xs text-gray-600">Handle Type<CustomSelect disabled={isFixedDescription(selectedNode.description)} value={isFixedDescription(selectedNode.description) ? "" : selectedSectionMeta.handleType} onChange={(e) => updateSelectedSectionMeta({ handleType: e.target.value, handleColor: DEFAULT_HANDLE_COLOR })} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{metaOptionsQuery.data?.handleOptions.map((opt: HandleOption) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</CustomSelect></label>
+                              <label className="text-xs text-gray-600">Handle Color<CustomSelect disabled={isFixedDescription(selectedNode.description)} value={isFixedDescription(selectedNode.description) ? "" : selectedSectionMeta.handleColor} onChange={(e) => updateSelectedSectionMeta({ handleColor: e.target.value })} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]"><option value="">Select</option>{(metaHandleOption?.colors ?? []).map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</CustomSelect></label>
                             </>
                           )}
                           {selectedSystemSupportsCatalog && (!isCombinationChildSelection || selectedNode.systemType === "Sliding") && <label className="text-xs text-gray-600">Mesh Type<CustomSelect value={selectedSectionMeta.meshType} onChange={(e) => updateSelectedSectionMeta({ meshType: e.target.value })} className="mt-1 w-full focus:border-[#124657] focus:ring-2 focus:ring-[#124657]" disabled={selectedNode.mesh !== "Yes"}><option value="">Select</option>{metaOptionsQuery.data?.meshTypes.map((opt: OptionWithRate) => <option key={opt.name} value={opt.name}>{opt.name}</option>)}</CustomSelect></label>}
@@ -4738,7 +4781,8 @@ export function WindowDoorConfigurator({
               <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"><span className="text-gray-500">Height</span><span className="font-semibold">{heightMm} mm</span></div>
               <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"><span className="text-gray-500">Area</span><span className="font-semibold">{effectiveAreaSqft} sq ft</span></div>
               <div className="pt-2">
-                <button type="button" onClick={handleSaveItem} disabled={isSaving || isRetryingLookups || (!saveLookupsReady && !saveLookupsFailed)} className="w-full rounded-lg bg-[#0f172A] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0f172A] disabled:opacity-60">{isSaving ? "Saving..." : isRetryingLookups ? "Retrying..." : saveLookupsFailed ? "Retry loading options" : !saveLookupsReady ? "Loading options..." : editingItem ? "Update Item" : "Add to Quotation"}</button>
+                {validationStillMissing && <p role="alert" className="text-xs text-red-600">{validationTarget?.field === "refCode" ? "Ref Code" : validationTarget?.field === "series" ? "Section Series" : "Section Description"} is required. Complete the highlighted field before saving.</p>}
+                <button type="button" onClick={handleSaveItem} aria-disabled={Boolean(missingRequiredField)} title={missingRequiredField ? "Complete required details before saving" : undefined} disabled={isSaving || isRetryingLookups || (!saveLookupsReady && !saveLookupsFailed)} className="w-full rounded-lg bg-[#0f172A] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0f172A] disabled:opacity-60 aria-disabled:opacity-60">{isSaving ? "Saving..." : isRetryingLookups ? "Retrying..." : saveLookupsFailed ? "Retry loading options" : !saveLookupsReady ? "Loading options..." : editingItem ? "Update Item" : "Add to Quotation"}</button>
                 {lookupLoadError ? <p role="alert" className="mt-2 text-xs font-medium text-red-600">{lookupLoadError}</p> : null}
                 <button type="button" onClick={onClose} className="mt-2 w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
               </div>
@@ -4750,7 +4794,8 @@ export function WindowDoorConfigurator({
           <div className="pointer-events-none absolute bottom-4 right-4 z-30">
             <div className="pointer-events-auto flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
               <div>
-                <button type="button" onClick={handleSaveItem} disabled={isSaving || isRetryingLookups || (!saveLookupsReady && !saveLookupsFailed)} className="rounded-lg bg-[#124657] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b3642] disabled:opacity-60">{isSaving ? "Saving..." : isRetryingLookups ? "Retrying..." : saveLookupsFailed ? "Retry loading options" : !saveLookupsReady ? "Loading options..." : editingItem ? "Update Item" : "Add to Quotation"}</button>
+                {validationStillMissing && <p role="alert" className="text-xs text-red-600">{validationTarget?.field === "refCode" ? "Ref Code" : validationTarget?.field === "series" ? "Section Series" : "Section Description"} is required. Complete the highlighted field before saving.</p>}
+                <button type="button" onClick={handleSaveItem} aria-disabled={Boolean(missingRequiredField)} title={missingRequiredField ? "Complete required details before saving" : undefined} disabled={isSaving || isRetryingLookups || (!saveLookupsReady && !saveLookupsFailed)} className="rounded-lg bg-[#124657] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b3642] disabled:opacity-60 aria-disabled:opacity-60">{isSaving ? "Saving..." : isRetryingLookups ? "Retrying..." : saveLookupsFailed ? "Retry loading options" : !saveLookupsReady ? "Loading options..." : editingItem ? "Update Item" : "Add to Quotation"}</button>
                 {lookupLoadError ? <p role="alert" className="mt-1 max-w-[260px] text-xs font-medium text-red-600">{lookupLoadError}</p> : null}
               </div>
               <button type="button" onClick={onClose} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>

@@ -75,6 +75,7 @@ import { formatCurrency, formatNumber } from "@/utils/format";
 import { calculateQuotationPricing } from "@/utils/quotationPricing";
 import { getQuotationPdfDownloadName } from "@/utils/quotationPdf";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ITEMS_PER_PAGE, getItemPage, clampItemPage } from "@/modules/quotation/utils/item-pagination";
 import { loadGlobalConfig } from "../../../utils/globalConfig";
 import { fetchDescriptions, fetchOptions } from "@/lib/quotations/api";
 import {
@@ -395,7 +396,7 @@ isDuplicatingItems: boolean;
 
         <div className="flex items-center gap-1.5 border-t border-slate-100 pt-2.5" onPointerDown={(event) => event.stopPropagation()}>
           <Button size="sm" asChild className="h-8 flex-1 bg-slate-900 text-xs font-semibold text-white shadow-sm hover:bg-slate-800 rounded-lg">
-            <Link href={`${configuratorBasePath}/${itemIdentity}`}>Edit</Link>
+            <Link href={`${configuratorBasePath}/${itemIdentity}?itemPage=${getItemPage(index)}`}>Edit</Link>
           </Button>
           <Button size="sm" variant="outline" onClick={handleDuplicate} title="Duplicate item" className="h-8 gap-1 px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-lg border-slate-200">
             <Copy className="h-3.5 w-3.5 text-slate-500" />
@@ -968,9 +969,15 @@ isDuplicatingItems: boolean;
 }) {
   const quotation = useQuotationBuilderStore((state) => state.quotation);
   const items = quotation.items;
-  const ITEMS_PER_PAGE = 9;
-  const [currentPage, setCurrentPage] = useState(1);
-  const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
+  const itemSearchParams = useSearchParams();
+  const currentPage = clampItemPage(itemSearchParams.get("itemPage"), items.length);
+  const totalPages = Math.max(1, Math.ceil(items.length / ITEMS_PER_PAGE));
+  const setCurrentPage = (update: (page: number) => number) => {
+    const params = new URLSearchParams(itemSearchParams.toString());
+    params.set("itemPage", String(clampItemPage(update(currentPage), items.length)));
+    params.set("tab", "item");
+    router.replace(`${quotationBasePath}?${params}`, { scroll: false });
+  };
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
@@ -2303,7 +2310,7 @@ const handleDuplicateProgress = useCallback(
   const persistedBaselineKeyRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const handleAddItem = () => {
-    router.push(`${configuratorBasePath}/${crypto.randomUUID()}?mode=create`);
+    router.push(`${configuratorBasePath}/${crypto.randomUUID()}?mode=create&itemPage=${searchParams.get("itemPage") || "1"}`);
   };
 
   useEffect(() => {

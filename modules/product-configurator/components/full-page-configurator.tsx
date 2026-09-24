@@ -11,6 +11,7 @@ import {
   saveQuotationMetadata,
   updateQuotationItem,
 } from "@/services/quotation-service";
+import { clampItemPage, getItemPage } from "@/modules/quotation/utils/item-pagination";
 import type { Quotation, QuotationItem } from "@/types/quotation";
 
 const getQuotationItemIdentity = (item: QuotationItem | null | undefined) => {
@@ -36,6 +37,7 @@ export function FullPageConfigurator({
   const queryClient = useQueryClient();
   const initialSyncKeyRef = useRef("");
   const returnPathRef = useRef(returnPath);
+  const savedItemPageRef = useRef<number | null>(null);
   const quotationId = useQuotationBuilderStore((state) => state.quotation._id ?? state.quotation.quotationDetails.id);
   const quotation = useQuotationBuilderStore((state) => state.quotation);
   const setQuotation = useQuotationBuilderStore((state) => state.setQuotation);
@@ -71,6 +73,12 @@ export function FullPageConfigurator({
   const handleClose = () => {
     const target = new URL(returnPathRef.current, window.location.origin);
     target.searchParams.set("tab", "item");
+    const currentItems = useQuotationBuilderStore.getState().quotation.items;
+    const editedIndex = currentItems.findIndex((entry) => getQuotationItemIdentity(entry) === itemId);
+    const returnPage = savedItemPageRef.current ?? (searchParams.has("itemPage")
+      ? clampItemPage(searchParams.get("itemPage"), currentItems.length)
+      : getItemPage(editedIndex));
+    target.searchParams.set("itemPage", String(returnPage));
     router.push(`${target.pathname}${target.search}`);
   };
 
@@ -116,6 +124,10 @@ export function FullPageConfigurator({
       ? await updateQuotationItem(quotationId, serverItemId, nextItem)
       : await createQuotationItem(quotationId, nextItem);
     replaceItem(localItemId, savedItem);
+    const savedItems = useQuotationBuilderStore.getState().quotation.items;
+    savedItemPageRef.current = isCreateItem || !exists
+      ? getItemPage(savedItems.length - 1)
+      : clampItemPage(searchParams.get("itemPage") || getItemPage(savedItems.findIndex((entry) => getQuotationItemIdentity(entry) === getQuotationItemIdentity(savedItem))), savedItems.length);
     markSaved();
     if (quotationQueryKey) {
       queryClient.setQueryData(
