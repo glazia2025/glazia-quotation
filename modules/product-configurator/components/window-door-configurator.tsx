@@ -179,6 +179,29 @@ const buildPreset = (systemType: SystemType, glass: YesNo, mesh: YesNo): Section
 
 const cloneTree = (node: SectionNode): SectionNode => JSON.parse(JSON.stringify(node)) as SectionNode;
 
+const resizeSectionSubtree = (
+  node: SectionNode,
+  nextBounds: Pick<SectionNode, "x" | "y" | "w" | "h">
+) => {
+  const previousBounds = { x: node.x, y: node.y, w: node.w, h: node.h };
+  const scaleX = previousBounds.w > 0 ? nextBounds.w / previousBounds.w : 1;
+  const scaleY = previousBounds.h > 0 ? nextBounds.h / previousBounds.h : 1;
+
+  node.children?.forEach((child) => {
+    resizeSectionSubtree(child, {
+      x: nextBounds.x + (child.x - previousBounds.x) * scaleX,
+      y: nextBounds.y + (child.y - previousBounds.y) * scaleY,
+      w: child.w * scaleX,
+      h: child.h * scaleY,
+    });
+  });
+
+  node.x = nextBounds.x;
+  node.y = nextBounds.y;
+  node.w = nextBounds.w;
+  node.h = nextBounds.h;
+};
+
 const findParent = (node: SectionNode, id: string): SectionNode | null => {
   for (const child of node.children ?? []) {
     if (child.id === id) return node;
@@ -665,16 +688,18 @@ export function WindowDoorConfigurator({
     let cursor = 0;
     parent.children.forEach((child, idx) => {
       if (direction === "vertical") {
-        child.x = parent.x + cursor / widthMm;
-        child.w = sizesMm[idx] / widthMm;
-        child.y = parent.y;
-        child.h = parent.h;
+        const nextX = parent.x + cursor / widthMm;
+        const nextW = idx === sizesMm.length - 1
+          ? parent.x + parent.w - nextX
+          : sizesMm[idx] / widthMm;
+        resizeSectionSubtree(child, { x: nextX, y: parent.y, w: nextW, h: parent.h });
         cursor += sizesMm[idx];
       } else {
-        child.y = parent.y + cursor / heightMm;
-        child.h = sizesMm[idx] / heightMm;
-        child.x = parent.x;
-        child.w = parent.w;
+        const nextY = parent.y + cursor / heightMm;
+        const nextH = idx === sizesMm.length - 1
+          ? parent.y + parent.h - nextY
+          : sizesMm[idx] / heightMm;
+        resizeSectionSubtree(child, { x: parent.x, y: nextY, w: parent.w, h: nextH });
         cursor += sizesMm[idx];
       }
     });

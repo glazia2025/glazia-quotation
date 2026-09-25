@@ -1886,6 +1886,7 @@ export function renderWindowDoorDesign({
       },
     });
     layer.add(contentGroup);
+    const sectionBadgeOverlay = new Konva.Group({ listening: false });
     const dividerBadges: {
       id: string; x: number; y: number;
       // leftSystem: SystemType;rightSystem: SystemType;
@@ -1945,7 +1946,6 @@ export function renderWindowDoorDesign({
       }
       parent.children.forEach(drawParentDividers);
     };
-    drawParentDividers(root);
     const leaves: SectionNode[] = [];
     mapLeafNodes(root, (leaf) => leaves.push(leaf));
     leaves.sort((a, b) => (a.y - b.y) || (a.x - b.x));
@@ -2214,13 +2214,15 @@ export function renderWindowDoorDesign({
         const badgeY = isExhaust
           ? innerBounds.y + innerBounds.h - badgeRadius - 3
           : y + h / 2;
-        g.add(new Konva.Circle({ x: badgeX, y: badgeY, radius: badgeRadius, fill: "#FFFFFF", stroke: "#334155", strokeWidth: 1.5, shadowColor: "rgba(0,0,0,0.06)", shadowBlur: 2, listening: false }));
-        g.add(new Konva.Text({ x: badgeX - badgeRadius, y: badgeY - 6, width: badgeRadius * 2, align: "center", text: String(idx + 1), fontSize: isExhaust ? 10 : 12, fontStyle: "bold", fill: "#0F172A", listening: false }));
+        sectionBadgeOverlay.add(new Konva.Circle({ x: badgeX, y: badgeY, radius: badgeRadius, fill: "#FFFFFF", stroke: "#334155", strokeWidth: 1.5, shadowColor: "rgba(0,0,0,0.06)", shadowBlur: 2, listening: false }));
+        sectionBadgeOverlay.add(new Konva.Text({ x: badgeX - badgeRadius, y: badgeY - 6, width: badgeRadius * 2, align: "center", text: String(idx + 1), fontSize: isExhaust ? 10 : 12, fontStyle: "bold", fill: "#0F172A", listening: false }));
       }
       contentGroup.add(g);
     });
 
 
+    // Draw frame dividers above the panels so glass cannot cover them.
+    drawParentDividers(root);
     const dividerBadgeOverlay = new Konva.Group();
     dividerBadges.forEach(({ id, x, y, leftId, rightId }) => {
       const badgeGroup = new Konva.Group({
@@ -2306,6 +2308,8 @@ export function renderWindowDoorDesign({
     // Keep join controls above section-selection strokes so M/C stays visible
     // and clickable when either adjoining section is selected.
     layer.add(dividerBadgeOverlay);
+    // Section numbers remain visible above panels, dividers and selections.
+    layer.add(sectionBadgeOverlay);
 
     const splitDepths: Array<{ split: SplitDirection; depth: number }> = [];
     const collectSplitDepths = (node: SectionNode, depth = 0) => {
