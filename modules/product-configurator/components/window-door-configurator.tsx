@@ -306,6 +306,29 @@ const buildPreset = (systemType: SystemType, glass: YesNo, mesh: YesNo): Section
 
 const cloneTree = (node: SectionNode): SectionNode => JSON.parse(JSON.stringify(node)) as SectionNode;
 
+const resizeSectionSubtree = (
+  node: SectionNode,
+  nextBounds: Pick<SectionNode, "x" | "y" | "w" | "h">
+) => {
+  const previousBounds = { x: node.x, y: node.y, w: node.w, h: node.h };
+  const scaleX = previousBounds.w > 0 ? nextBounds.w / previousBounds.w : 1;
+  const scaleY = previousBounds.h > 0 ? nextBounds.h / previousBounds.h : 1;
+
+  node.children?.forEach((child) => {
+    resizeSectionSubtree(child, {
+      x: nextBounds.x + (child.x - previousBounds.x) * scaleX,
+      y: nextBounds.y + (child.y - previousBounds.y) * scaleY,
+      w: child.w * scaleX,
+      h: child.h * scaleY,
+    });
+  });
+
+  node.x = nextBounds.x;
+  node.y = nextBounds.y;
+  node.w = nextBounds.w;
+  node.h = nextBounds.h;
+};
+
 const findParent = (node: SectionNode, id: string): SectionNode | null => {
   for (const child of node.children ?? []) {
     if (child.id === id) return node;
@@ -2393,16 +2416,18 @@ export function WindowDoorConfigurator({
     let cursor = 0;
     parent.children.forEach((child, idx) => {
       if (direction === "vertical") {
-        child.x = parent.x + cursor / widthMm;
-        child.w = sizesMm[idx] / widthMm;
-        child.y = parent.y;
-        child.h = parent.h;
+        const nextX = parent.x + cursor / widthMm;
+        const nextW = idx === sizesMm.length - 1
+          ? parent.x + parent.w - nextX
+          : sizesMm[idx] / widthMm;
+        resizeSectionSubtree(child, { x: nextX, y: parent.y, w: nextW, h: parent.h });
         cursor += sizesMm[idx];
       } else {
-        child.y = parent.y + cursor / heightMm;
-        child.h = sizesMm[idx] / heightMm;
-        child.x = parent.x;
-        child.w = parent.w;
+        const nextY = parent.y + cursor / heightMm;
+        const nextH = idx === sizesMm.length - 1
+          ? parent.y + parent.h - nextY
+          : sizesMm[idx] / heightMm;
+        resizeSectionSubtree(child, { x: parent.x, y: nextY, w: parent.w, h: nextH });
         cursor += sizesMm[idx];
       }
     });
@@ -3504,6 +3529,11 @@ export function WindowDoorConfigurator({
       },
     });
     layer.add(contentGroup);
+    const sectionBadgeOverlay = new Konva.Group({
+  listening: false,
+});
+
+// layer.add(sectionBadgeOverlay);
     const dividerBadges: {
       id: string; x: number; y: number;
       // leftSystem: SystemType;rightSystem: SystemType;
@@ -3563,8 +3593,8 @@ export function WindowDoorConfigurator({
       }
       parent.children.forEach(drawParentDividers);
     };
-    drawParentDividers(root);
-    dividerBadgesRef.current = dividerBadges;
+    // drawParentDividers(root);
+    // dividerBadgesRef.current = dividerBadges;
     const leaves: SectionNode[] = [];
     mapLeafNodes(root, (leaf) => leaves.push(leaf));
     leaves.sort((a, b) => (a.y - b.y) || (a.x - b.x));
@@ -3573,6 +3603,21 @@ export function WindowDoorConfigurator({
       const y = fy + leaf.y * fh;
       const w = safeDrawSize(leaf.w * fw);
       const h = safeDrawSize(leaf.h * fh);
+      console.log(
+  "LEAF GEOMETRY",
+  idx,
+  leaf.id,
+  {
+    x: leaf.x,
+    y: leaf.y,
+    w: leaf.w,
+    h: leaf.h,
+    px: x,
+    py: y,
+    pw: w,
+    ph: h,
+  }
+);
       const isSelected = leaf.id === selectedForRender;
       const g = new Konva.Group({ listening: true, draggable: false });
       const leafHit = new Konva.Rect({ x, y, width: w, height: h, fill: "rgba(255,255,255,0.01)", listening: true });
@@ -3833,12 +3878,39 @@ export function WindowDoorConfigurator({
         const badgeY = isExhaust
           ? innerBounds.y + innerBounds.h - badgeRadius - 3
           : y + h / 2;
-        g.add(new Konva.Circle({ x: badgeX, y: badgeY, radius: badgeRadius, fill: "#FFFFFF", stroke: "#334155", strokeWidth: 1.5, shadowColor: "rgba(0,0,0,0.06)", shadowBlur: 2, listening: false }));
-        g.add(new Konva.Text({ x: badgeX - badgeRadius, y: badgeY - 6, width: badgeRadius * 2, align: "center", text: String(idx + 1), fontSize: isExhaust ? 10 : 12, fontStyle: "bold", fill: "#0F172A", listening: false }));
+        // g.add(new Konva.Circle({ x: badgeX, y: badgeY, radius: badgeRadius, fill: "#FFFFFF", stroke: "#334155", strokeWidth: 1.5, shadowColor: "rgba(0,0,0,0.06)", shadowBlur: 2, listening: false }));
+        // g.add(new Konva.Text({ x: badgeX - badgeRadius, y: badgeY - 6, width: badgeRadius * 2, align: "center", text: String(idx + 1), fontSize: isExhaust ? 10 : 12, fontStyle: "bold", fill: "#0F172A", listening: false }));
+        sectionBadgeOverlay.add(new Konva.Circle({
+  x: badgeX,
+  y: badgeY,
+  radius: badgeRadius,
+  fill: "#FFFFFF",
+  stroke: "#334155",
+  strokeWidth: 1.5,
+  shadowColor: "rgba(0,0,0,0.06)",
+  shadowBlur: 2,
+  listening: false
+}));
+
+sectionBadgeOverlay.add(new Konva.Text({
+  x: badgeX - badgeRadius,
+  y: badgeY - 6,
+  width: badgeRadius * 2,
+  align: "center",
+  text: String(idx + 1),
+  fontSize: isExhaust ? 10 : 12,
+  fontStyle: "bold",
+  fill: "#0F172A",
+  listening: false
+}));
       }
       contentGroup.add(g);
     });
+    dividerBadges.length = 0;
+drawParentDividers(root);
+contentGroup.add(sectionBadgeOverlay);
 
+dividerBadgesRef.current = dividerBadges;
 
     const dividerBadgeOverlay = new Konva.Group();
     dividerBadges.forEach(({ id, x, y, leftId, rightId }) => {
@@ -3925,6 +3997,7 @@ export function WindowDoorConfigurator({
     // Keep join controls above section-selection strokes so M/C stays visible
     // and clickable when either adjoining section is selected.
     layer.add(dividerBadgeOverlay);
+    layer.add(sectionBadgeOverlay);
 
     const splitDepths: Array<{ split: SplitDirection; depth: number }> = [];
     const collectSplitDepths = (node: SectionNode, depth = 0) => {
