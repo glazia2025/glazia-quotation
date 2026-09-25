@@ -1146,7 +1146,7 @@ isDuplicatingItems: boolean;
                 }
               >
                 <div className="rounded-2xl bg-slate-950 p-4 text-white shadow-lg">
-                  <div className="mb-4">
+                  <div className="mb-4 text-center">
                     <h3 className="text-xs font-bold uppercase tracking-[0.12em] text-white">
                       Quotation Summary
                     </h3>
@@ -1157,8 +1157,8 @@ isDuplicatingItems: boolean;
                     {/* Quantity */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-slate-400">◈</span>
-                        <span className="text-xs uppercase tracking-wide text-slate-400">
+                        <span className="text-white">◈</span>
+                        <span className="text-xs uppercase tracking-wide font-[500] text-white">
                           Quantity
                         </span>
                       </div>
@@ -1171,15 +1171,15 @@ isDuplicatingItems: boolean;
                     {/* Area */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-slate-400">↗</span>
-                        <span className="text-xs uppercase tracking-wide text-slate-400">
+                        <span className="text-white">↗</span>
+                        <span className="text-xs uppercase font-[500] tracking-wide text-white">
                           Area
                         </span>
                       </div>
 
                       <span className="text-sm font-semibold">
                         {formatNumber(totalArea)}{" "}
-                        <span className="text-[9px] font-normal text-slate-500">
+                        <span className="text-[11px] font-normal text-white">
                           sqft
                         </span>
                       </span>
@@ -1188,8 +1188,8 @@ isDuplicatingItems: boolean;
                     {/* Total Cost */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-slate-400">▣</span>
-                        <span className="text-xs uppercase tracking-wide text-slate-400">
+                        <span className="text-white">▣</span>
+                        <span className="text-xs uppercase font-[500] tracking-wide text-white">
                           Total Cost
                         </span>
                       </div>
@@ -1232,10 +1232,10 @@ isDuplicatingItems: boolean;
 
                     <div className="space-y-2 border-t border-slate-800 pt-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-white">
                           Additional Costs
                         </span>
-                        <span className="text-[9px] text-slate-500">Show in PDF</span>
+                        <span className="text-[11px] text-white">Show in PDF</span>
                       </div>
 
                       {([
@@ -1245,7 +1245,7 @@ isDuplicatingItems: boolean;
                         ["Discount", "discountPercent", "showDiscount", "%"],
                       ] as const).map(([label, valueKey, toggleKey, suffix]) => (
                         <div key={valueKey} className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
-                          <label className="truncate text-[10px] text-slate-400" title={label}>
+                          <label className="truncate text-[12px] text-white" title={label}>
                             {label}
                           </label>
                           <div className="flex items-center rounded-md border border-slate-700 bg-slate-900">
@@ -1257,10 +1257,10 @@ isDuplicatingItems: boolean;
                               onChange={(event) =>
                                 onAdditionalCostChange(valueKey, Math.max(0, Number(event.target.value) || 0))
                               }
-                              className="h-7 w-16 bg-transparent px-2 text-right text-[10px] text-white outline-none"
+                              className="h-7 w-16 bg-transparent px-2 text-right font-[500] text-[12px] text-white outline-none"
                               aria-label={label}
                             />
-                            <span className="pr-2 text-[9px] text-slate-500">{suffix}</span>
+                            <span className="pr-2 text-[11px] text-white">{suffix}</span>
                           </div>
                           <input
                             type="checkbox"
@@ -1272,7 +1272,7 @@ isDuplicatingItems: boolean;
                         </div>
                       ))}
 
-                      <p className="text-[9px] leading-3 text-slate-500">
+                      <p className="text-[11px] leading-3 text-slate-500">
                         Hidden values are absorbed into item rates; Customer Price stays unchanged.
                       </p>
                     </div>
@@ -1280,9 +1280,9 @@ isDuplicatingItems: boolean;
                     {/* Selling Price */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-slate-400">◇</span>
+                        <span className="text-white">◇</span>
                         <div>
-                          <div className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                          <div className="text-xs uppercase tracking-[0.14em] text-white">
                             Selling Price
                           </div>
                         </div>
@@ -1300,7 +1300,7 @@ isDuplicatingItems: boolean;
 
                         <div>
                           <div className="text-xs uppercase tracking-[0.14em] text-red-500">
-                            Customer Price
+                            Selling Price + 18% GST
                           </div>
                         </div>
                       </div>
@@ -1315,8 +1315,8 @@ isDuplicatingItems: boolean;
                       <div className="flex items-center justify-center gap-2">
                         <span className="text-slate-400">▣</span>
 
-                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                          Rate:
+                        <span className="text-xs font-semibold uppercase tracking-wide text-white">
+                          Rate (incl. GST):
                         </span>
 
                         <span className="text-xs font-semibold text-slate-300">
@@ -3461,8 +3461,11 @@ const handleDuplicateProgress = useCallback(
     link.click();
     document.body.removeChild(link);
   };
+
+  console.log(quotation, '<><><><><>')
+
   const pageTitle = isCreateMode ? "Create Quotation" : "Edit Quotation";
-  const pageDescription = quotation.generatedId ? `#${quotation.generatedId}` : "";
+  const pageDescription = quotation.generatedId ? `#${quotation.generatedId} - ${quotation?.customerDetails?.name}` : "";
   const isSaveBlockingExports =
     metadataSaveStatus === "saving" ||
     itemMutationsInProgress > 0;
