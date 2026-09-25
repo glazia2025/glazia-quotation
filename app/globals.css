@@ -41,3 +41,10 @@ input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
 input[type=number] {
   -moz-appearance: textfield;
 }
+/* Keep the invalid control visible while its section is being completed. */
+[data-configurator-invalid="true"] input,
+[data-configurator-invalid="true"] button,
+[data-configurator-invalid="true"] select {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 1px #dc2626;
+}
