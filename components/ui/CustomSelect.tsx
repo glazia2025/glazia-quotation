@@ -73,7 +73,7 @@ export function CustomSelect({
       const maxRight = viewportLeft + viewportWidth - margin;
       const maxBottom = viewportTop + viewportHeight - margin;
       const maxWidth = Math.max(0, viewportWidth - margin * 2);
-      const width = Math.min(Math.max(rect.width, dropdown.scrollWidth + 2), maxWidth);
+      const width = Math.min(rect.width, maxWidth);
       const spaceBelow = Math.max(0, maxBottom - rect.bottom - gap);
       const spaceAbove = Math.max(0, rect.top - gap - minTop);
       const desiredHeight = Math.min(dropdown.scrollHeight + 2, 240);
@@ -87,7 +87,7 @@ export function CustomSelect({
           upward ? rect.top - gap - Math.min(desiredHeight, maxHeight) : rect.bottom + gap,
           maxBottom - Math.min(desiredHeight, maxHeight)
         )),
-        minWidth: Math.min(rect.width, maxWidth),
+        width,
         maxWidth,
         maxHeight,
       });
