@@ -32,6 +32,15 @@
   }
 }
 
+
+input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+}
 /* Keep the invalid control visible while its section is being completed. */
 [data-configurator-invalid="true"] input,
 [data-configurator-invalid="true"] button,
