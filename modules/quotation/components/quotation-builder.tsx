@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { AnimatePresence, motion } from "framer-motion";
 import { CustomSelect } from "@/components/ui/CustomSelect";
+import { TruncatedText } from "@/components/ui/truncated-text";
 
 import {
   Copy,
@@ -221,6 +222,9 @@ isDuplicatingItems: boolean;
   const locationLabel = item.location || item.projectLocation || "Not specified";
   const refCodeLabel = item.refCode || (item.id ? item.id.slice(0, 8).toUpperCase() : "Item");
   const hasSections = (item.subItems?.length ?? 0) > 1 || item.systemType === "Combination";
+  const glassLabel = hasSections
+    ? Array.from(new Set((item.subItems ?? []).map((section) => section.glassSpec?.trim()).filter(Boolean))).join(", ") || "Not specified"
+    : item.glassSpec || item.glassType || "Not specified";
   const itemIdentity = getQuotationItemIdentity(item);
 
   const handleDelete = () => {
@@ -375,13 +379,25 @@ isDuplicatingItems: boolean;
             </div>
           </div>
 
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
-              SYSTEM
-            </p>
-            <p className="mt-0.5 text-xs font-semibold text-slate-900">
-              {systemLabel}
-            </p>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: "System", value: systemLabel },
+              { label: "Quantity", value: item.quantity ?? 1 },
+              { label: "Glass", value: glassLabel },
+            ].map(({ label, value }) => (
+              <div key={label} className="min-w-0">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                  {label}
+                </p>
+                {label === "Glass" ? (
+                  <TruncatedText text={String(value)} className="mt-0.5 text-xs font-semibold text-slate-900" />
+                ) : (
+                  <p className="mt-0.5 break-words text-xs font-semibold text-slate-900">
+                    {value}
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
         </div>
 
