@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Check } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
@@ -18,7 +19,8 @@ export function CustomSelect({
   disabled
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [openUpward, setOpenUpward] = useState(false);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -41,7 +43,8 @@ export function CustomSelect({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node) &&
+          !dropdownRef.current?.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
@@ -49,25 +52,67 @@ export function CustomSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+
+    const updatePosition = () => {
+      const trigger = containerRef.current;
+      const dropdown = dropdownRef.current;
+      if (!trigger || !dropdown) return;
+
+      const rect = trigger.getBoundingClientRect();
+      const margin = 8;
+      const gap = 4;
+      const viewport = window.visualViewport;
+      const viewportLeft = viewport?.offsetLeft ?? 0;
+      const viewportTop = viewport?.offsetTop ?? 0;
+      const viewportWidth = viewport?.width ?? window.innerWidth;
+      const viewportHeight = viewport?.height ?? window.innerHeight;
+      const minLeft = viewportLeft + margin;
+      const minTop = viewportTop + margin;
+      const maxRight = viewportLeft + viewportWidth - margin;
+      const maxBottom = viewportTop + viewportHeight - margin;
+      const maxWidth = Math.max(0, viewportWidth - margin * 2);
+      const width = Math.min(Math.max(rect.width, dropdown.scrollWidth + 2), maxWidth);
+      const spaceBelow = Math.max(0, maxBottom - rect.bottom - gap);
+      const spaceAbove = Math.max(0, rect.top - gap - minTop);
+      const desiredHeight = Math.min(dropdown.scrollHeight + 2, 240);
+      const upward = spaceBelow < desiredHeight && spaceAbove > spaceBelow;
+      const maxHeight = Math.min(240, upward ? spaceAbove : spaceBelow);
+
+      setDropdownStyle({
+        position: 'fixed',
+        left: Math.max(minLeft, Math.min(rect.left, maxRight - width)),
+        top: Math.max(minTop, Math.min(
+          upward ? rect.top - gap - Math.min(desiredHeight, maxHeight) : rect.bottom + gap,
+          maxBottom - Math.min(desiredHeight, maxHeight)
+        )),
+        minWidth: Math.min(rect.width, maxWidth),
+        maxWidth,
+        maxHeight,
+      });
+    };
+
+    updatePosition();
+    const observer = new ResizeObserver(updatePosition);
+    if (containerRef.current) observer.observe(containerRef.current);
+    if (dropdownRef.current) observer.observe(dropdownRef.current);
+    window.addEventListener('resize', updatePosition);
+    document.addEventListener('scroll', updatePosition, true);
+    window.visualViewport?.addEventListener('resize', updatePosition);
+    window.visualViewport?.addEventListener('scroll', updatePosition);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updatePosition);
+      document.removeEventListener('scroll', updatePosition, true);
+      window.visualViewport?.removeEventListener('resize', updatePosition);
+      window.visualViewport?.removeEventListener('scroll', updatePosition);
+    };
+  }, [isOpen, children]);
+
   const handleToggle = () => {
-  if (disabled) return;
-
-  if (!isOpen) {
-    const rect = containerRef.current?.getBoundingClientRect();
-
-    if (rect) {
-      const dropdownHeight = Math.min(dropdownOptions.length * 40 + 8, 240);
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
-
-      setOpenUpward(
-        spaceBelow < dropdownHeight && spaceAbove > spaceBelow
-      );
-    }
-  }
-
-  setIsOpen((prev) => !prev);
-};
+    if (!disabled) setIsOpen((prev) => !prev);
+  };
 
   const handleSelect = (optionValue: string) => {
     if (onChange) {
@@ -94,17 +139,12 @@ export function CustomSelect({
         <ChevronDown className={cn("ml-2 h-4 w-4 text-gray-500 transition-transform duration-200 shrink-0", isOpen && "rotate-180")} />
       </button>
 
-      {isOpen && (
-        // <div className="absolute z-50 mt-1 min-w-full w-max whitespace-nowrap max-h-60 overflow-auto rounded-xl border border-gray-100 bg-white p-1 shadow-lg outline-none animate-in fade-in zoom-in-95">
+      {isOpen && createPortal(
         <div
-  className={cn(
-    "absolute z-50 min-w-full w-max whitespace-nowrap max-h-60 overflow-auto rounded-xl border border-gray-100 bg-white p-1 shadow-lg outline-none animate-in fade-in zoom-in-95",
-    openUpward
-      ? "bottom-full mb-1"
-      : "top-full mt-1"
-  )}
->
-          
+          ref={dropdownRef}
+          style={dropdownStyle}
+          className="fixed z-[1000] w-max overflow-y-auto overflow-x-hidden whitespace-normal rounded-xl border border-gray-100 bg-white p-1 shadow-lg outline-none"
+        >
         {dropdownOptions.map((option, index) => (
             <div
               key={index}
@@ -123,7 +163,7 @@ export function CustomSelect({
                 String(value) === String(option.value) && "bg-slate-100 text-slate-900 font-normal"
               )}
             >
-              <span>{option.label}</span>
+              <span className="min-w-0 [overflow-wrap:anywhere]">{option.label}</span>
               {String(value) === String(option.value) && (
                 <span className="absolute right-3 flex items-center justify-center text-slate-700">
                   <Check className="h-4 w-4" />
@@ -131,7 +171,8 @@ export function CustomSelect({
               )}
             </div>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
