@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { calculateQuotationTotals } from "@/modules/quotation/utils/calculations";
 import { createDefaultItem, createEmptyQuotation } from "@/modules/quotation/utils/factory";
 import type { Quotation, QuotationItem } from "@/types/quotation";
-import { generateDuplicatePreview } from "@/modules/quotation/utils/duplicate-preview";
+import { prepareDuplicateDesign } from "@/modules/quotation/utils/duplicate-preview";
 
 const getQuotationItemIdentity = (item: QuotationItem | null | undefined) => {
   if (!item) return "";
@@ -39,67 +39,43 @@ const recalculateAmount = (item: { area?: number | string; rate?: number | strin
   return Number((safeArea * safeRate * safeQuantity).toFixed(2));
 };
 
-// const duplicateQuotationItem = (item: QuotationItem, refCode: string): QuotationItem => {
 const duplicateQuotationItem = (
   item: QuotationItem,
   refCode: string,
   dimensions?: {
-    parent: {
-      width: string;
-      height: string;
-    };
-    sections: {
-      width: string;
-      height: string;
-    }[];
+    parent: { width: string; height: string };
+    sections: { width: string; height: string }[];
   }
 ): QuotationItem => {
-  const { _id: _itemBackendId, ...itemWithoutBackendId } = item as QuotationItem & { _id?: string };
-
-   const duplicate = cloneNested(itemWithoutBackendId);
-
-if (dimensions) {
-  duplicate.width = Number(dimensions.parent.width);
-  duplicate.height = Number(dimensions.parent.height);
-  duplicate.area = recalculateArea(duplicate.width, duplicate.height);
-}
-
+  const { _id: _itemBackendId, ...itemWithoutBackendId } = item;
+  const duplicate = cloneNested(itemWithoutBackendId);
+  if (dimensions) {
+    duplicate.width = Number(dimensions.parent.width);
+    duplicate.height = Number(dimensions.parent.height);
+    duplicate.area = recalculateArea(duplicate.width, duplicate.height);
+  }
 
   const nextDuplicate: QuotationItem = {
-    // ...cloneNested(itemWithoutBackendId),
     ...duplicate,
     id: crypto.randomUUID(),
     refCode,
-    // subItems: item.subItems?.map((subItem, index) => {
-    //   const { _id: _subItemBackendId, ...subItemWithoutBackendId } = subItem as typeof subItem & { _id?: string };
-
-    //   return {
-    //     ...cloneNested(subItemWithoutBackendId),
-    //     id: crypto.randomUUID(),
-    //     refCode: `${refCode}-${indexToAlphaLower(index)}`,
-    //   };
-    // }),
     subItems: item.subItems?.map((subItem, index) => {
-  const { _id: _subItemBackendId, ...subItemWithoutBackendId } =
-    subItem as typeof subItem & { _id?: string };
-
-  const duplicateSubItem = cloneNested(subItemWithoutBackendId);
-
-  if (dimensions?.sections[index]) {
-    duplicateSubItem.width = Number(dimensions.sections[index].width);
-    duplicateSubItem.height = Number(dimensions.sections[index].height);
-    duplicateSubItem.area = recalculateArea(duplicateSubItem.width, duplicateSubItem.height);
-  }
-
-  return {
-    ...duplicateSubItem,
-    id: crypto.randomUUID(),
-    refCode: `${refCode}-${indexToAlphaLower(index)}`,
+      const { _id: _subItemBackendId, ...subItemWithoutBackendId } = subItem;
+      const duplicateSubItem = cloneNested(subItemWithoutBackendId);
+      if (dimensions?.sections[index]) {
+        duplicateSubItem.width = Number(dimensions.sections[index].width);
+        duplicateSubItem.height = Number(dimensions.sections[index].height);
+        duplicateSubItem.area = recalculateArea(duplicateSubItem.width, duplicateSubItem.height);
+      }
+      return {
+        ...duplicateSubItem,
+        id: crypto.randomUUID(),
+        refCode: `${refCode}-${indexToAlphaLower(index)}`,
+        refImage: "",
+      };
+    }),
   };
-}),
-  };
-  nextDuplicate.refImage = generateDuplicatePreview(nextDuplicate);
-  nextDuplicate.subItems = nextDuplicate.subItems?.map(subItem => ({ ...subItem, refImage: "" }));
+  prepareDuplicateDesign(item, nextDuplicate);
   return nextDuplicate;
 };
 
