@@ -1400,7 +1400,7 @@ export function WindowDoorConfigurator({
         setChildRateCalculations(calculated.details);
         setMeta((prev) => ({ ...prev, rate: calculated.rate }));
         setSingleRateCalculation(calculated.aggregate);
-      } else if (isCombinationDraft && (Number(meta.rate) || 0) <= 0) {
+      } else if (isCombinationDraft) {
         const calculated = await calculateCombinationRate();
         Object.assign(calculatedRatesForSave, calculated.rates);
         Object.assign(calculatedDetailsForSave, calculated.details);
