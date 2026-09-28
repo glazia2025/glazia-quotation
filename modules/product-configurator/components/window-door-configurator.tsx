@@ -1465,7 +1465,7 @@ export function WindowDoorConfigurator({
           getDescriptions(systemType, series),
           getOptions(systemType),
         ]);
-        const calc = calculateRateForItem({ area: itemArea, description, systemType: leaf.systemType, colorFinish: leafMeta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: isFixedDescription(description) ? "" : leafMeta.handleType, handleColor: isFixedDescription(description) ? "" : leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "", hasExhaustFan: Boolean(leaf.hasExhaustFan) }, descriptions, options, systemsQuery.data?.systems, louversRates);
+        const calc = calculateRateForItem({ area: itemArea, description, systemType: leaf.systemType, colorFinish: leafMeta.colorFinish || meta.colorFinish, glassSpec: leaf.glass === "Yes" ? (leafMeta.glassSpec || "Yes") : "", handleType: isFixedDescription(description) ? "" : leafMeta.handleType, handleColor: isFixedDescription(description) ? "" : leafMeta.handleColor, meshPresent: leaf.mesh, meshType: leaf.mesh === "Yes" ? leafMeta.meshType : "", hasExhaustFan: Boolean(leaf.hasExhaustFan) }, descriptions, options, systemsQuery.data?.systems, louversRates);
         const resolvedRate = manualCombinationRateForSave
           ? calculatedRatesForSave[leaf.id] ?? 0
           : manualChildRates[leaf.id] ?? calculatedRatesForSave[leaf.id] ?? autoChildRates[leaf.id] ?? 0;
