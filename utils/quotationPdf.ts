@@ -32,10 +32,12 @@ type PdfGlobalConfig = {
   paymentInfo?: string;
   terms?: string;
   additionalCosts?: {
+    fabrication?: number;
     installation?: number;
     transport?: number;
     loadingUnloading?: number;
     discountPercent?: number;
+    showFabrication?: boolean;
     showInstallation?: boolean;
     showTransport?: boolean;
     showLoadingUnloading?: boolean;
@@ -80,10 +82,12 @@ const defaultPdfGlobalConfig: PdfGlobalConfig = {
   paymentInfo: "",
   terms: "",
   additionalCosts: {
+    fabrication: 0,
     installation: 0,
     transport: 0,
     loadingUnloading: 0,
     discountPercent: 0,
+    showFabrication: true,
     showInstallation: true,
     showTransport: true,
     showLoadingUnloading: true,

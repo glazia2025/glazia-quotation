@@ -264,10 +264,12 @@ export function toBackendQuotation(quotation: Quotation) {
       prerequisites: quotation.globalConfig?.prerequisites || "",
       paymentInfo: quotation.globalConfig?.paymentInfo || "",
       additionalCosts: {
+        fabrication: Number(quotation.globalConfig?.additionalCosts?.fabrication) || 0,
         installation: Number(quotation.globalConfig?.additionalCosts?.installation) || 0,
         transport: Number(quotation.globalConfig?.additionalCosts?.transport) || 0,
         loadingUnloading: Number(quotation.globalConfig?.additionalCosts?.loadingUnloading) || 0,
         discountPercent: Number(quotation.globalConfig?.additionalCosts?.discountPercent) || 0,
+        showFabrication: quotation.globalConfig?.additionalCosts?.showFabrication ?? true,
         showInstallation: quotation.globalConfig?.additionalCosts?.showInstallation ?? true,
         showTransport: quotation.globalConfig?.additionalCosts?.showTransport ?? true,
         showLoadingUnloading: quotation.globalConfig?.additionalCosts?.showLoadingUnloading ?? true,
