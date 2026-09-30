@@ -1495,6 +1495,28 @@ export default function QuotationSettingsPage() {
 
                     <div className="space-y-4">
                       <div>
+  <label className="block text-xs font-medium text-gray-600 mb-2">
+    Fabrication (₹/sqft)
+  </label>
+
+  <div className="relative">
+    <input
+      type="number"
+      value={config?.additionalCosts?.fabrication ?? 0}
+      onChange={(e) =>
+        setConfig((prev: any) => ({
+          ...prev,
+          additionalCosts: {
+            ...prev.additionalCosts,
+            fabrication: Number(e.target.value) || 0,
+          },
+        }))
+      }
+      className="w-full rounded-lg border border-gray-200 px-3 py-2.5 pr-16 text-sm text-gray-700 outline-none transition focus:border-[#0F172A] focus:ring-1 focus:ring-[#0F172A]"
+    />
+  </div>
+</div>
+                      <div>
                         <label className="block text-xs font-medium text-gray-600 mb-2">
                           Installation (₹/sqft)
                         </label>

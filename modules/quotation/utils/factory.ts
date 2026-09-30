@@ -76,10 +76,16 @@ export function createEmptyQuotation(partial?: Partial<Quotation>): Quotation {
       prerequisites: "",
       paymentInfo: "",
       additionalCosts: {
+        fabrication: 0,
         installation: 0,
         transport: 0,
         loadingUnloading: 0,
-        discountPercent: 0
+        discountPercent: 0,
+        showFabrication: true,
+        showInstallation: true,
+        showTransport: true,
+        showLoadingUnloading: true,
+        showDiscount: true
       }
     },
     generatedId: partial?.generatedId ?? "",

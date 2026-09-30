@@ -281,6 +281,13 @@ export function extractBackendQuotation(payload: unknown): BackendQuotationRecor
                   typeof (source.globalConfig as Record<string, unknown>).additionalCosts === "object" &&
                   (source.globalConfig as Record<string, unknown>).additionalCosts !== null
                     ? {
+                      fabrication: toNumberValue(
+  ((source.globalConfig as Record<string, unknown>).additionalCosts as Record<string, unknown>).fabrication
+),
+showFabrication: toBooleanValue(
+  ((source.globalConfig as Record<string, unknown>).additionalCosts as Record<string, unknown>).showFabrication,
+  true
+),
                         installation: toNumberValue(((source.globalConfig as Record<string, unknown>).additionalCosts as Record<string, unknown>).installation),
                         transport: toNumberValue(((source.globalConfig as Record<string, unknown>).additionalCosts as Record<string, unknown>).transport),
                         loadingUnloading: toNumberValue(((source.globalConfig as Record<string, unknown>).additionalCosts as Record<string, unknown>).loadingUnloading),

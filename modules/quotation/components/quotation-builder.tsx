@@ -135,10 +135,12 @@ const createBuilderGlobalConfig = () => ({
   website: "",
   terms: "",
   additionalCosts: {
+    fabrication: 0,
     installation: 0,
     transport: 0,
     loadingUnloading: 0,
     discountPercent: 0,
+    showFabrication: true,
     showInstallation: true,
     showTransport: true,
     showLoadingUnloading: true,
@@ -1262,6 +1264,7 @@ isDuplicatingItems: boolean;
                       </div>
 
                       {([
+                        ["Fabrication", "fabrication", "showFabrication", "₹/sqft"],
                         ["Installation", "installation", "showInstallation", "₹/sqft"],
                         ["Transport", "transport", "showTransport", "₹"],
                         ["Loading / Unloading", "loadingUnloading", "showLoadingUnloading", "₹"],
@@ -1885,6 +1888,52 @@ function GlobalConfigTab({ globalConfig,
                 </div>
 
                 <div className="space-y-5">
+                  {/* FABRICATION */}
+<div>
+  <div className="mb-2 flex items-center justify-between">
+    <label className="text-0.5xl font-medium text-slate-700">
+      Fabrication (₹/sqft)
+    </label>
+  </div>
+
+  <div className="flex items-center justify-between gap-3">
+    <label className="flex items-center gap-2 text-xs text-slate-500">
+      <input
+        type="checkbox"
+        checked={
+          globalConfig.additionalCosts.showFabrication ??
+          true
+        }
+        onChange={(e) =>
+          setGlobalConfig((p: any) => ({
+            ...p,
+            additionalCosts: {
+              ...p.additionalCosts,
+              showFabrication: e.target.checked,
+            },
+          }))
+        }
+        className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
+      />
+      Show in PDF
+    </label>
+
+    <input
+      type="number"
+      value={globalConfig.additionalCosts.fabrication}
+      onChange={(e) =>
+        setGlobalConfig((p: any) => ({
+          ...p,
+          additionalCosts: {
+            ...p.additionalCosts,
+            fabrication: Number(e.target.value) || 0,
+          },
+        }))
+      }
+      className="h-10 w-[138px] rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#0F172A]"
+    />
+  </div>
+</div>
 
                   <div>
                     <div className="mb-2 flex items-center justify-between">
@@ -2487,10 +2536,12 @@ const handleDuplicateProgress = useCallback(
         prerequisites: globalConfig.prerequisites || "",
         paymentInfo: globalConfig.paymentInfo || "",
         additionalCosts: {
+          fabrication: Number(globalConfig.additionalCosts.fabrication) || 0,
           installation: Number(globalConfig.additionalCosts.installation) || 0,
           transport: Number(globalConfig.additionalCosts.transport) || 0,
           loadingUnloading: Number(globalConfig.additionalCosts.loadingUnloading) || 0,
           discountPercent: Number(globalConfig.additionalCosts.discountPercent) || 0,
+          showFabrication: globalConfig.additionalCosts.showFabrication ?? true,
           showInstallation: globalConfig.additionalCosts.showInstallation ?? true,
           showTransport: globalConfig.additionalCosts.showTransport ?? true,
           showLoadingUnloading: globalConfig.additionalCosts.showLoadingUnloading ?? true,
@@ -3057,10 +3108,16 @@ const handleDuplicateProgress = useCallback(
       terms: savedGlobalConfig.terms || prev.terms,
       additionalCosts: {
         ...prev.additionalCosts,
+        fabrication:
+        savedGlobalConfig.additionalCosts?.fabrication ??
+        prev.additionalCosts.fabrication,
         installation: savedGlobalConfig.additionalCosts?.installation ?? prev.additionalCosts.installation,
         transport: savedGlobalConfig.additionalCosts?.transport ?? prev.additionalCosts.transport,
         loadingUnloading: savedGlobalConfig.additionalCosts?.loadingUnloading ?? prev.additionalCosts.loadingUnloading,
         discountPercent: savedGlobalConfig.additionalCosts?.discountPercent ?? prev.additionalCosts.discountPercent,
+        showFabrication:
+        savedGlobalConfig.additionalCosts?.showFabrication ??
+        prev.additionalCosts.showFabrication,
         showInstallation: savedGlobalConfig.additionalCosts?.showInstallation ?? prev.additionalCosts.showInstallation,
         showTransport: savedGlobalConfig.additionalCosts?.showTransport ?? prev.additionalCosts.showTransport,
         showLoadingUnloading: savedGlobalConfig.additionalCosts?.showLoadingUnloading ?? prev.additionalCosts.showLoadingUnloading,
@@ -3078,10 +3135,12 @@ const handleDuplicateProgress = useCallback(
       prerequisites: globalConfig.prerequisites || "",
       paymentInfo: globalConfig.paymentInfo || "",
       additionalCosts: {
+        fabrication: Number(globalConfig.additionalCosts.fabrication) || 0,
         installation: Number(globalConfig.additionalCosts.installation) || 0,
         transport: Number(globalConfig.additionalCosts.transport) || 0,
         loadingUnloading: Number(globalConfig.additionalCosts.loadingUnloading) || 0,
         discountPercent: Number(globalConfig.additionalCosts.discountPercent) || 0,
+        showFabrication: globalConfig.additionalCosts.showFabrication ?? true,
         showInstallation: globalConfig.additionalCosts.showInstallation ?? true,
         showTransport: globalConfig.additionalCosts.showTransport ?? true,
         showLoadingUnloading: globalConfig.additionalCosts.showLoadingUnloading ?? true,
@@ -3097,10 +3156,14 @@ const handleDuplicateProgress = useCallback(
       (currentGlobalConfig?.terms || "") === nextGlobalConfig.terms &&
       (currentGlobalConfig?.prerequisites || "") === nextGlobalConfig.prerequisites &&
       (currentGlobalConfig?.paymentInfo || "") === nextGlobalConfig.paymentInfo &&
+      (Number(currentGlobalConfig?.additionalCosts?.fabrication) || 0) ===
+       nextGlobalConfig.additionalCosts.fabrication &&
       (Number(currentGlobalConfig?.additionalCosts?.installation) || 0) === nextGlobalConfig.additionalCosts.installation &&
       (Number(currentGlobalConfig?.additionalCosts?.transport) || 0) === nextGlobalConfig.additionalCosts.transport &&
       (Number(currentGlobalConfig?.additionalCosts?.loadingUnloading) || 0) === nextGlobalConfig.additionalCosts.loadingUnloading &&
       (Number(currentGlobalConfig?.additionalCosts?.discountPercent) || 0) === nextGlobalConfig.additionalCosts.discountPercent &&
+      (currentGlobalConfig?.additionalCosts?.showFabrication ?? true) ===
+      nextGlobalConfig.additionalCosts.showFabrication &&
       (currentGlobalConfig?.additionalCosts?.showInstallation ?? true) === nextGlobalConfig.additionalCosts.showInstallation &&
       (currentGlobalConfig?.additionalCosts?.showTransport ?? true) === nextGlobalConfig.additionalCosts.showTransport &&
       (currentGlobalConfig?.additionalCosts?.showLoadingUnloading ?? true) === nextGlobalConfig.additionalCosts.showLoadingUnloading &&

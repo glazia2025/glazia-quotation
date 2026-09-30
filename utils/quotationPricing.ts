@@ -2,10 +2,12 @@ import { getArea, getItemGrandTotal } from "@/modules/quotation/utils/calculatio
 import type { QuotationItem, QuotationSubItem } from "@/types/quotation";
 
 type AdditionalCosts = {
+  fabrication?: number;
   installation?: number;
   transport?: number;
   loadingUnloading?: number;
   discountPercent?: number;
+  showFabrication?: boolean;
   showInstallation?: boolean;
   showTransport?: boolean;
   showLoadingUnloading?: boolean;
@@ -112,11 +114,13 @@ export function calculateQuotationPricing(items: PricingInputItem[], additionalC
   const totalQty = normalizedItems.reduce((sum, item) => sum + Math.max(1, toNumber(item.quantity) || 1), 0);
 
   const profitValue = (baseTotal * toNumber(profitPercentage)) / 100;
+  const fabricationCost = totalArea * toNumber(additionalCosts?.fabrication);
   const installationCost = totalArea * toNumber(additionalCosts?.installation);
   const transportCost = toNumber(additionalCosts?.transport);
   const loadingUnloadingCost = toNumber(additionalCosts?.loadingUnloading);
-  const allAdditionalCosts = installationCost + transportCost + loadingUnloadingCost;
+  const allAdditionalCosts = fabricationCost + installationCost + transportCost + loadingUnloadingCost;
   const hiddenAdditionalCosts =
+  (additionalCosts?.showFabrication === false ? fabricationCost : 0) +
     (additionalCosts?.showInstallation === false ? installationCost : 0) +
     (additionalCosts?.showTransport === false ? transportCost : 0) +
     (additionalCosts?.showLoadingUnloading === false ? loadingUnloadingCost : 0);
@@ -150,6 +154,7 @@ export function calculateQuotationPricing(items: PricingInputItem[], additionalC
     totalArea,
     totalQty,
     profitValue,
+    fabricationCost,
     installationCost,
     transportCost,
     loadingUnloadingCost,

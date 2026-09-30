@@ -177,10 +177,12 @@ export interface Quotation {
     prerequisites?: string;
     paymentInfo?: string;
     additionalCosts?: {
+      fabrication?: number;
       installation?: number;
       transport?: number;
       loadingUnloading?: number;
       discountPercent?: number;
+      showFabrication?: boolean;
       showInstallation?: boolean;
       showTransport?: boolean;
       showLoadingUnloading?: boolean;
