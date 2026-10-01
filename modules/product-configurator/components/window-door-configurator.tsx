@@ -1040,6 +1040,15 @@ export function WindowDoorConfigurator({
       return {
 
         clientId: leaf.id,
+        combinationContext: {
+          layout: root,
+          sectionId: leaf.id,
+          joins: dividerBadgesRef.current.map(badge => ({
+            p1: badge.leftId,
+            p2: badge.rightId,
+            type: resolveDividerValue(root, badge.leftId, badge.rightId, badgeValues[badge.id]) === "M" ? "Mullion" : "Coupler",
+          })),
+        },
         systemType: leaf.systemType,
         series,
         description,
