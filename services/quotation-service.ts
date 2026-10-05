@@ -24,6 +24,12 @@ export type RateCalculationItem = {
   itemType?: "join";
   joinType?: "Mullion" | "Coupler";
   joinOrientation?: "vertical" | "horizontal";
+  combinationContext?: {
+    layout: unknown;
+    joins: { p1: string; p2: string; type: string }[];
+    sectionId: string;
+    sectionIndex?: number;
+  };
 };
 
 export type RateCalculationResult = {
@@ -443,6 +449,16 @@ export async function getElevationPdfBlob(quotationId: string): Promise<Blob> {
 
 export async function getCuttingSchedulePdfBlob(quotationId: string): Promise<Blob> {
   const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/cutting-schedule`, {
+    headers: getAuthHeaders(),
+    withCredentials: true,
+    responseType: "blob"
+  });
+
+  return response.data;
+}
+
+export async function getOptimizationPdfBlob(quotationId: string): Promise<Blob> {
+  const response = await axios.get(`${QUOTATION_API_BASE_URL}/api/quotations/${quotationId}/optimization-report`, {
     headers: getAuthHeaders(),
     withCredentials: true,
     responseType: "blob"

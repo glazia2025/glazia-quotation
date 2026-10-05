@@ -53,6 +53,7 @@ import {
   deleteQuotationItem,
   getBomOrderData,
   getBomPdfBlob,
+  getOptimizationPdfBlob,
   getCuttingSchedulePdfBlob,
   getQuotationPdfBlob,
   prepareQuotationPdf,
@@ -2439,6 +2440,7 @@ const handleDuplicateProgress = useCallback(
   const [activeTab, setActiveTab] = useState<TabKey>(() => (isTabKey(requestedTab) ? requestedTab : "Details"));
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isGeneratingCuttingSchedule, setIsGeneratingCuttingSchedule] = useState(false);
+  const [isGeneratingOptimization, setIsGeneratingOptimization] = useState(false);
   const [isGeneratingBom, setIsGeneratingBom] = useState(false);
   const [isGeneratingGlassReport, setIsGeneratingGlassReport] = useState(false);
   const [isGeneratingElevation, setIsGeneratingElevation] = useState(false);
@@ -2446,7 +2448,7 @@ const handleDuplicateProgress = useCallback(
   const [isSharingQuotation, setIsSharingQuotation] = useState(false);
   const [isExcelExportModalOpen, setIsExcelExportModalOpen] = useState(false);
   const [activeExport, setActiveExport] = useState<
-    "cutting" | "bom" | "glass" | "quotation" | "elevation" | "excel" | null
+    "optimization" | "cutting" | "bom" | "glass" | "quotation" | "elevation" | "excel" | null
   >(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
@@ -2461,6 +2463,7 @@ const handleDuplicateProgress = useCallback(
   useEffect(() => {
     const isAnyGenerationInProgress =
       isGeneratingCuttingSchedule ||
+      isGeneratingOptimization ||
       isGeneratingBom ||
       isGeneratingGlassReport ||
       isGeneratingPdf ||
@@ -2472,6 +2475,7 @@ const handleDuplicateProgress = useCallback(
     }
   }, [
     isGeneratingCuttingSchedule,
+    isGeneratingOptimization,
     isGeneratingBom,
     isGeneratingGlassReport,
     isGeneratingPdf,
@@ -2757,7 +2761,8 @@ const handleDuplicateProgress = useCallback(
           if (isCombinationItem) {
             const combinationSubItems = Array.isArray(duplicate.subItems) ? duplicate.subItems : [];
             if (combinationSubItems.length) {
-              const rateInputs = combinationSubItems.map((subItem) => ({
+              const rateInputs = combinationSubItems.map((subItem, sectionIndex) => ({
+                combinationContext: { layout: duplicate.configuratorLayout, joins: duplicate.joins || [], sectionId: subItem.id, sectionIndex },
                 clientId: subItem.id,
                 systemType: subItem.systemType || "",
                 series: subItem.series || "",
@@ -3499,6 +3504,41 @@ const handleDuplicateProgress = useCallback(
       setIsGeneratingBom(false);
     }
   };
+  const exportOptimization = async () => {
+    try {
+      setIsGeneratingOptimization(true);
+      const savedQuotation = await getPersistedQuotation();
+      const pdfQuotationId =
+        savedQuotation?._id ??
+        quotationWithGlobalConfig._id ??
+        savedQuotation?.quotationDetails.id ??
+        quotationWithGlobalConfig.quotationDetails.id;
+      if (!pdfQuotationId) {
+        throw new Error("Failed to resolve quotation id before Optimization Report generation.");
+      }
+      const blob = await getOptimizationPdfBlob(pdfQuotationId);
+      const nextPdfPreviewUrl = URL.createObjectURL(blob);
+      const quoteNo =
+        savedQuotation?.generatedId ||
+        savedQuotation?.quotationDetails.id ||
+        quotationWithGlobalConfig.generatedId ||
+        quotationWithGlobalConfig.quotationDetails.id ||
+        "quotation";
+      setPdfPreviewTitle("Optimization Report PDF Preview");
+      setPdfDownloadName(`${quoteNo}-optimization.pdf`);
+      setPdfDirectDownloadUrl(null);
+      setPdfPreviewUrl((currentUrl) => {
+        if (currentUrl?.startsWith("blob:")) URL.revokeObjectURL(currentUrl);
+        return nextPdfPreviewUrl;
+      });
+      setIsPdfPreviewOpen(true);
+    } catch (error) {
+      console.error("Failed to export Optimization Report PDF", error);
+      alert("Failed to generate Optimization Report.");
+    } finally {
+      setIsGeneratingOptimization(false);
+    }
+  };
   const exportGlassReport = async () => {
     try {
       setIsGeneratingGlassReport(true);
@@ -3558,7 +3598,8 @@ const handleDuplicateProgress = useCallback(
   const isAnyExportInProgress =
     isGeneratingPdf ||
     isGeneratingCuttingSchedule ||
-    isGeneratingBom ||
+    isGeneratingOptimization ||
+      isGeneratingBom ||
     isGeneratingGlassReport ||
     isGeneratingElevation ||
     isGeneratingExcel ||
@@ -3713,7 +3754,7 @@ const handleDuplicateProgress = useCallback(
             onClick={() => setIsExportModalOpen(false)}
           >
             <div
-              className="w-full max-w-4xl rounded-[24px] bg-white p-8 shadow-2xl"
+              className="max-h-[calc(100dvh-2rem)] w-full max-w-4xl overflow-y-auto rounded-[24px] bg-white p-4 sm:p-8 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
@@ -3760,6 +3801,24 @@ const handleDuplicateProgress = useCallback(
                             ? "Preparation failed — retry on open"
                             : "Main pricing document"}
                     </div>
+                  </div>
+                </button>
+
+                {/* Optimization report */}
+                <button
+                  onClick={() => {
+                    setActiveExport("optimization");
+                    exportOptimization();
+                  }}
+                  disabled={isSaveBlockingExports || isAnyExportInProgress}
+                  className="flex w-full flex-col items-start gap-3 rounded-[20px] border border-slate-200 bg-white p-6 min-h-[160px] justify-between shadow-sm transition hover:border-violet-200 hover:bg-violet-50 disabled:opacity-50 group"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-50 text-violet-600 group-hover:bg-violet-100 transition-colors">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>
+                  </div>
+                  <div className="text-left mt-2">
+                    <div className="text-lg font-bold text-slate-900">{isGeneratingOptimization ? "Generating..." : "Optimization Report"}</div>
+                    <div className="mt-0.5 text-xs font-medium text-slate-500">Profile usage and wastage by Ref Code</div>
                   </div>
                 </button>
 
