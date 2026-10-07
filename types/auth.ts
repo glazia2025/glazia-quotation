@@ -16,6 +16,7 @@ export interface Organization {
 }
 
 export interface User {
+  access?: import('./business-access').BusinessAccess;
   id: string;
   name: string;
   email: string;

@@ -84,6 +84,7 @@ export function AppSidebar({
         </button>
       </div>
       <nav className="mt-8 space-y-2">
+        {user?.access?.isOwner && <Link href="/settings/team" className="block rounded-lg px-3 py-2 text-sm font-medium">{collapsed ? 'Team' : 'Business members'}</Link>}
         {navItems.map((item) => {
           const active = pathname.startsWith(item.matchHref ?? item.href);
           return (

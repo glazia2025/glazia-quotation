@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { QUOTATION_API_BASE_URL } from "@/services/api";
@@ -25,13 +25,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const setSession = useAuthStore((state) => state.setSession);
   const logout = useAuthStore((state) => state.logout);
   const [bootstrapping, setBootstrapping] = useState(false);
-  const checkedTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     const cookieToken = token || getAuthToken();
 
-    if (!hydrated || !cookieToken || checkedTokenRef.current === cookieToken) return;
-    checkedTokenRef.current = cookieToken;
+    if (!hydrated || !cookieToken) return;
 
     let cancelled = false;
     setBootstrapping(true);
@@ -52,11 +50,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
         if (!currentUser || cancelled) throw new Error("User session is unavailable");
 
-        if (!user) setSession({
+        setSession({
           token: cookieToken,
           user: {
+            access: currentUser.access,
             id: String(currentUser._id || currentUser.id || "usr-1"),
-            name: currentUser.userName || currentUser.name || "Glazia User",
+            name: currentUser.access?.name || currentUser.userName || currentUser.name || "Glazia User",
             email: currentUser.email || "",
             role: "sales_manager",
             avatarFallback: (currentUser.userName || currentUser.name || "GU").slice(0, 2).toUpperCase(),
@@ -72,13 +71,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         }
       })
       .finally(() => {
-          setBootstrapping(false);
+          if (!cancelled) setBootstrapping(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [hydrated, logout, router, setSession, token, user]);
+  }, [hydrated, logout, router, setSession, token, pathname]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -89,7 +88,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [hydrated, pathname, router, token]);
 
   if (!hydrated) return null;
-  if (bootstrapping) return null;
+  if (bootstrapping || !user?.access) return null;
   if (!token && !getAuthToken()) return null;
   return <>{children}</>;
 }

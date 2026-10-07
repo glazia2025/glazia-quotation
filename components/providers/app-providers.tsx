@@ -18,6 +18,10 @@ export function AppProviders({ children }: PropsWithChildren) {
       })
   );
 
+  useEffect(() => useAuthStore.subscribe((state, previous) => {
+    if (JSON.stringify(state.user?.access) !== JSON.stringify(previous.user?.access)) queryClient.clear();
+  }), [queryClient]);
+
   useEffect(() => {
     const persistApi = useAuthStore.persist;
 

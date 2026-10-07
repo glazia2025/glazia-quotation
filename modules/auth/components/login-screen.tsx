@@ -141,6 +141,7 @@ export function LoginScreen() {
         userExists?: boolean;
         token?: string;
         existingUser?: {
+          access?: import('@/types/business-access').BusinessAccess;
           _id?: string;
           id?: string;
           userName?: string;
@@ -169,6 +170,7 @@ export function LoginScreen() {
           setAuthToken(authToken);
         }
         const userData = {
+          access: existingUser.access,
           id: existingUser._id || existingUser.id,
           name: existingUser.userName || existingUser.name,
           email: existingUser.email || "",
@@ -192,8 +194,9 @@ export function LoginScreen() {
         setSession({
           token: authToken ?? getAuthToken() ?? "",
           user: {
+            access: existingUser.access,
             id: String(existingUser._id || existingUser.id || "usr-1"),
-            name: existingUser.userName || existingUser.name || "Glazia User",
+            name: existingUser.access?.name || existingUser.userName || existingUser.name || "Glazia User",
             email: existingUser.email || "",
             role: "sales_manager",
             avatarFallback: (existingUser.userName || existingUser.name || "GU").slice(0, 2).toUpperCase(),

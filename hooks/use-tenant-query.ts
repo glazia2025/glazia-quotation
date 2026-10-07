@@ -9,12 +9,13 @@ export function useTenantQuery<TQueryFnData, TError = Error>(
   }
 ) {
   const organization = useAuthStore((state) => state.organization);
+  const access = useAuthStore((state) => state.user?.access);
   const token = useAuthStore((state) => state.token);
   const hydrated = useAuthStore((state) => state.hydrated);
 
   return useQuery({
     ...options,
-    queryKey: organization ? [...options.queryKey, organization.id] : options.queryKey,
+    queryKey: [...options.queryKey, organization?.id || '', access?.actorId || '', JSON.stringify(access?.permissions || {})],
     enabled: hydrated && Boolean(token) && (options.enabled ?? true)
   });
 }

@@ -8,6 +8,7 @@ import { StatCard } from "@/components/shared/stat-card";
 import { useTenantQuery } from "@/hooks/use-tenant-query";
 import { getDashboardMetrics } from "@/services/dashboard-service";
 import { PageShell } from "@/components/shared/page-shell";
+import { getAuthToken } from '@/utils/auth-cookie';
 import { QUOTATION_API_BASE_URL } from "@/services/api";
 import Link from "next/link";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -54,7 +55,7 @@ const { data: chartApiData, isLoading: isChartLoading } = useTenantQuery({
   enabled: !!userId,
   queryFn: async () => {
     const res = await fetch(
-      `${QUOTATION_API_BASE_URL}/api/quotations/chart/${userId}?year=${year}`
+      `${QUOTATION_API_BASE_URL}/api/quotations/chart/${userId}?year=${year}`, { headers: { Authorization: `Bearer ${getAuthToken()}` } }
     );
     return res.json();
   }
@@ -65,7 +66,7 @@ const { data: salesPerMonth, isLoading: isSalesLoading } = useTenantQuery({
   enabled: !!userId,
   queryFn: async () => {
     const res = await fetch(
-      `${QUOTATION_API_BASE_URL}/api/quotations/sales-per-month/${userId}?year=${year}`
+      `${QUOTATION_API_BASE_URL}/api/quotations/sales-per-month/${userId}?year=${year}`, { headers: { Authorization: `Bearer ${getAuthToken()}` } }
     );
     return res.json();
   }
@@ -154,7 +155,7 @@ const { data: stats, isLoading: isStatsLoading } = useTenantQuery({
   enabled: !!userId,
   queryFn: async () => {
     const res = await fetch(
-      `${QUOTATION_API_BASE_URL}/api/quotations/stats/${userId}?year=${year}`
+      `${QUOTATION_API_BASE_URL}/api/quotations/stats/${userId}?year=${year}`, { headers: { Authorization: `Bearer ${getAuthToken()}` } }
     );
     return res.json();
   }
