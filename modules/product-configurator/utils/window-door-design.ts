@@ -2034,6 +2034,9 @@ export function renderWindowDoorDesign({
         const drawPanels = (fractions: number[], sashTypes?: SashType[], meshCount = 0) => {
           const isPanelizedSliding = isSlidingSystem || fractions.length > 1;
           const panelSashes = isPanelizedSliding ? (leaf.panelSashes && leaf.panelSashes.length === fractions.length ? leaf.panelSashes : buildDefaultSlidingPanelSashes(fractions.length)) : [];
+          const isThreeTrackFourPanelTwoMesh = /^3\s*Track\s+4\s*(?:Glass|Panel)\b.*\b2\s*Mesh\b/i.test(desc);
+          const meshStart = Math.max(0, fractions.length - meshCount - (isThreeTrackFourPanelTwoMesh ? 1 : 0));
+          const meshEnd = Math.min(fractions.length, meshStart + meshCount);
           let cursor = innerX;
           const splitLineWidth = PROFILE.mullion; // 7.5px (between half [5px] and frame width [10px])
           let selectedPanelRect: { x: number; y: number; w: number; height: number } | null = null;
@@ -2067,7 +2070,7 @@ export function renderWindowDoorDesign({
                 };
               }
             }
-            if (meshCount > 0 && idx >= fractions.length - meshCount) drawMeshTriangle(g, cursor + pw - 6, innerY + innerH - 6, Math.min(pw, innerH) * 0.5);
+            if (meshCount > 0 && idx >= meshStart && idx < meshEnd) drawMeshTriangle(g, cursor + pw - 6, innerY + innerH - 6, Math.min(pw, innerH) * 0.5);
             cursor += pw;
           });
           // Draw split line meeting stiles AFTER all panels are rendered so no semi-transparent glass overlaps them
